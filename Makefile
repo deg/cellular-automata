@@ -59,7 +59,7 @@ fmt-check: ## Fail if any code is not formatted
 slow: ## Slow checks the READMEs rely on, e.g. Life's gun wrecked at 6,390 (release build)
 	cargo test --workspace --release -- --ignored --skip timing
 
-timing: ## Time 100,000- and 1,000,000-grain sandpiles (takes about 2 minutes)
+timing: ## Time 100,000- and 1,000,000-grain sandpiles (a few seconds)
 	cargo test --release -p sandpile timing -- --ignored --nocapture
 
 ##@ Toolchain

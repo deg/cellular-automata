@@ -197,6 +197,11 @@ make siblings               # before/after a Rust update: build+test David's oth
   citations), things to try in the demo, and further reading. `main.rs` passes it to
   `ca_core::About` with `include_str!`, so the same text is shown inside the app.
 - Check facts and citations in a README before writing them; don't fill gaps from memory.
+- `.cargo/config.toml` turns on WebAssembly SIMD for the browser builds; the sandpile's
+  16-bit Jacobi stage (`sandpile/src/jacobi.rs`) relies on it to be fast there.
+- The sandpile has three sweeps (plain, symmetric octant, 16-bit Jacobi on a quarter).
+  Any change to them must keep the `without_symmetry()` equivalence tests in
+  `sandpile/src/sim.rs` passing: they compare the fast paths with the plain sweep exactly.
 - Test a demo's simulation by behaviour with known answers where possible: famous
   patterns doing what they are known to do (the diehard dying at 130), hand traces of the
   first steps, or mathematical identities (Rule 90 against Pascal's triangle mod 2).

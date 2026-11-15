@@ -197,7 +197,7 @@ impl SandpileApp {
             ui.label("grains at the centre");
         });
         ui.small(
-            "On an empty, growing pile a drop at the centre settles fast: 1,000,000 grains in seconds at high speed. \
+            "On an empty, growing pile a drop at the centre settles fast: 1,000,000 grains in about 3 seconds natively at high speed, longer in a browser. \
              Once grains land off the centre, or on a hex grid, big piles take far longer. \
              Click the grid to drop a drip's worth of grains there.",
         );
@@ -277,7 +277,8 @@ impl SandpileApp {
             self.pile = new_pile(self.boundary, self.neighbours);
             self.dirty = true;
         }
-        let sweeps = match self.playback.advance() {
+        let side = self.pile.grid().width();
+        let toppled = match self.playback.advance() {
             Advance::Idle => return,
             Advance::Step => {
                 // A settled pile has nothing to topple, so a Step drips first, whether or
@@ -285,21 +286,20 @@ impl SandpileApp {
                 if self.pile.is_stable() {
                     self.drip_once();
                 }
-                1
+                self.pile.relax(1)
             }
             Advance::Run(thousand_cells) => {
                 if self.drip && self.pile.is_stable() {
                     self.drip_once();
                 }
-                // Budget by cells swept, not by sweeps: a sweep costs the pile's whole area,
-                // which grows with the pile, and a fixed sweep count would freeze big piles.
-                (thousand_cells * 1_000 / self.pile.sweep_area().max(1)).max(1)
+                // Budget by cells swept, sweep by sweep: a sweep costs the pile's whole area,
+                // which grows as it relaxes, so a sweep count fixed up front would freeze.
+                self.pile.relax_within(thousand_cells * 1_000)
             }
         };
         // A sweep can grow the grid without toppling anything. The picture must still be
         // redrawn, or clicks would map onto the old, smaller grid and land in the wrong cell.
-        let side = self.pile.grid().width();
-        if self.pile.relax(sweeps) > 0 || self.pile.grid().width() != side {
+        if toppled > 0 || self.pile.grid().width() != side {
             self.dirty = true;
         }
     }

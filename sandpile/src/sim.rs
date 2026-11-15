@@ -407,6 +407,28 @@ impl Sandpile {
         done
     }
 
+    /// Sweep until stable or until the sweeps have visited about `budget` cells, counting
+    /// each sweep at [`Sandpile::sweep_area`] as it stands before that sweep, so the budget
+    /// keeps holding as the pile grows. Always does at least one sweep. Returns the sweeps
+    /// that toppled. This is what keeps a frame short: fixing a sweep count up front, from
+    /// the area of a fresh one-cell pile, let a whole big drop run inside one frame.
+    pub fn relax_within(&mut self, budget: usize) -> usize {
+        let (mut spent, mut done) = (0, 0);
+        loop {
+            let cost = self.sweep_area().max(1);
+            if done > 0 && spent + cost > budget {
+                break;
+            }
+            if !self.sweep_once() {
+                break;
+            }
+            spent += cost;
+            done += 1;
+        }
+        self.sync_mirror();
+        done
+    }
+
     /// Relax until stable. Only for tests and small piles: it can take a long time.
     #[cfg(test)]
     pub fn relax_fully(&mut self) {
@@ -1152,6 +1174,31 @@ mod tests {
             .map(|&(i, j)| mirror_images(i, j).len())
             .collect();
         assert_eq!(counts, vec![1, 4, 4, 8]);
+    }
+
+    /// The UI spends a fixed budget of cell visits per frame. Turning that into a sweep count
+    /// once, from the area before any sweep, fails on a fresh pile: its area is one cell, so
+    /// the whole relaxation would run in one frame and freeze the app. The budget must hold
+    /// as the pile grows, sweep by sweep.
+    #[test]
+    fn a_frame_budget_holds_while_the_pile_grows() {
+        let budget = 2_000_000;
+        let mut pile = Sandpile::new(101, &ORTHOGONAL, Boundary::Grow);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, 100_000);
+        let naive = budget / pile.sweep_area().max(1);
+        assert!(naive >= 1_000_000, "the old way allowed {naive} sweeps");
+        pile.relax_within(budget);
+        assert!(
+            !pile.is_stable(),
+            "one frame's budget must not settle 100,000 grains"
+        );
+        let mut frames = 1;
+        while !pile.is_stable() {
+            pile.relax_within(budget);
+            frames += 1;
+        }
+        assert!(frames > 5, "settled in only {frames} frames");
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.
