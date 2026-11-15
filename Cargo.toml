@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ca_core", "sandpile", "life", "elementary"]
+members = ["ca_core", "sandpile", "life", "elementary", "langtons-ant"]
 
 [profile.release]
 opt-level = 3
