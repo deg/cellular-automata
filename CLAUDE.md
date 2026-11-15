@@ -60,18 +60,37 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 ## Build & Test
 
-_Add your build and test commands here_
+All Rust, in one Cargo workspace rooted here. Each demo runs natively or in the browser.
 
 ```bash
-# Example:
-# npm install
-# npm test
+cargo test --workspace                       # all tests, native, no browser
+cargo clippy --workspace --all-targets       # lint; keep it warning-free
+cargo run --release -p sandpile              # a demo in a native window
+cd sandpile && trunk serve --release --open  # the same demo in the browser
 ```
+
+- Use `--release` for anything but small grids: debug builds simulate far slower,
+  in wasm even more so.
+- Toolchain: rustc 1.95 with the `wasm32-unknown-unknown` target, and `trunk` 0.21
+  (`cargo install trunk --version '^0.21' --locked`). trunk 0.22 needs rustc 1.96.1 or later.
+- `trunk` downloads `wasm-bindgen` and `wasm-opt` on its first build.
 
 ## Architecture Overview
 
-_Add a brief overview of your project architecture_
+- `ca_core/`: the shared crate, package `ca_core`. Don't name it `core`, which clashes
+  with Rust's built-in crate. It holds `Grid<T>`, `GridView` (draws a grid as one texture
+  and reports the cell under the pointer), `Playback` (run, pause, step and speed), and
+  `run(title, make_app)`, which opens a native window or starts in the page's
+  `<canvas id="the_canvas_id">`. It re-exports `eframe` and `egui`, so demos don't
+  depend on them directly.
+- One directory per automaton, each a binary crate with an `index.html` for trunk:
+  - `main.rs` holds the UI.
+  - `sim.rs` holds the rule, kept free of UI code so it can be tested natively.
+- The UI is egui/eframe 0.37, with the `glow` backend. In 0.37, `App::ui` takes a
+  `&mut Ui` (not `update(ctx)`), and panels are `egui::Panel::left(id).show(ui, ..)`.
+  Code from memory or older examples uses the old API.
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+- Keep the simulation in `sim.rs`, separate from the UI, and test its invariants there.
+- Move code into `ca_core` only once a second demo needs it.

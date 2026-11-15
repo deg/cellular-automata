@@ -1,0 +1,13 @@
+[workspace]
+resolver = "3"
+members = ["ca_core", "sandpile"]
+
+[profile.release]
+opt-level = 3
+
+# Debug builds of the simulation are very slow; optimise dependencies and our code a bit even in dev.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

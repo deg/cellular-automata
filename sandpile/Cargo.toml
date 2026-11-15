@@ -1,0 +1,8 @@
+[package]
+name = "sandpile"
+version = "0.1.0"
+edition = "2024"
+description = "Abelian sandpile: grains dropped at the centre topple into a fractal"
+
+[dependencies]
+ca_core = { path = "../ca_core" }
