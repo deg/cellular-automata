@@ -6,7 +6,7 @@
 //! is B3/S23: born with exactly 3 neighbours, survives with 2 or 3.
 
 use crate::rle::Shape;
-use ca_core::Grid;
+use ca_core::{Grid, moore_counts};
 
 /// A Life-like rule: which neighbour counts (0 to 8) cause birth, and which survival.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,7 +69,8 @@ impl std::fmt::Display for Rule {
 /// comes back on the other) or are surrounded by permanently dead cells.
 pub struct Life {
     grid: Grid<bool>,
-    next: Grid<bool>,
+    /// Each cell's live-neighbour count, reused every generation.
+    counts: Vec<u8>,
     pub rule: Rule,
     pub wrap: bool,
     pub generation: u64,
@@ -79,7 +80,7 @@ impl Life {
     pub fn new(width: usize, height: usize, rule: Rule, wrap: bool) -> Self {
         Self {
             grid: Grid::new(width, height, false),
-            next: Grid::new(width, height, false),
+            counts: Vec::new(),
             rule,
             wrap,
             generation: 0,
@@ -122,41 +123,10 @@ impl Life {
 
     /// Advance one generation: every cell updates at once from the previous generation.
     pub fn step(&mut self) {
-        let (w, h) = (self.grid.width(), self.grid.height());
-        let cells = self.grid.cells();
-        // Neighbouring rows and columns of each row and column, or None past a dead edge.
-        let around = |i: usize, n: usize| -> [Option<usize>; 3] {
-            let before = if i > 0 {
-                Some(i - 1)
-            } else {
-                self.wrap.then_some(n - 1)
-            };
-            let after = if i + 1 < n {
-                Some(i + 1)
-            } else {
-                self.wrap.then_some(0)
-            };
-            [before, Some(i), after]
-        };
-        let columns: Vec<_> = (0..w).map(|x| around(x, w)).collect();
-        let out = self.next.cells_mut();
-        for y in 0..h {
-            let rows = around(y, h);
-            for x in 0..w {
-                let mut count = 0;
-                for (ri, row) in rows.iter().enumerate() {
-                    let Some(row) = row else { continue };
-                    for (ci, col) in columns[x].iter().enumerate() {
-                        let Some(col) = col else { continue };
-                        if (ri, ci) != (1, 1) && cells[row * w + col] {
-                            count += 1;
-                        }
-                    }
-                }
-                out[y * w + x] = self.rule.next(cells[y * w + x], count);
-            }
+        moore_counts(&self.grid, self.wrap, |alive| alive, &mut self.counts);
+        for (i, cell) in self.grid.cells_mut().iter_mut().enumerate() {
+            *cell = self.rule.next(*cell, self.counts[i] as usize);
         }
-        std::mem::swap(&mut self.grid, &mut self.next);
         self.generation += 1;
     }
 }

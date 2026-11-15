@@ -1,0 +1,8 @@
+[package]
+name = "brians-brain"
+version = "0.1.0"
+edition = "2024"
+description = "Cells fire, rest and recover like neurons; almost every pattern sets off moving."
+
+[dependencies]
+ca_core = { path = "../ca_core" }

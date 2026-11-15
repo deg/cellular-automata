@@ -7,6 +7,7 @@
 //! - [`Pace`]: steps per second to steps per frame, for automata watched slowly.
 //! - [`Rng`]: a small seeded random generator, for random fills.
 //! - [`line`]: the cells on a straight line, so drag-painting leaves no gaps.
+//! - [`moore_counts`]: each cell's count of neighbours in some state, edges handled once.
 //! - [`run`]: the entry point, which opens a native window or starts in the browser.
 //!
 //! `eframe` and `egui` are re-exported so every demo uses the same version.
@@ -14,6 +15,7 @@
 mod about;
 mod app;
 mod grid;
+mod neighbours;
 mod pace;
 mod playback;
 mod rng;
@@ -24,6 +26,7 @@ pub use app::run;
 pub use eframe;
 pub use eframe::egui;
 pub use grid::{Grid, line};
+pub use neighbours::moore_counts;
 pub use pace::Pace;
 pub use playback::{Advance, Playback};
 pub use rng::Rng;
