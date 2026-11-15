@@ -93,8 +93,13 @@ pub struct Sandpile {
 }
 
 impl Sandpile {
-    /// An empty `side` x `side` pile. Make `side` odd so the grid has a true centre cell.
+    /// An empty `side` x `side` pile.
+    ///
+    /// `side` must be odd, so the grid has a true centre cell and growing it lands exactly on
+    /// [`MAX_SIDE`] (also odd). An even side would stop growing one short of `MAX_SIDE` and
+    /// never start draining, so grains would collect unseen in the frame.
     pub fn new(side: usize, offsets: &[(isize, isize)], boundary: Boundary) -> Self {
+        assert!(side % 2 == 1, "a sandpile's side must be odd, not {side}");
         assert!(
             !offsets.is_empty(),
             "a sandpile needs at least one neighbour"
@@ -155,9 +160,21 @@ impl Sandpile {
         })
     }
 
+    /// Whether `n` more grains fit: the pile holds at most `u32::MAX` grains in all.
+    ///
+    /// Bounding the total, not each cell, is what keeps the counts safe: no cell can ever
+    /// hold more than the whole pile, so no toppling in [`Sandpile::sweep`] can overflow.
+    pub fn can_add(&self, n: u32) -> bool {
+        self.grains + u64::from(n) <= u64::from(u32::MAX)
+    }
+
     /// Drop `n` grains on cell `(x, y)`. They topple only when [`Sandpile::sweep`] runs.
     /// A drop on the frame grows the grid first, or is lost over a sink edge.
-    pub fn add(&mut self, mut x: usize, mut y: usize, n: u32) {
+    /// Does nothing, and returns false, if the grains don't fit (see [`Sandpile::can_add`]).
+    pub fn add(&mut self, mut x: usize, mut y: usize, n: u32) -> bool {
+        if !self.can_add(n) {
+            return false;
+        }
         if self.in_frame(x, y) {
             let grown = if self.boundary == Boundary::Grow {
                 self.grow()
@@ -166,21 +183,20 @@ impl Sandpile {
             };
             let Some(margin) = grown else {
                 self.lost += u64::from(n);
-                return;
+                return true;
             };
             x += margin;
             y += margin;
         }
         let i = self.grid.index_of(x, y);
-        self.grid[i] = self.grid[i]
-            .checked_add(n)
-            .expect("too many grains on one cell");
+        self.grid[i] += n; // can't overflow: see `can_add`
         self.grains += u64::from(n);
         match &mut self.occupied {
             Some(b) => b.include(x, y),
             None => self.occupied = Some(Bounds::cell(x, y)),
         }
         self.settled = false;
+        true
     }
 
     /// Topple every unstable cell once, in raster order. Grains passed forward in the
@@ -337,6 +353,8 @@ mod tests {
         pile.grid().cells().iter().map(|&h| u64::from(h)).sum()
     }
 
+    /// The smallest avalanche, checked by hand: four grains on one cell topple once, leaving
+    /// it empty and one grain on each neighbour. Catches wrong neighbour offsets or deltas.
     #[test]
     fn four_grains_make_a_plus() {
         let pile = centred_pile(4, Boundary::Sink, 5);
@@ -349,6 +367,9 @@ mod tests {
         assert_eq!(sum(&pile), 4);
     }
 
+    /// With a growing edge no grain may ever be lost, and relaxing must end with every cell
+    /// below the threshold. Starting from a 3-cell grid forces several growths mid-relax,
+    /// which is where a bad index shift would lose or duplicate grains.
     #[test]
     fn growing_pile_conserves_grains_and_settles() {
         let n = 20_000;
@@ -361,6 +382,9 @@ mod tests {
         assert!(pile.grid().cells().iter().all(|&h| h < pile.threshold()));
     }
 
+    /// The rule treats all four directions alike, so a centred drop must give a pile with
+    /// the square's mirror and diagonal symmetry. A raster sweep favours no direction in its
+    /// final result only if the abelian property truly holds in our implementation.
     #[test]
     fn centred_pile_has_the_symmetry_of_the_square() {
         let pile = centred_pile(10_000, Boundary::Grow, 3);
@@ -375,6 +399,8 @@ mod tests {
         }
     }
 
+    /// The abelian property, on which the fast sweep depends: settling after every grain must
+    /// give exactly the same pile as dropping them all and settling once.
     #[test]
     fn toppling_order_does_not_matter() {
         // One grain at a time, settling after each, against all grains at once.
@@ -393,6 +419,8 @@ mod tests {
         assert_eq!(all_at_once.grid(), one_by_one.grid());
     }
 
+    /// On a grid with no room to topple, a sink edge must swallow every grain and the
+    /// counters must say so; the grid must not grow.
     #[test]
     fn sink_edge_loses_grains() {
         let pile = centred_pile(100, Boundary::Sink, 3);
@@ -402,6 +430,8 @@ mod tests {
         assert_eq!(pile.grid().width(), 3);
     }
 
+    /// With a sink edge, grains on the grid plus grains lost must equal grains dropped, and
+    /// `grains` must agree with the grid. Catches the frame drain double- or under-counting.
     #[test]
     fn sink_pile_accounts_for_every_grain() {
         let n = 5_000;
@@ -412,6 +442,8 @@ mod tests {
         assert!(pile.grid().cells().iter().all(|&h| h < pile.threshold()));
     }
 
+    /// The UI spreads relaxation across frames by capping sweeps per call; if `relax` ignored
+    /// its limit, a big drop would freeze the window until the pile settled.
     #[test]
     fn relax_stops_at_the_sweep_limit() {
         let mut pile = Sandpile::new(101, &ORTHOGONAL, Boundary::Sink);
@@ -421,6 +453,95 @@ mod tests {
         assert!(!pile.is_stable());
     }
 
+    /// A click on the outermost cells (the frame) of a growing pile must grow the grid and
+    /// land the grain on the same spot, now `margin` cells further in. An off-by-one there
+    /// would drop the grain beside the cell clicked, or back into the frame.
+    #[test]
+    fn grow_pile_takes_a_drop_on_its_frame() {
+        let mut pile = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow);
+        assert!(pile.add(0, 0, 1));
+        let margin = (pile.grid().width() - 3) / 2;
+        assert!(margin > 0, "the grid should have grown");
+        assert_eq!(pile.grid().get(margin, margin), 1);
+        assert_eq!((pile.grains, pile.lost), (1, 0));
+    }
+
+    /// On a sink pile, a drop on the frame has already fallen off: it must count as lost and
+    /// never reach the grid, where nothing would ever topple it.
+    #[test]
+    fn sink_pile_loses_a_drop_on_its_frame() {
+        let mut pile = Sandpile::new(5, &ORTHOGONAL, Boundary::Sink);
+        assert!(pile.add(0, 2, 7));
+        assert_eq!((pile.grains, pile.lost), (0, 7));
+        assert_eq!(sum(&pile), 0);
+    }
+
+    /// The pile refuses grains past `u32::MAX` in total, and that bound is enough: even with
+    /// every grain on one cell, relaxing must not overflow any cell (which would wrap
+    /// silently in a release build) and must account for every grain.
+    #[test]
+    fn total_grains_are_capped_and_relaxing_a_full_pile_is_safe() {
+        let mut pile = Sandpile::new(9, &ORTHOGONAL, Boundary::Sink);
+        let (cx, cy) = pile.center();
+        assert!(pile.add(cx, cy, u32::MAX));
+        assert!(!pile.can_add(1));
+        assert!(!pile.add(cx, cy, 1), "a full pile must refuse more grains");
+        assert_eq!(pile.grains, u64::from(u32::MAX));
+        pile.relax_fully();
+        assert_eq!(pile.lost + sum(&pile), u64::from(u32::MAX));
+    }
+
+    /// The per-frame work budget divides by `sweep_area`, so it must be 0 for an empty pile
+    /// and grow to cover the cells the pile spreads into.
+    #[test]
+    fn sweep_area_tracks_the_occupied_box() {
+        let mut pile = Sandpile::new(21, &ORTHOGONAL, Boundary::Sink);
+        assert_eq!(pile.sweep_area(), 0);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, 4);
+        assert_eq!(pile.sweep_area(), 1);
+        pile.relax_fully();
+        assert_eq!(pile.sweep_area(), 9, "one toppling reaches a 3 x 3 box");
+    }
+
+    /// `sweep` skips all work once settled; a new grain must wake it, or drips and clicks
+    /// on a settled pile would never topple.
+    #[test]
+    fn a_grain_on_a_settled_pile_wakes_it() {
+        let mut pile = Sandpile::new(21, &ORTHOGONAL, Boundary::Sink);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, 3);
+        pile.relax_fully();
+        assert!(pile.is_stable());
+        pile.add(cx, cy, 1);
+        assert!(!pile.is_stable());
+        assert!(pile.sweep(), "the fourth grain must topple");
+        assert_eq!(pile.grid().get(cx, cy), 0);
+    }
+
+    /// A sweep can grow the grid and topple nothing; the UI redraws on a size change as well
+    /// as on topplings because of exactly this case. If it ever stops being possible, the
+    /// extra check in the UI is dead code; if it is ignored, the picture goes stale and clicks
+    /// land in the wrong cell.
+    #[test]
+    fn a_sweep_can_grow_the_grid_without_toppling() {
+        let mut pile = Sandpile::new(101, &ORTHOGONAL, Boundary::Grow);
+        pile.add(1, 50, 1);
+        assert!(!pile.sweep(), "one grain cannot topple");
+        assert!(
+            pile.grid().width() > 101,
+            "a grain next to the frame should grow the grid"
+        );
+    }
+
+    /// An even side would stop growing at 4000 without ever draining, so it is refused.
+    #[test]
+    #[should_panic(expected = "must be odd")]
+    fn an_even_side_is_refused() {
+        Sandpile::new(100, &ORTHOGONAL, Boundary::Grow);
+    }
+
+    /// Not a check: prints how long big piles take, to compare relaxation strategies.
     #[test]
     #[ignore = "timing: run with --release -- --ignored --nocapture"]
     fn timing() {

@@ -16,8 +16,12 @@ pub struct GridResponse {
     pub response: egui::Response,
     /// The cell under the pointer, if any.
     pub hovered: Option<(usize, usize)>,
-    /// The cell under the pointer when it was pressed or dragged this frame.
+    /// The cell under the pointer on every frame the button is held down, for painting
+    /// by dragging. A single click usually spans several frames, so it reports several times.
     pub pressed: Option<(usize, usize)>,
+    /// The cell clicked this frame, reported once per click (on release, and not after a
+    /// drag). Use this, not `pressed`, when a click means "do one thing here".
+    pub clicked: Option<(usize, usize)>,
 }
 
 impl GridView {
@@ -52,6 +56,7 @@ impl GridView {
                 response,
                 hovered: None,
                 pressed: None,
+                clicked: None,
             };
         };
 
@@ -76,10 +81,20 @@ impl GridView {
         } else {
             None
         };
+        // Touch input has no hover position, so fall back to it only after the press position.
+        let clicked = if response.clicked() {
+            response
+                .interact_pointer_pos()
+                .or(response.hover_pos())
+                .and_then(cell_at)
+        } else {
+            None
+        };
         GridResponse {
             response,
             hovered,
             pressed,
+            clicked,
         }
     }
 }

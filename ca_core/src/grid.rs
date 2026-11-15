@@ -95,6 +95,9 @@ impl<T> IndexMut<usize> for Grid<T> {
 mod tests {
     use super::*;
 
+    /// `offset` is how callers find neighbours safely. It must refuse to step off any of the
+    /// four edges, including the low edges, where a careless `usize` subtraction would wrap
+    /// to a huge index instead of failing.
     #[test]
     fn offset_stays_in_bounds() {
         let g = Grid::new(3, 2, 0u8);
@@ -104,6 +107,8 @@ mod tests {
         assert_eq!(g.offset(1, 0, 1, 1), Some((2, 1)));
     }
 
+    /// Growing a sandpile's grid relies on `padded` putting every cell exactly `margin`
+    /// cells right and down, with nothing lost. A row-copy off by one would shear the pile.
     #[test]
     fn padded_keeps_contents_centred() {
         let mut g = Grid::new(2, 1, 0u8);

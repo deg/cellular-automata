@@ -19,5 +19,5 @@ pub use app::run;
 pub use eframe;
 pub use eframe::egui;
 pub use grid::Grid;
-pub use playback::Playback;
+pub use playback::{Advance, Playback};
 pub use view::{GridResponse, GridView};

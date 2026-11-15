@@ -3,8 +3,8 @@ use crate::egui;
 /// Run / pause / step / restart controls shared by every demo.
 ///
 /// Each frame, call [`Playback::ui`] to draw the buttons, then [`Playback::take_restart`]
-/// and [`Playback::steps_this_frame`] to learn what to do. What a step and the speed count
-/// is up to the demo.
+/// and [`Playback::advance`] to learn what to do. What a step and the speed count is up to
+/// the demo.
 pub struct Playback {
     pub running: bool,
     /// How much to advance per frame while running, counted in `unit`.
@@ -56,46 +56,58 @@ impl Playback {
         std::mem::take(&mut self.restart_requested)
     }
 
-    /// Whether this frame's steps came from a Step click rather than from running.
-    pub fn is_single_step(&self) -> bool {
-        !self.running && self.step_requested
-    }
-
-    /// Steps to take this frame: `speed` while running, 1 after a Step click, else 0.
-    pub fn steps_this_frame(&mut self) -> usize {
+    /// What to do this frame. A Step click is reported once, then forgotten.
+    ///
+    /// One value rather than separate queries, so a demo can't ask "was that a step?" after
+    /// the step has already been consumed.
+    pub fn advance(&mut self) -> Advance {
         if self.running {
-            self.speed
+            Advance::Run(self.speed)
         } else if std::mem::take(&mut self.step_requested) {
-            1
+            Advance::Step
         } else {
-            0
+            Advance::Idle
         }
     }
+}
+
+/// What a demo should do this frame, from [`Playback::advance`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Advance {
+    /// Paused, and Step was not clicked.
+    Idle,
+    /// Paused, and Step was clicked: advance by one step.
+    Step,
+    /// Running: advance by this much, counted in the playback's `unit`.
+    Run(usize),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A Step click must advance exactly once. If it were not consumed, a single click would
+    /// keep stepping every frame, making Step behave like Run.
     #[test]
-    fn step_gives_one_step_once() {
+    fn step_is_reported_once() {
         let mut p = Playback::new(10, 100, "steps");
-        assert_eq!(p.steps_this_frame(), 0);
+        assert_eq!(p.advance(), Advance::Idle);
         p.step_requested = true;
-        assert!(p.is_single_step());
-        assert_eq!(p.steps_this_frame(), 1);
-        assert!(!p.is_single_step());
-        assert_eq!(p.steps_this_frame(), 0);
+        assert_eq!(p.advance(), Advance::Step);
+        assert_eq!(p.advance(), Advance::Idle);
     }
 
+    /// While running, a demo advances by the speed slider's value each frame; the demo's
+    /// per-frame work budget comes from here.
     #[test]
-    fn running_gives_speed_steps() {
+    fn running_advances_by_speed() {
         let mut p = Playback::new(10, 100, "steps");
         p.running = true;
-        assert!(!p.is_single_step());
-        assert_eq!(p.steps_this_frame(), 10);
+        assert_eq!(p.advance(), Advance::Run(10));
     }
 
+    /// Restart is a one-shot request that leaves Run/Pause alone, so a demo that is running
+    /// keeps running on its fresh grid (David's drip workflow), and a restart is not repeated.
     #[test]
     fn restart_is_reported_once_and_keeps_running() {
         let mut p = Playback::new(10, 100, "steps");

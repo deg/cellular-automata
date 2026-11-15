@@ -72,13 +72,15 @@ them all at once.
   and press Run. Toppling cells flash white. Most grains do nothing; now and then one sets
   off an avalanche across the pile.
 - **Step through one.** Pause, then press Step repeatedly. On a settled pile, Step drips
-  one grain; while an avalanche is running, each Step is one sweep across the pile.
+  first (one grain, unless you raise *grains per drip*); while an avalanche is running, each Step is one sweep across the pile.
 - **Grow the fractal.** Restart and Drop 100,000 grains (a second or two). Then try
   1,000,000, which takes a couple of minutes. The pattern keeps the same character, finer
   and finer.
 - **Sink edge.** Choose *grains fall off* and Restart. Grains now escape at the edge of a
   small grid, which is the setting of the original 1987 paper and of the sandpile group.
-- **Two sources.** Click the grid to drop grains anywhere, then watch two piles meet.
+- **Two sources.** Each click on the grid drops *grains per drip* grains on that cell (one,
+  by default). Set it to 10,000, click a few times away from the centre, and run: watch the
+  two piles meet.
 
 ## Further reading
 
