@@ -139,6 +139,15 @@ impl SandpileApp {
                 self.drip_points.reset_to_centre();
             }
         });
+        if self.drip_points.len() == 0 {
+            ui.small(
+                RichText::new(
+                    "No drip points: Step and Drip do nothing until you shift-click the grid \
+                     or press Centre only.",
+                )
+                .color(Color32::YELLOW),
+            );
+        }
         ui.small(
             "Shift-click the grid to add a drip point, or to remove one. Each drip feeds every \
              point at once, and waits until the last avalanche has stopped.",
