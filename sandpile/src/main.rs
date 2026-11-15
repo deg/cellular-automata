@@ -6,13 +6,15 @@ mod sim;
 use ca_core::egui::{self, Color32, RichText, Stroke};
 use ca_core::{About, Advance, GridView, Playback, eframe};
 use drip::DripPoints;
-use sim::{Boundary, ORTHOGONAL, Sandpile};
+use sim::{Boundary, MOORE, ORTHOGONAL, Sandpile};
 
 fn main() {
     ca_core::run("Abelian sandpile", SandpileApp::new);
 }
 
-/// Colours for heights 0, 1, 2 and 3. A cell at or over the threshold is drawn white.
+/// Colours for heights 0, 1, 2 and 3 of the four-neighbour pile; other thresholds spread
+/// their heights along the same colours (see [`palette`]). A cell at or over the threshold
+/// is drawn white.
 const PALETTE: [Color32; 4] = [
     Color32::from_rgb(0x14, 0x18, 0x30),
     Color32::from_rgb(0x2a, 0x9d, 0x8f),
@@ -33,6 +35,8 @@ struct SandpileApp {
     playback: Playback,
     /// The edge chosen in the panel; it applies from the next Restart.
     boundary: Boundary,
+    /// The neighbourhood chosen in the panel; it applies from the next Restart.
+    neighbours: Neighbours,
     /// Grains added to the centre by the "Drop" button.
     drop_amount: u32,
     /// While running, add `drip_amount` grains to every drip point whenever the pile is
@@ -55,11 +59,12 @@ impl eframe::App for SandpileApp {
         self.advance();
         if self.dirty {
             let threshold = self.pile.threshold();
+            let colours = palette(threshold);
             self.view.set_image(ui.ctx(), self.pile.grid(), |h| {
                 if h >= threshold {
                     UNSTABLE
                 } else {
-                    PALETTE[h as usize % PALETTE.len()]
+                    colours[h as usize]
                 }
             });
             self.dirty = false;
@@ -96,11 +101,12 @@ impl SandpileApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let boundary = Boundary::Grow;
         Self {
-            pile: new_pile(boundary),
+            pile: new_pile(boundary, Neighbours::Four),
             view: GridView::new("sandpile"),
             about: About::new(include_str!("../README.md")),
             playback: Playback::new(2_000, 100_000, "thousand cells / frame"),
             boundary,
+            neighbours: Neighbours::Four,
             drop_amount: 100_000,
             drip: true,
             drip_amount: 1,
@@ -184,7 +190,13 @@ impl SandpileApp {
             ui.radio_value(&mut self.boundary, Boundary::Grow, "grow the grid");
             ui.radio_value(&mut self.boundary, Boundary::Sink, "grains fall off");
         });
-        if self.boundary != self.pile.boundary() {
+        ui.horizontal(|ui| {
+            ui.label("Neighbours:");
+            ui.radio_value(&mut self.neighbours, Neighbours::Four, "4 (topple at 4)");
+            ui.radio_value(&mut self.neighbours, Neighbours::Eight, "8 (topple at 8)");
+        });
+        let pending_neighbours = self.neighbours.offsets().len() as u32 != self.pile.threshold();
+        if self.boundary != self.pile.boundary() || pending_neighbours {
             ui.small("Takes effect on Restart.");
         }
         ui.separator();
@@ -215,7 +227,7 @@ impl SandpileApp {
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
-            for (h, &color) in PALETTE.iter().enumerate() {
+            for (h, &color) in palette(self.pile.threshold()).iter().enumerate() {
                 ui.label(RichText::new("■").color(color));
                 ui.label(h.to_string());
             }
@@ -227,7 +239,7 @@ impl SandpileApp {
     /// Apply this frame's Restart, Step or Run to the pile.
     fn advance(&mut self) {
         if self.playback.take_restart() {
-            self.pile = new_pile(self.boundary);
+            self.pile = new_pile(self.boundary, self.neighbours);
             self.dirty = true;
         }
         let sweeps = match self.playback.advance() {
@@ -284,12 +296,61 @@ impl SandpileApp {
     }
 }
 
-fn new_pile(boundary: Boundary) -> Sandpile {
-    Sandpile::new(START_SIDE, &ORTHOGONAL, boundary)
+fn new_pile(boundary: Boundary, neighbours: Neighbours) -> Sandpile {
+    Sandpile::new(START_SIDE, neighbours.offsets(), boundary)
+}
+
+/// Which cells count as a cell's neighbours, and so how many grains make it topple.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Neighbours {
+    Four,
+    Eight,
+}
+
+impl Neighbours {
+    fn offsets(self) -> &'static [(isize, isize)] {
+        match self {
+            Self::Four => &ORTHOGONAL,
+            Self::Eight => &MOORE,
+        }
+    }
+}
+
+/// One colour per stable height, 0 to `threshold - 1`. Four heights use [`PALETTE`] as it
+/// is; more are spread evenly along it, so 0 is always the darkest and the top the hottest.
+fn palette(threshold: u32) -> Vec<Color32> {
+    let n = threshold as usize;
+    if n == PALETTE.len() {
+        return PALETTE.to_vec();
+    }
+    (0..n)
+        .map(|h| {
+            let pos = h as f32 / (n - 1).max(1) as f32 * (PALETTE.len() - 1) as f32;
+            let lo = pos.floor() as usize;
+            let hi = (lo + 1).min(PALETTE.len() - 1);
+            PALETTE[lo].lerp_to_gamma(PALETTE[hi], pos.fract())
+        })
+        .collect()
 }
 
 fn stat(ui: &mut egui::Ui, name: &str, value: u64) {
     ui.label(name);
     ui.label(value.to_string());
     ui.end_row();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The classic four colours must stay exactly as they were, and a longer palette must
+    /// run from the same darkest colour to the same hottest one with one entry per height,
+    /// or the image lookup `colours[h]` would go out of bounds.
+    #[test]
+    fn palette_has_one_colour_per_height() {
+        assert_eq!(palette(4), PALETTE.to_vec());
+        let eight = palette(8);
+        assert_eq!(eight.len(), 8);
+        assert_eq!((eight[0], eight[7]), (PALETTE[0], PALETTE[3]));
+    }
 }

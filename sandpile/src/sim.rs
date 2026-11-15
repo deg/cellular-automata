@@ -18,6 +18,18 @@ use ca_core::Grid;
 /// The four orthogonal neighbours (von Neumann neighbourhood).
 pub const ORTHOGONAL: [(isize, isize); 4] = [(1, 0), (-1, 0), (0, 1), (0, -1)];
 
+/// All eight neighbours, diagonals included (Moore neighbourhood). The threshold is then 8.
+pub const MOORE: [(isize, isize); 8] = [
+    (1, 0),
+    (-1, 0),
+    (0, 1),
+    (0, -1),
+    (1, 1),
+    (1, -1),
+    (-1, 1),
+    (-1, -1),
+];
+
 /// Grids never grow past this many cells on a side: bigger textures fail in many browsers.
 pub const MAX_SIDE: usize = 4001;
 
@@ -585,6 +597,47 @@ mod tests {
         assert!(pile.add_relative(10, 0, 2));
         assert_eq!((pile.grains, pile.lost), (0, 2));
         assert_eq!(pile.grid().width(), 5);
+    }
+
+    /// With eight neighbours the threshold is 8, and the same invariants must hold: no grain
+    /// lost on a growing grid, every cell below 8 at the end, and the square's symmetries
+    /// (the diagonal neighbours are symmetric under them too).
+    #[test]
+    fn eight_neighbour_pile_conserves_settles_and_is_symmetric() {
+        let n = 30_000;
+        let mut pile = Sandpile::new(3, &MOORE, Boundary::Grow);
+        assert_eq!(pile.threshold(), 8);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, n);
+        pile.relax_fully();
+        assert_eq!((sum(&pile), pile.lost), (u64::from(n), 0));
+        assert!(pile.grid().cells().iter().all(|&h| h < 8));
+        let g = pile.grid();
+        let side = g.width();
+        for y in 0..side {
+            for x in 0..side {
+                assert_eq!(g.get(x, y), g.get(side - 1 - x, y), "mirror at ({x}, {y})");
+                assert_eq!(g.get(x, y), g.get(y, x), "diagonal at ({x}, {y})");
+            }
+        }
+    }
+
+    /// The abelian property holds for any neighbourhood, so it must hold here too: one grain
+    /// at a time gives the same pile as all at once.
+    #[test]
+    fn eight_neighbour_toppling_order_does_not_matter() {
+        let n = 3_000;
+        let mut all = Sandpile::new(61, &MOORE, Boundary::Sink);
+        let mut one = Sandpile::new(61, &MOORE, Boundary::Sink);
+        let (cx, cy) = all.center();
+        all.add(cx, cy, n);
+        all.relax_fully();
+        for _ in 0..n {
+            one.add(cx, cy, 1);
+            one.relax_fully();
+        }
+        assert_eq!(all.lost, 0, "grid too small for the test to mean anything");
+        assert_eq!(all.grid(), one.grid());
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.

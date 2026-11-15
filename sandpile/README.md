@@ -96,7 +96,13 @@ them all at once.
 
 ## Variants
 
-Planned for this project:
+The rule works with any set of neighbours, as long as a cell topples when it holds one
+grain for each of them, so toppling never creates or loses a grain. The abelian property
+holds for every such choice.
 
-- **8 neighbours**: a cell topples at 8, sending a grain in each of the eight directions.
-- **Hex grid**: a cell topples at 6, sending one grain to each of its six neighbours.
+- **8 neighbours.** Choose *8* under *Neighbours* and Restart. Diagonal cells now count as
+  neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
+  the eight directions. The colours spread over the eight heights. Drop 100,000 grains
+  and compare the shape with the four-neighbour pile.
+- **Hex grid** (planned): a cell topples at 6, sending one grain to each of its six
+  neighbours.
