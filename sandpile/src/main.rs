@@ -192,12 +192,17 @@ impl SandpileApp {
         });
         ui.horizontal(|ui| {
             ui.label("Neighbours:");
-            ui.radio_value(&mut self.neighbours, Neighbours::Four, "4 (topple at 4)");
-            ui.radio_value(&mut self.neighbours, Neighbours::Eight, "8 (topple at 8)");
+            let four = ui.radio_value(&mut self.neighbours, Neighbours::Four, "4 (topple at 4)");
+            let eight = ui.radio_value(&mut self.neighbours, Neighbours::Eight, "8 (topple at 8)");
+            // A pile can't change neighbourhood midway, so a new choice starts a new pile at
+            // once (waiting for Restart left the heading saying 4 under a ticked 8).
+            if four.changed() || eight.changed() {
+                self.pile = new_pile(self.boundary, self.neighbours);
+                self.dirty = true;
+            }
         });
-        let pending_neighbours = self.neighbours.offsets().len() as u32 != self.pile.threshold();
-        if self.boundary != self.pile.boundary() || pending_neighbours {
-            ui.small("Takes effect on Restart.");
+        if self.boundary != self.pile.boundary() {
+            ui.small("The new edge takes effect on Restart.");
         }
         ui.separator();
 

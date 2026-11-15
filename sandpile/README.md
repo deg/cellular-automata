@@ -100,7 +100,7 @@ The rule works with any set of neighbours, as long as a cell topples when it hol
 grain for each of them, so toppling never creates or loses a grain. The abelian property
 holds for every such choice.
 
-- **8 neighbours.** Choose *8* under *Neighbours* and Restart. Diagonal cells now count as
+- **8 neighbours.** Choose *8* under *Neighbours*, which starts a fresh pile. Diagonal cells now count as
   neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
   the eight directions. The colours spread over the eight heights. Drop 100,000 grains
   and compare the shape with the four-neighbour pile.
