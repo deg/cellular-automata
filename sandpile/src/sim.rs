@@ -102,6 +102,14 @@ pub struct Sandpile {
     /// Every grain lies inside this box, or nothing does when it is `None`.
     occupied: Option<Bounds>,
     settled: bool,
+    /// While true, the pile has the square's 8-fold symmetry (every grain so far went to the
+    /// centre, the edge grows, and the neighbourhood is symmetric), so sweeps work on one
+    /// eighth of it, the octant `0 <= j <= i` of offsets from the centre, and the rest of the
+    /// grid is filled in by mirroring. See [`Sandpile::sweep_octant`].
+    symmetric: bool,
+    /// In symmetric mode, whether cells outside the octant are out of date.
+    mirror_stale: bool,
+
     /// Grains currently on the grid.
     pub grains: u64,
     /// Grains that fell off a sink edge (or off the edge of a grid at its maximum side).
@@ -143,6 +151,9 @@ impl Sandpile {
             boundary,
             occupied: None,
             settled: true,
+            symmetric: boundary == Boundary::Grow && has_square_symmetry(offsets),
+            mirror_stale: false,
+
             grains: 0,
             lost: 0,
             topples: 0,
@@ -168,6 +179,10 @@ impl Sandpile {
     }
 
     pub fn grid(&self) -> &Grid<u32> {
+        debug_assert!(
+            !self.mirror_stale,
+            "read a symmetric pile before mirroring it"
+        );
         &self.grid
     }
 
@@ -188,28 +203,37 @@ impl Sandpile {
         self.settled
     }
 
-    /// Cells one sweep visits: the area of the box that holds every grain.
+    /// Cells one sweep visits: the box that holds every grain, or one eighth of it while
+    /// the pile is symmetric.
     pub fn sweep_area(&self) -> usize {
         self.occupied.map_or(0, |b| {
             let b = self.clamp_inside_frame(b);
-            (b.x1 + 1 - b.x0) * (b.y1 + 1 - b.y0)
+            if self.symmetric {
+                let n = self.octant_extent(b) + 1;
+                n * (n + 1) / 2
+            } else {
+                (b.x1 + 1 - b.x0) * (b.y1 + 1 - b.y0)
+            }
         })
     }
 
     /// Whether `n` more grains fit: the pile holds at most `u32::MAX` grains in all.
     ///
     /// Bounding the total, not each cell, is what keeps the counts safe: no cell can ever
-    /// hold more than the whole pile, so no toppling in [`Sandpile::sweep`] can overflow.
+    /// hold more than the whole pile, so no toppling in [`Sandpile::relax`] can overflow.
     pub fn can_add(&self, n: u32) -> bool {
         self.grains + u64::from(n) <= u64::from(u32::MAX)
     }
 
-    /// Drop `n` grains on cell `(x, y)`. They topple only when [`Sandpile::sweep`] runs.
+    /// Drop `n` grains on cell `(x, y)`. They topple only when [`Sandpile::relax`] runs.
     /// A drop on the frame grows the grid first, or is lost over a sink edge.
     /// Does nothing, and returns false, if the grains don't fit (see [`Sandpile::can_add`]).
     pub fn add(&mut self, mut x: usize, mut y: usize, n: u32) -> bool {
         if !self.can_add(n) {
             return false;
+        }
+        if (x, y) != self.center() {
+            self.break_symmetry();
         }
         if self.in_frame(x, y) {
             let grown = if self.boundary == Boundary::Grow {
@@ -272,7 +296,16 @@ impl Sandpile {
 
     /// Topple every unstable cell once, in raster order. Grains passed forward in the
     /// sweep can topple their new cell in the same sweep. Returns whether anything toppled.
+    /// The app uses [`Sandpile::relax`], which mirrors a symmetric pile once per call.
+    #[cfg(test)]
     pub fn sweep(&mut self) -> bool {
+        let toppled = self.sweep_once();
+        self.sync_mirror();
+        toppled
+    }
+
+    /// One sweep, leaving a symmetric pile's mirror stale (see [`Sandpile::sync_mirror`]).
+    fn sweep_once(&mut self) -> bool {
         if self.settled {
             return false;
         }
@@ -280,10 +313,18 @@ impl Sandpile {
             self.settled = true;
             return false;
         };
-        if self.boundary == Boundary::Grow && self.touches_frame(b) && self.grow().is_some() {
-            b = self.occupied.expect("growing keeps the occupied box");
+        if self.boundary == Boundary::Grow && self.touches_frame(b) {
+            match self.grow() {
+                Some(_) => b = self.occupied.expect("growing keeps the occupied box"),
+                // At the largest size grains start falling off the edge; counting those in
+                // one eighth of the frame isn't worth the bookkeeping, so go back to full.
+                None => self.break_symmetry(),
+            }
         }
         let b = self.clamp_inside_frame(b);
+        if self.symmetric {
+            return self.sweep_octant(b);
+        }
 
         let threshold = self.threshold;
         let width = self.grid.width();
@@ -334,16 +375,95 @@ impl Sandpile {
     /// Sweep until stable or until `max_sweeps` have run. Returns the sweeps that toppled.
     pub fn relax(&mut self, max_sweeps: usize) -> usize {
         let mut done = 0;
-        while done < max_sweeps && self.sweep() {
+        while done < max_sweeps && self.sweep_once() {
             done += 1;
         }
+        self.sync_mirror();
         done
     }
 
     /// Relax until stable. Only for tests and small piles: it can take a long time.
     #[cfg(test)]
     pub fn relax_fully(&mut self) {
-        while self.sweep() {}
+        while self.sweep_once() {}
+        self.sync_mirror();
+    }
+
+    /// One sweep of a symmetric pile, over the octant `0 <= j <= i` of offsets from the
+    /// centre only. Every cell there stands for its up to 8 mirror images, which topple
+    /// alongside it; so a grain any image sends into the octant is added to the octant cell
+    /// it lands on, and grains landing outside it are ignored, being accounted for by the
+    /// images of their receivers. Away from the axes and the diagonal no image's grains can
+    /// reach the octant and the plain offsets apply; near them, the images are enumerated.
+    fn sweep_octant(&mut self, b: Bounds) -> bool {
+        let c = self.grid.width() / 2;
+        let octant = Octant {
+            c,
+            width: self.grid.width(),
+            n: self.octant_extent(b) as isize,
+            reach: self.reach as isize,
+            offsets: &self.offsets,
+        };
+        // Only the square neighbourhoods have the symmetry; fixing the neighbour count at
+        // compile time turns the division into a shift and unrolls the neighbour loop.
+        let cells = self.grid.cells_mut();
+        let (reached, topples, any) = match self.deltas.len() {
+            4 => octant.pass::<4>(cells, self.deltas[..].try_into().expect("4 deltas")),
+            8 => octant.pass::<8>(cells, self.deltas[..].try_into().expect("8 deltas")),
+            n => unreachable!("a {n}-neighbour pile can't be symmetric"),
+        };
+        self.topples += topples;
+        self.sweeps += 1;
+        self.mirror_stale = true;
+        if !any {
+            self.settled = true;
+            return false;
+        }
+        // The pile is symmetric, so it reaches as far in every direction as along +x.
+        let edge = reached as usize + self.reach;
+        let mut occupied = self.occupied.expect("a sweep needs grains");
+        occupied.include(c - edge, c - edge);
+        occupied.include(c + edge, c + edge);
+        self.occupied = Some(occupied);
+        true
+    }
+
+    /// The largest offset from the centre, along either axis, of any cell in the box `b`.
+    fn octant_extent(&self, b: Bounds) -> usize {
+        let c = self.grid.width() / 2;
+        (b.x1 - c).max(c - b.x0).max(b.y1 - c).max(c - b.y0)
+    }
+
+    /// In symmetric mode, copy the octant into the rest of the grid, so it can be read.
+    fn sync_mirror(&mut self) {
+        if !self.mirror_stale {
+            return;
+        }
+        self.mirror_stale = false;
+        let Some(b) = self.occupied else { return };
+        let c = self.grid.width() / 2;
+        for y in b.y0..=b.y1 {
+            for x in b.x0..=b.x1 {
+                let (a, d) = (x.abs_diff(c), y.abs_diff(c));
+                let (i, j) = (a.max(d), a.min(d));
+                let v = self.grid.get(c + i, c + j);
+                self.grid.set(x, y, v);
+            }
+        }
+    }
+
+    /// Leave symmetric mode for good, after filling in the whole grid. Called before any
+    /// grain lands off the centre, which would break the symmetry.
+    fn break_symmetry(&mut self) {
+        self.sync_mirror();
+        self.symmetric = false;
+    }
+
+    /// Test hook: never use symmetric mode, to compare it against the plain sweep.
+    #[cfg(test)]
+    fn without_symmetry(mut self) -> Self {
+        self.symmetric = false;
+        self
     }
 
     fn compute_deltas(&mut self) {
@@ -408,6 +528,87 @@ impl Sandpile {
         self.occupied = self.occupied.map(|b| b.shifted(margin));
         Some(margin)
     }
+}
+
+/// The geometry of one octant sweep (see [`Sandpile::sweep_octant`]).
+struct Octant<'a> {
+    /// The centre's index along each axis, and the grid's width.
+    c: usize,
+    width: usize,
+    /// The largest offset from the centre swept.
+    n: isize,
+    reach: isize,
+    offsets: &'a [(isize, isize)],
+}
+
+impl Octant<'_> {
+    fn at(&self, i: isize, j: isize) -> usize {
+        (self.c as isize + j) as usize * self.width + (self.c as isize + i) as usize
+    }
+
+    /// Topple every unstable cell of the octant once, for a pile with `N` neighbours (and
+    /// so a threshold of `N`). Returns the furthest offset that toppled, the topplings
+    /// counted over all mirror images, and whether anything toppled.
+    fn pass<const N: usize>(&self, cells: &mut [u32], deltas: [isize; N]) -> (isize, u64, bool) {
+        let threshold = N as u32;
+        let (n, r) = (self.n, self.reach);
+        let (mut reached, mut topples, mut any) = (0isize, 0u64, false);
+        for j in 0..=n {
+            let row = self.at(0, j);
+            for i in j..=n {
+                let idx = row + i as usize;
+                let height = cells[idx];
+                if height < threshold {
+                    continue;
+                }
+                let k = height / threshold;
+                cells[idx] = height % threshold;
+                any = true;
+                reached = reached.max(i);
+                if j > r && i - j > 2 * r {
+                    for d in deltas {
+                        cells[idx.wrapping_add_signed(d)] += k;
+                    }
+                    topples += 8;
+                    continue;
+                }
+                let images = mirror_images(i, j);
+                for &(pi, pj) in &images {
+                    for &(dx, dy) in self.offsets {
+                        let (ti, tj) = (pi + dx, pj + dy);
+                        if tj >= 0 && ti >= tj {
+                            cells[self.at(ti, tj)] += k;
+                        }
+                    }
+                }
+                topples += images.len() as u64;
+            }
+        }
+        (reached, topples, any)
+    }
+}
+
+/// Whether `offsets` look the same after mirroring across either axis or the diagonal,
+/// the condition for a centred pile to keep the square's 8-fold symmetry.
+fn has_square_symmetry(offsets: &[(isize, isize)]) -> bool {
+    let set: std::collections::HashSet<_> = offsets.iter().copied().collect();
+    offsets.iter().all(|&(dx, dy)| {
+        set.contains(&(-dx, dy)) && set.contains(&(dx, -dy)) && set.contains(&(dy, dx))
+    })
+}
+
+/// The distinct mirror images of offset `(i, j)` under the square's 8 symmetries.
+fn mirror_images(i: isize, j: isize) -> Vec<(isize, isize)> {
+    let mut images = Vec::with_capacity(8);
+    for (a, b) in [(i, j), (j, i)] {
+        for (sa, sb) in [(1, 1), (-1, 1), (1, -1), (-1, -1)] {
+            let p = (sa * a, sb * b);
+            if !images.contains(&p) {
+                images.push(p);
+            }
+        }
+    }
+    images
 }
 
 #[cfg(test)]
@@ -731,6 +932,83 @@ mod tests {
         assert_eq!(pile.grid().width(), 21);
         assert!(pile.lost > 0);
         assert_eq!(pile.lost + sum(&pile), 5_000);
+    }
+
+    /// The octant sweep must give exactly the pile the plain sweep gives, for both square
+    /// neighbourhoods, including while the grid grows. Any slip in the mirror rules near the
+    /// axes or the diagonal (a doubled or missing grain) would show up as a difference.
+    #[test]
+    fn symmetric_sweep_matches_the_plain_sweep() {
+        for offsets in [&ORTHOGONAL[..], &MOORE[..]] {
+            let run = |pile: Sandpile| {
+                let mut pile = pile;
+                let (cx, cy) = pile.center();
+                pile.add(cx, cy, 30_000);
+                pile.relax_fully();
+                pile
+            };
+            let fast = run(Sandpile::new(3, offsets, Boundary::Grow));
+            let plain = run(Sandpile::new(3, offsets, Boundary::Grow).without_symmetry());
+            assert!(
+                fast.symmetric,
+                "the centred pile should have used the octant"
+            );
+            assert_eq!(fast.grid(), plain.grid(), "{} neighbours", offsets.len());
+            assert_eq!((fast.grains, fast.lost), (30_000, 0));
+        }
+    }
+
+    /// A grain off the centre in the middle of an avalanche must end symmetric mode cleanly:
+    /// the mirror is filled in first, and the result matches a plain run of the same steps.
+    #[test]
+    fn breaking_symmetry_midway_matches_the_plain_sweep() {
+        let run = |pile: Sandpile| {
+            let mut pile = pile;
+            let (cx, cy) = pile.center();
+            pile.add(cx, cy, 8_000);
+            pile.relax(15); // part way: the avalanche is still running
+            let (cx, cy) = pile.center();
+            pile.add(cx + 7, cy - 3, 500);
+            pile.relax_fully();
+            pile
+        };
+        let fast = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
+        let plain = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry());
+        assert!(!fast.symmetric);
+        assert_eq!(fast.grid(), plain.grid());
+    }
+
+    /// When a symmetric pile reaches its largest size, grains must start falling off the edge
+    /// and be counted, as in the plain sweep: symmetric mode hands over to it.
+    #[test]
+    fn symmetric_pile_at_its_largest_size_matches_the_plain_sweep() {
+        let run = |pile: Sandpile| {
+            let mut pile = pile.with_max_side(21);
+            let (cx, cy) = pile.center();
+            pile.add(cx, cy, 5_000);
+            pile.relax_fully();
+            pile
+        };
+        let fast = run(Sandpile::new(3, &MOORE, Boundary::Grow));
+        let plain = run(Sandpile::new(3, &MOORE, Boundary::Grow).without_symmetry());
+        assert_eq!(fast.grid(), plain.grid());
+        assert_eq!((fast.lost, fast.grains), (plain.lost, plain.grains));
+        assert_eq!(fast.lost + sum(&fast), 5_000);
+    }
+
+    /// Symmetric mode is only safe for neighbourhoods with the square's symmetry, and the
+    /// octant rules rely on counting each cell's distinct mirror images correctly: 1 for the
+    /// centre, 4 on an axis or the diagonal, 8 elsewhere.
+    #[test]
+    fn square_symmetry_and_mirror_images() {
+        assert!(has_square_symmetry(&ORTHOGONAL));
+        assert!(has_square_symmetry(&MOORE));
+        assert!(!has_square_symmetry(&HEX));
+        let counts: Vec<_> = [(0, 0), (3, 0), (2, 2), (3, 1)]
+            .iter()
+            .map(|&(i, j)| mirror_images(i, j).len())
+            .collect();
+        assert_eq!(counts, vec![1, 4, 4, 8]);
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.
