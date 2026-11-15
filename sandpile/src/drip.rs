@@ -1,5 +1,7 @@
 //! Where drips land: the cells that receive grains on every drip.
 
+use ca_core::Layout;
+
 /// Drip points, as `(dx, dy)` offsets from the pile's centre.
 ///
 /// Offsets, not grid coordinates, because the grid grows evenly on every side: the centre
@@ -28,6 +30,24 @@ impl DripPoints {
         *self = Self::centre();
     }
 
+    /// Move every point to the cell at the same place on screen in another layout.
+    ///
+    /// The same offset means different places in the two: square `(dx, dy)` is `dx` cells
+    /// across and `dy` down, but hex axial `(dq, dr)` is `dq + dr/2` across and
+    /// `dr * sqrt(3)/2` down (in cell widths). Without this, switching layout would make
+    /// every point off the centre row jump.
+    pub fn relayout(&mut self, from: Layout, to: Layout) {
+        if from == to {
+            return;
+        }
+        for p in &mut self.points {
+            *p = match to {
+                Layout::Hex => square_to_hex(*p),
+                Layout::Square => hex_to_square(*p),
+            };
+        }
+    }
+
     /// Remove the point nearest `at`, if one lies within `tolerance` cells of it; otherwise
     /// add a point at `at`. Returns true if it added one.
     ///
@@ -53,6 +73,20 @@ impl DripPoints {
             }
         }
     }
+}
+
+/// The hex cell (axial offset) nearest the square cell `(dx, dy)` on screen.
+fn square_to_hex((dx, dy): (isize, isize)) -> (isize, isize) {
+    let dr = (dy as f64 * 2.0 / 3f64.sqrt()).round();
+    let dq = (dx as f64 - dr / 2.0).round();
+    (dq as isize, dr as isize)
+}
+
+/// The square cell nearest the hex cell (axial offset) `(dq, dr)` on screen.
+fn hex_to_square((dq, dr): (isize, isize)) -> (isize, isize) {
+    let dx = (dq as f64 + dr as f64 / 2.0).round();
+    let dy = (dr as f64 * 3f64.sqrt() / 2.0).round();
+    (dx as isize, dy as isize)
 }
 
 #[cfg(test)]
@@ -97,5 +131,40 @@ mod tests {
         assert_eq!(d.len(), 0);
         d.reset_to_centre();
         assert_eq!(d.points(), &[(0, 0)]);
+    }
+
+    /// Switching layout must leave drip points where they were on screen, so going to hex
+    /// and back returns each point to within a cell of where it started (rounding to the
+    /// nearest cell each way can't do better), and the centre stays exactly the centre.
+    #[test]
+    fn relayout_keeps_points_in_place() {
+        let start = [(0, 0), (20, 20), (-13, 7), (5, -30), (40, 0)];
+        let mut d = DripPoints {
+            points: start.to_vec(),
+        };
+        d.relayout(Layout::Square, Layout::Hex);
+        assert_eq!(d.points()[0], (0, 0));
+        assert_eq!(
+            d.points()[4],
+            (40, 0),
+            "points on the centre row don't move"
+        );
+        d.relayout(Layout::Hex, Layout::Square);
+        for (&(x0, y0), &(x1, y1)) in start.iter().zip(d.points()) {
+            assert!(
+                (x0 - x1).abs() <= 1 && (y0 - y1).abs() <= 1,
+                "({x0}, {y0}) came back as ({x1}, {y1})"
+            );
+        }
+    }
+
+    /// The conversion must follow the screen geometry, not just copy the numbers: a square
+    /// point 26 down is 30 hex rows down (rows are sqrt(3)/2 of a cell apart), and the axial
+    /// q shrinks by half the rows to stay in the same column. (An even row, because odd hex
+    /// rows sit half a cell off the square columns, where "the same column" is a tie.)
+    #[test]
+    fn square_to_hex_follows_the_screen() {
+        assert_eq!(square_to_hex((0, 26)), (-15, 30));
+        assert_eq!(hex_to_square((-15, 30)), (0, 26));
     }
 }

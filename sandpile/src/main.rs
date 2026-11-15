@@ -202,6 +202,7 @@ impl SandpileApp {
         });
         ui.horizontal(|ui| {
             ui.label("Neighbours:");
+            let before = self.neighbours.layout();
             let mut changed = false;
             for (choice, label) in [
                 (Neighbours::Four, "4"),
@@ -217,6 +218,7 @@ impl SandpileApp {
             if changed {
                 self.pile = new_pile(self.boundary, self.neighbours);
                 self.view.set_layout(self.neighbours.layout());
+                self.drip_points.relayout(before, self.neighbours.layout());
                 self.dirty = true;
             }
         });
