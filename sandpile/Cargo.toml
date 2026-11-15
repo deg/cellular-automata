@@ -2,7 +2,7 @@
 name = "sandpile"
 version = "0.1.0"
 edition = "2024"
-description = "Grains dropped on one cell topple onto its neighbours and settle into a fractal."
+description = "Grains dropped on one cell topple onto its 4 or 8 neighbours and settle into a fractal."
 
 [dependencies]
 ca_core = { path = "../ca_core" }
