@@ -3,6 +3,8 @@
 Demos of famous cellular automata, written in Rust. Each runs in a native window or in
 the browser, and explains itself: the rule, its history, and things to try.
 
+**Try them in your browser: <https://deg.github.io/cellular-automata/>**
+
 | Demo | What it shows |
 |---|---|
 | [Abelian sandpile](sandpile/) | Grains dropped on one cell topple onto their 4 or 8 neighbours and settle into a fractal. |
