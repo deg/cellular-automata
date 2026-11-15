@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cellular automata</title>
+  <style>
+    :root {
+      --bg: #f6f4ef; --fg: #1d1d1f; --muted: #5f5f66; --accent: #b4532a; --rule: #dcd8cf;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #14161f; --fg: #e8e6e1; --muted: #9a9aa3; --accent: #e9a06a; --rule: #2c2f3b; }
+    }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 17px/1.5 "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    }
+    main { max-width: 40rem; margin: 0 auto; padding: 3rem 1rem; }
+    h1 { font-weight: normal; font-size: 2.2rem; margin: 0 0 0.25rem; }
+    .lede { color: var(--muted); margin: 0 0 2rem; }
+    ul { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+    li { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+    li a { color: var(--accent); font-size: 1.2rem; text-decoration: none; }
+    li a:hover { text-decoration: underline; }
+    li p { margin: 0.2rem 0 0; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Cellular automata</h1>
+    <p class="lede">Demos of famous cellular automata, written in Rust and running in your browser.</p>
+    <ul>
+<!-- DEMOS -->
+    </ul>
+  </main>
+</body>
+</html>

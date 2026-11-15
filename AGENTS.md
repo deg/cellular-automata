@@ -135,7 +135,13 @@ cargo test --workspace                       # all tests, native, no browser
 cargo clippy --workspace --all-targets       # lint; keep it warning-free
 cargo run --release -p sandpile              # a demo in a native window
 cd sandpile && trunk serve --release --open  # the same demo in the browser
+make serve                                   # every demo plus an index page, at localhost:8080
 ```
+
+- `make site` (`site/build.sh`) builds every demo into `dist/<demo>/` and writes
+  `dist/index.html` from `site/index.html`. A demo is any top-level directory with both
+  `Cargo.toml` and `index.html`. Its link text is its page `<title>`, and its blurb is
+  its Cargo `description`, so a new demo needs no edit to the site.
 
 - Use `--release` for anything but small grids: debug builds simulate far slower,
   in wasm even more so.
