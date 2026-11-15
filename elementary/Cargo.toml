@@ -1,0 +1,8 @@
+[package]
+name = "elementary"
+version = "0.1.0"
+edition = "2024"
+description = "All 256 one-dimensional rules, from the chaos of Rule 30 to the computer inside Rule 110."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
