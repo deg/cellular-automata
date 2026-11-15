@@ -69,8 +69,8 @@ impl SandpileApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("A step is one sweep across the pile, toppling every unstable cell it meets. \
-                  Speed caps the cells swept per frame, so a big pile still redraws smoothly.");
+        ui.small("A step is one sweep across the pile, toppling every unstable cell it meets; \
+                  on a settled pile it drips first. Speed caps the cells swept per frame, so a big pile still redraws smoothly.");
         ui.separator();
 
         ui.checkbox(&mut self.drip, "Drip into the centre while running");
@@ -105,10 +105,7 @@ impl SandpileApp {
             ui.radio_value(&mut self.boundary, Boundary::Sink, "grains fall off");
         });
         if self.boundary != self.pile.boundary() {
-            ui.small("Takes effect on Reset.");
-        }
-        if ui.button("Reset").clicked() {
-            self.reset();
+            ui.small("Takes effect on Restart.");
         }
         ui.separator();
 
@@ -141,11 +138,16 @@ impl SandpileApp {
     }
 
     fn advance(&mut self) {
+        if self.playback.take_restart() {
+            self.reset();
+        }
+        let single_step = self.playback.is_single_step();
         let budget = self.playback.steps_this_frame();
         if budget == 0 {
             return;
         }
-        if self.playback.running && self.drip && self.pile.is_stable() {
+        // A Step on a settled pile would have nothing to topple, so it drips first.
+        if (self.playback.running || single_step) && self.drip && self.pile.is_stable() {
             self.drop_at_centre(self.drip_amount);
         }
         let sweeps = if self.playback.running {
