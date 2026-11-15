@@ -77,8 +77,11 @@ make serve                                   # every demo plus an index page, at
 
 - Use `--release` for anything but small grids: debug builds simulate far slower,
   in wasm even more so.
-- Toolchain: rustc 1.95 with the `wasm32-unknown-unknown` target, and `trunk` 0.21
-  (`cargo install trunk --version '^0.21' --locked`). trunk 0.22 needs rustc 1.96.1 or later.
+- Toolchain: stable rustc (1.100 as of 2026-11-15) with the `wasm32-unknown-unknown`
+  target, and `trunk` 0.22 (`cargo install trunk --locked`). Rustc 1.95.0 stays installed
+  as a fallback (`rustup default 1.95.0`). Before updating Rust again, check that David's
+  other Rust projects still build and pass their tests: `../CPeMulator`, `../nscheme`
+  and `../llm_wiki/src-tauri`.
 - `trunk` downloads `wasm-bindgen` and `wasm-opt` on its first build.
 
 ## Architecture Overview
