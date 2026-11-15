@@ -28,8 +28,8 @@ Seeds; the recovery state is the difference. Silverman also created Wireworld, a
   spaceships that leave other spaceships behind them. Patterns that move steadily are
   usually called *gliders*. Larger random starts tend to explode into sweeping diagonal
   waves.
-- **Oscillators exist too**, though they are rare. The smallest known has 4 firing and 4
-  recovering cells and repeats every 3 generations.
+- **Oscillators exist too**, though moving patterns far outnumber them. One has just 4 firing
+  and 4 recovering cells and repeats every 3 generations.
 - **2020: it can compute.** Yoel Matveyev built a pattern in Brian's Brain that emulates
   Rule 110, the one-dimensional rule proved universal (see the Elementary demo). That
   makes Brian's Brain Turing-complete: in principle it can carry out any computation.
