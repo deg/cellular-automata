@@ -4,7 +4,7 @@ mod rle;
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Pace, Playback, Rng, eframe, line};
+use ca_core::{About, Advance, GridView, Pace, Playback, Rng, eframe, generations_per_frame, line};
 use sim::{Life, Rule};
 
 fn main() {
@@ -230,7 +230,10 @@ impl LifeApp {
             Advance::Idle => 0,
             Advance::Step => 1,
             // Cap the work per frame so a big world at top speed slows down, not freezes.
-            Advance::Run(per_second) => self.pace.steps(per_second as f64, dt, 50),
+            Advance::Run(per_second) => {
+                let cap = generations_per_frame(self.size.0 * self.size.1, 50);
+                self.pace.steps(per_second as f64, dt, cap)
+            }
         };
         for _ in 0..steps {
             self.life.step();

@@ -27,7 +27,7 @@ pub use eframe;
 pub use eframe::egui;
 pub use grid::{Grid, line};
 pub use neighbours::moore_counts;
-pub use pace::Pace;
+pub use pace::{Pace, generations_per_frame};
 pub use playback::{Advance, Playback};
 pub use rng::Rng;
 pub use view::{GridResponse, GridView};

@@ -22,6 +22,18 @@ impl Pace {
     }
 }
 
+/// Cell updates a frame can afford: about 2 million, measured natively at roughly 10 ms
+/// (Life on 640 x 400 runs about 2.7 ms a generation), leaving room for the slower browser
+/// build and for drawing.
+pub const CELLS_PER_FRAME: usize = 2_000_000;
+
+/// The most generations of a `cells`-cell world one frame can afford: at least 1, at most
+/// `max`. A fixed cap in generations would let a big world stall every frame, as it did:
+/// 50 generations of 640 x 400 took 136 ms.
+pub fn generations_per_frame(cells: usize, max: usize) -> usize {
+    (CELLS_PER_FRAME / cells.max(1)).clamp(1, max)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -33,6 +45,15 @@ mod tests {
         let mut p = Pace::default();
         let total: usize = (0..60).map(|_| p.steps(10.0, 1.0 / 60.0, 100)).sum();
         assert_eq!(total, 10);
+    }
+
+    /// Small worlds keep the generous cap and huge ones still advance; the budget only bites
+    /// in between.
+    #[test]
+    fn generation_cap_scales_with_world_size() {
+        assert_eq!(generations_per_frame(160 * 100, 50), 50);
+        assert_eq!(generations_per_frame(640 * 400, 50), 7);
+        assert_eq!(generations_per_frame(10_000 * 10_000, 50), 1);
     }
 
     /// A frame that took a long time (a stall, a hidden tab) must not unleash thousands of

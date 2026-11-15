@@ -263,4 +263,23 @@ mod tests {
             assert!(size.0 <= 160 && size.1 <= 100, "{} is too big", p.name);
         }
     }
+
+    /// Not a check: how long one frame's worth of work (50 generations, the per-frame cap)
+    /// takes on the largest world, to see whether the cap keeps frames short.
+    #[test]
+    #[ignore = "timing: run with --release -- --ignored --nocapture"]
+    fn timing_50_generations_on_the_largest_world() {
+        let mut life = Life::new(640, 400, Rule::life(), true);
+        let mut rng = ca_core::Rng::new(1);
+        for y in 0..400 {
+            for x in 0..640 {
+                life.set(x, y, rng.chance(0.3));
+            }
+        }
+        let start = std::time::Instant::now();
+        for _ in 0..50 {
+            life.step();
+        }
+        eprintln!("50 generations of 640 x 400: {:?}", start.elapsed());
+    }
 }

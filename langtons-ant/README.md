@@ -5,9 +5,8 @@ An ant stands on a grid of blank cells. Each step it follows two rules:
 - On a **blank** cell, it turns **right**, colours the cell, and steps forward.
 - On a **coloured** cell, it turns **left**, clears the cell, and steps forward.
 
-That's all. For the first few thousand steps the ant scribbles an irregular, growing blob,
-with no sign of order. Then, at about step 10,000, it suddenly starts building a
-**highway**: a strip it extends diagonally across the grid, repeating the same 104-step
+That's all. For about 10,000 steps the ant leaves an irregular, growing blob. Then it
+suddenly starts building a **highway**: a strip it extends diagonally across the grid, repeating the same 104-step
 cycle forever.
 
 Nothing in the two rules mentions highways, diagonals or the number 104. The highway is

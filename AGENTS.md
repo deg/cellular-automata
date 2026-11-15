@@ -157,18 +157,33 @@ make siblings               # before/after a Rust update: build+test David's oth
 ## Architecture Overview
 
 - `ca_core/`: the shared crate, package `ca_core`. Don't name it `core`, which clashes
-  with Rust's built-in crate. It holds `Grid<T>`, `GridView` (draws a grid as one texture
-  and reports the cell under the pointer), `Playback` (run, pause, step, restart
-  and speed), `About` (a side panel rendering the demo's `README.md`), and
-  `run(title, make_app)`, which opens a native window or starts in the page's
-  `<canvas id="the_canvas_id">`. It re-exports `eframe` and `egui`, so demos don't
-  depend on them directly.
-- One directory per automaton, each a binary crate with an `index.html` for trunk:
+  with Rust's built-in crate. It re-exports `eframe` and `egui`, so demos don't depend on
+  them directly. What it holds:
+  - `run(title, make_app)`: opens a native window, or starts in the page's
+    `<canvas id="the_canvas_id">`.
+  - `Grid<T>`, plus `line` (the cells between two points, for gap-free drag painting)
+    and `moore_counts` (each cell's count of 8-neighbours in some state, with edges
+    handled once; Life, Brian's Brain and Wireworld use it).
+  - `GridView`: draws a grid as one texture. Its `GridResponse` gives `hovered`,
+    `pressed` (every frame held, for painting), `clicked` (once per click), and
+    `cell_rect`/`cell_size` for drawing markers over cells. Both directions of the
+    mapping assume one square texel per cell: the hex sandpile must change that inside
+    `GridView`, not in the demo.
+  - `Playback`: Run, Pause, Step, Restart and a speed slider. Each frame,
+    `take_restart()`, then `advance()` returns `Idle`, `Step` or `Run(speed)`.
+  - `Pace`: turns steps per second into steps per frame, carrying the fraction.
+    `generations_per_frame` caps the work per frame by world area, so big worlds slow
+    down rather than freeze.
+  - `Rng`: a small seeded generator for random fills.
+  - `About`: the side panel rendering the demo's `README.md`.
+- One directory per automaton (`sandpile`, `life`, `elementary`, `langtons-ant`,
+  `brians-brain`, `wireworld`), each a binary crate with an `index.html` for trunk:
   - `main.rs` holds the UI.
   - `sim.rs` holds the rule, kept free of UI code so it can be tested natively.
 - The UI is egui/eframe 0.37, with the `glow` backend. In 0.37, `App::ui` takes a
   `&mut Ui` (not `update(ctx)`), and panels are `egui::Panel::left(id).show(ui, ..)`.
-  Code from memory or older examples uses the old API.
+  `Ui::id` and `Id::new` are deprecated: use `ui.make_persistent_id(..)`. Code from
+  memory or older examples uses the old API.
 
 ## Conventions & Patterns
 
@@ -179,3 +194,7 @@ make siblings               # before/after a Rust update: build+test David's oth
   citations), things to try in the demo, and further reading. `main.rs` passes it to
   `ca_core::About` with `include_str!`, so the same text is shown inside the app.
 - Check facts and citations in a README before writing them; don't fill gaps from memory.
+- Test a demo's simulation by behaviour with known answers where possible: famous
+  patterns doing what they are known to do (the diehard dying at 130), hand traces of the
+  first steps, or mathematical identities (Rule 90 against Pascal's triangle mod 2).
+  Design patterns (Wireworld circuits) by simulating candidates, not from memory.
