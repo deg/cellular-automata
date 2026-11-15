@@ -91,6 +91,34 @@ impl<T> IndexMut<usize> for Grid<T> {
     }
 }
 
+/// The cells on the straight line from `a` to `b`, both included (Bresenham's algorithm).
+///
+/// The pointer can cross many cells between two frames, so painting only the cell under it
+/// each frame leaves a dotted trail; painting this line instead keeps strokes solid.
+pub fn line(a: (usize, usize), b: (usize, usize)) -> Vec<(usize, usize)> {
+    let (mut x, mut y) = (a.0 as isize, a.1 as isize);
+    let (x1, y1) = (b.0 as isize, b.1 as isize);
+    let (dx, dy) = ((x1 - x).abs(), -(y1 - y).abs());
+    let (sx, sy) = ((x1 - x).signum(), (y1 - y).signum());
+    let mut err = dx + dy;
+    let mut cells = Vec::with_capacity((dx - dy) as usize + 1);
+    loop {
+        cells.push((x as usize, y as usize));
+        if x == x1 && y == y1 {
+            return cells;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,5 +147,27 @@ mod tests {
         assert_eq!(p.get(2, 2), 7);
         assert_eq!(p.get(3, 2), 9);
         assert_eq!(p.cells().iter().map(|&c| c as u32).sum::<u32>(), 16);
+    }
+
+    /// A stroke must be gap-free: every step moves to one of the 8 neighbours, and it starts
+    /// and ends exactly on the two cells given, whichever direction it runs.
+    #[test]
+    fn line_is_connected_and_hits_both_ends() {
+        for (a, b) in [
+            ((0, 0), (7, 3)),
+            ((7, 3), (0, 0)),
+            ((2, 9), (2, 1)),
+            ((5, 5), (5, 5)),
+        ] {
+            let cells = line(a, b);
+            assert_eq!((cells[0], *cells.last().unwrap()), (a, b));
+            for w in cells.windows(2) {
+                let (dx, dy) = (w[0].0.abs_diff(w[1].0), w[0].1.abs_diff(w[1].1));
+                assert!(
+                    dx <= 1 && dy <= 1 && dx + dy > 0,
+                    "gap or repeat in {cells:?}"
+                );
+            }
+        }
     }
 }

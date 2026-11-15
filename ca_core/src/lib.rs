@@ -4,6 +4,9 @@
 //! - [`GridView`]: draws a grid as one texture and reports which cell the pointer is on.
 //! - [`Playback`]: run / pause / step / restart controls.
 //! - [`About`]: a side panel rendering the demo's `README.md`.
+//! - [`Pace`]: steps per second to steps per frame, for automata watched slowly.
+//! - [`Rng`]: a small seeded random generator, for random fills.
+//! - [`line`]: the cells on a straight line, so drag-painting leaves no gaps.
 //! - [`run`]: the entry point, which opens a native window or starts in the browser.
 //!
 //! `eframe` and `egui` are re-exported so every demo uses the same version.
@@ -11,13 +14,17 @@
 mod about;
 mod app;
 mod grid;
+mod pace;
 mod playback;
+mod rng;
 mod view;
 
 pub use about::About;
 pub use app::run;
 pub use eframe;
 pub use eframe::egui;
-pub use grid::Grid;
+pub use grid::{Grid, line};
+pub use pace::Pace;
 pub use playback::{Advance, Playback};
+pub use rng::Rng;
 pub use view::{GridResponse, GridView};

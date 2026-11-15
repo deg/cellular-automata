@@ -1,0 +1,8 @@
+[package]
+name = "life"
+version = "0.1.0"
+edition = "2024"
+description = "Cells live or die by counting their neighbours; gliders, guns and other rules to try."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
