@@ -61,20 +61,22 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 ## Build & Test
 
 All Rust, in one Cargo workspace rooted here. Each demo runs natively or in the browser.
+Everything goes through the Makefile; `make` alone lists the targets.
 
 ```bash
-cargo test --workspace                       # all tests, native, no browser
-cargo clippy --workspace --all-targets       # lint; keep it warning-free
-cargo run --release -p sandpile              # a demo in a native window
-cd sandpile && trunk serve --release --open  # the same demo in the browser
-make serve                                   # every demo plus an index page, at localhost:8080
+make check                  # before every commit: fmt-check, clippy -D warnings, tests
+make run DEMO=sandpile      # a demo in a native window
+make web DEMO=sandpile      # the same demo alone in the browser (trunk serve)
+make serve                  # every demo plus an index page, at localhost:8080
+make siblings               # before/after a Rust update: build+test David's other Rust projects
 ```
 
 - `make site` (`site/build.sh`) builds every demo into `dist/<demo>/` and writes
   `dist/index.html` from `site/index.html`. A demo is any top-level directory with both
   `Cargo.toml` and `index.html`. Its link text is its page `<title>`, and its blurb is
-  its Cargo `description`, so a new demo needs no edit to the site.
-
+  its Cargo `description`, so a new demo needs no edit to the site or the Makefile.
+- A new command worth repeating gets a Makefile target with a `## description`, so
+  `make help` lists it.
 - Use `--release` for anything but small grids: debug builds simulate far slower,
   in wasm even more so.
 - Toolchain: stable rustc (1.100 as of 2026-11-15) with the `wasm32-unknown-unknown`
@@ -88,7 +90,8 @@ make serve                                   # every demo plus an index page, at
 
 - `ca_core/`: the shared crate, package `ca_core`. Don't name it `core`, which clashes
   with Rust's built-in crate. It holds `Grid<T>`, `GridView` (draws a grid as one texture
-  and reports the cell under the pointer), `Playback` (run, pause, step and speed), and
+  and reports the cell under the pointer), `Playback` (run, pause, step, restart
+  and speed), `About` (a side panel rendering the demo's `README.md`), and
   `run(title, make_app)`, which opens a native window or starts in the page's
   `<canvas id="the_canvas_id">`. It re-exports `eframe` and `egui`, so demos don't
   depend on them directly.
@@ -103,3 +106,8 @@ make serve                                   # every demo plus an index page, at
 
 - Keep the simulation in `sim.rs`, separate from the UI, and test its invariants there.
 - Move code into `ca_core` only once a second demo needs it.
+- Every demo has a `README.md` for a reader who has never heard of the automaton: the
+  rule, where the name comes from, its history (who, when, why it mattered, with
+  citations), things to try in the demo, and further reading. `main.rs` passes it to
+  `ca_core::About` with `include_str!`, so the same text is shown inside the app.
+- Check facts and citations in a README before writing them; don't fill gaps from memory.

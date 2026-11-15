@@ -119,14 +119,21 @@ impl SandpileApp {
             stat(ui, "topples", self.pile.topples);
             stat(ui, "sweeps", self.pile.sweeps);
             ui.label("state");
-            ui.label(if self.pile.is_stable() { "stable" } else { "toppling" });
+            ui.label(if self.pile.is_stable() {
+                "stable"
+            } else {
+                "toppling"
+            });
             ui.end_row();
             ui.label("grid");
             ui.label(format!("{side} x {side}"));
             ui.end_row();
         });
         if side >= sim::MAX_SIDE {
-            ui.small(RichText::new("The grid is at its largest; grains now fall off the edge.").color(Color32::YELLOW));
+            ui.small(
+                RichText::new("The grid is at its largest; grains now fall off the edge.")
+                    .color(Color32::YELLOW),
+            );
         }
         ui.separator();
 
@@ -182,7 +189,11 @@ impl eframe::App for SandpileApp {
         if self.dirty {
             let threshold = self.pile.threshold();
             self.view.set_image(ui.ctx(), self.pile.grid(), |h| {
-                if h >= threshold { UNSTABLE } else { PALETTE[h as usize % PALETTE.len()] }
+                if h >= threshold {
+                    UNSTABLE
+                } else {
+                    PALETTE[h as usize % PALETTE.len()]
+                }
             });
             self.dirty = false;
         }
@@ -194,7 +205,9 @@ impl eframe::App for SandpileApp {
                 self.dirty = true;
             }
             if let Some((x, y)) = shown.hovered {
-                shown.response.on_hover_text(format!("({x}, {y}): {}", self.pile.grid().get(x, y)));
+                shown
+                    .response
+                    .on_hover_text(format!("({x}, {y}): {}", self.pile.grid().get(x, y)));
             }
         });
 

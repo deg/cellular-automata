@@ -10,7 +10,11 @@ pub struct Grid<T> {
 
 impl<T: Copy> Grid<T> {
     pub fn new(width: usize, height: usize, fill: T) -> Self {
-        Self { width, height, cells: vec![fill; width * height] }
+        Self {
+            width,
+            height,
+            cells: vec![fill; width * height],
+        }
     }
 
     pub fn width(&self) -> usize {

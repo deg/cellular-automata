@@ -18,7 +18,14 @@ pub struct Playback {
 
 impl Playback {
     pub fn new(speed: usize, max_speed: usize, unit: &'static str) -> Self {
-        Self { running: false, speed, max_speed, unit, step_requested: false, restart_requested: false }
+        Self {
+            running: false,
+            speed,
+            max_speed,
+            unit,
+            step_requested: false,
+            restart_requested: false,
+        }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
@@ -27,7 +34,10 @@ impl Playback {
             if ui.button(label).clicked() {
                 self.running = !self.running;
             }
-            if ui.add_enabled(!self.running, egui::Button::new("Step")).clicked() {
+            if ui
+                .add_enabled(!self.running, egui::Button::new("Step"))
+                .clicked()
+            {
                 self.step_requested = true;
             }
             if ui.button("Restart").clicked() {

@@ -13,12 +13,20 @@ pub struct About {
 
 impl About {
     pub fn new(markdown: &'static str) -> Self {
-        Self { markdown, cache: CommonMarkCache::default(), open: true }
+        Self {
+            markdown,
+            cache: CommonMarkCache::default(),
+            open: true,
+        }
     }
 
     /// A button that shows or hides the panel.
     pub fn toggle_button(&mut self, ui: &mut egui::Ui) {
-        let label = if self.open { "Hide the explanation" } else { "What is this?" };
+        let label = if self.open {
+            "Hide the explanation"
+        } else {
+            "What is this?"
+        };
         if ui.button(label).clicked() {
             self.open = !self.open;
         }

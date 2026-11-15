@@ -2,8 +2,10 @@
 ///
 /// Call it from the demo's `main`. On the web the page must hold a
 /// `<canvas id="the_canvas_id">`, and an element `id="loading_text"` if it shows one.
-pub fn run<A>(title: &'static str, make_app: impl FnOnce(&eframe::CreationContext<'_>) -> A + 'static)
-where
+pub fn run<A>(
+    title: &'static str,
+    make_app: impl FnOnce(&eframe::CreationContext<'_>) -> A + 'static,
+) where
     A: eframe::App + 'static,
 {
     #[cfg(not(target_arch = "wasm32"))]
@@ -37,7 +39,11 @@ where
                 .expect("the_canvas_id is not a <canvas>");
 
             let result = eframe::WebRunner::new()
-                .start(canvas, eframe::WebOptions::default(), Box::new(|cc| Ok(Box::new(make_app(cc)))))
+                .start(
+                    canvas,
+                    eframe::WebOptions::default(),
+                    Box::new(|cc| Ok(Box::new(make_app(cc)))),
+                )
                 .await;
 
             let loading = document.get_element_by_id("loading_text");
@@ -49,7 +55,8 @@ where
                 }
                 Err(e) => {
                     if let Some(loading) = loading {
-                        loading.set_inner_html("<p>The app crashed. See the developer console.</p>");
+                        loading
+                            .set_inner_html("<p>The app crashed. See the developer console.</p>");
                     }
                     panic!("failed to start eframe: {e:?}");
                 }

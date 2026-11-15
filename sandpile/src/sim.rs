@@ -41,7 +41,12 @@ struct Bounds {
 
 impl Bounds {
     fn cell(x: usize, y: usize) -> Self {
-        Self { x0: x, y0: y, x1: x, y1: y }
+        Self {
+            x0: x,
+            y0: y,
+            x1: x,
+            y1: y,
+        }
     }
 
     fn include(&mut self, x: usize, y: usize) {
@@ -52,7 +57,12 @@ impl Bounds {
     }
 
     fn shifted(self, by: usize) -> Self {
-        Self { x0: self.x0 + by, y0: self.y0 + by, x1: self.x1 + by, y1: self.y1 + by }
+        Self {
+            x0: self.x0 + by,
+            y0: self.y0 + by,
+            x1: self.x1 + by,
+            y1: self.y1 + by,
+        }
     }
 }
 
@@ -85,13 +95,19 @@ pub struct Sandpile {
 impl Sandpile {
     /// An empty `side` x `side` pile. Make `side` odd so the grid has a true centre cell.
     pub fn new(side: usize, offsets: &[(isize, isize)], boundary: Boundary) -> Self {
-        assert!(!offsets.is_empty(), "a sandpile needs at least one neighbour");
+        assert!(
+            !offsets.is_empty(),
+            "a sandpile needs at least one neighbour"
+        );
         let reach = offsets
             .iter()
             .map(|&(dx, dy)| dx.unsigned_abs().max(dy.unsigned_abs()))
             .max()
             .unwrap_or(1);
-        assert!(side > 2 * reach, "a {side}-cell grid has no room inside its frame");
+        assert!(
+            side > 2 * reach,
+            "a {side}-cell grid has no room inside its frame"
+        );
         let mut pile = Self {
             grid: Grid::new(side, side, 0),
             offsets: offsets.to_vec(),
@@ -143,7 +159,11 @@ impl Sandpile {
     /// A drop on the frame grows the grid first, or is lost over a sink edge.
     pub fn add(&mut self, mut x: usize, mut y: usize, n: u32) {
         if self.in_frame(x, y) {
-            let grown = if self.boundary == Boundary::Grow { self.grow() } else { None };
+            let grown = if self.boundary == Boundary::Grow {
+                self.grow()
+            } else {
+                None
+            };
             let Some(margin) = grown else {
                 self.lost += u64::from(n);
                 return;
@@ -152,7 +172,9 @@ impl Sandpile {
             y += margin;
         }
         let i = self.grid.index_of(x, y);
-        self.grid[i] = self.grid[i].checked_add(n).expect("too many grains on one cell");
+        self.grid[i] = self.grid[i]
+            .checked_add(n)
+            .expect("too many grains on one cell");
         self.grains += u64::from(n);
         match &mut self.occupied {
             Some(b) => b.include(x, y),
@@ -275,7 +297,9 @@ impl Sandpile {
             if y < r || y + r >= h {
                 (0..w).for_each(|x| take(&mut self.grid, x, y));
             } else {
-                (0..r).chain(w - r..w).for_each(|x| take(&mut self.grid, x, y));
+                (0..r)
+                    .chain(w - r..w)
+                    .for_each(|x| take(&mut self.grid, x, y));
             }
         }
         self.lost += drained;
@@ -362,7 +386,10 @@ mod tests {
             one_by_one.add(cx, cy, 1);
             one_by_one.relax_fully();
         }
-        assert_eq!(all_at_once.lost, 0, "grid too small for the test to mean anything");
+        assert_eq!(
+            all_at_once.lost, 0,
+            "grid too small for the test to mean anything"
+        );
         assert_eq!(all_at_once.grid(), one_by_one.grid());
     }
 
@@ -400,7 +427,12 @@ mod tests {
         for n in [100_000, 1_000_000] {
             let start = std::time::Instant::now();
             let p = centred_pile(n, Boundary::Grow, 101);
-            eprintln!("{n} grains: {:?}, side {}, {} sweeps", start.elapsed(), p.grid().width(), p.sweeps);
+            eprintln!(
+                "{n} grains: {:?}, side {}, {} sweeps",
+                start.elapsed(),
+                p.grid().width(),
+                p.sweeps
+            );
         }
     }
 }
