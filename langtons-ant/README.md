@@ -42,7 +42,7 @@ reads and writes cells, are called **turmites**, short for "Turing machine termi
 - **Collisions.** The grid wraps around, so the highway eventually runs back into the
   ant's own earlier mess. What happens then?
 - **Two ants.** Restart, click to add a second ant near the first, and Run. Their paths
-  interfere, and the highway may never come.
+  interfere: does a highway still come?
 - **Other rules.** Try the presets, or type any string of L and R (2 to 12 letters). Some
   make chaos, some grow in regular shapes, some build highways of their own.
 
