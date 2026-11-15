@@ -38,7 +38,8 @@ them all at once.
 
 - **1987: self-organized criticality.** The physicists Per Bak, Chao Tang and Kurt
   Wiesenfeld introduced the sandpile in *Self-organized criticality: an explanation of the
-  1/f noise* (Physical Review Letters 59, 381). They were asking why so many natural
+  1/f noise* (Physical Review Letters 59, 381;
+  [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf)). They were asking why so many natural
   systems show events of every size, with no typical scale: earthquakes, avalanches,
   forest fires, solar flares. Their answer was that some systems drive themselves to a
   "critical" state with no tuning from outside. Keep dripping sand onto the pile and it
@@ -46,23 +47,24 @@ them all at once.
   and there are all sizes in between. Bak later wrote a popular book on the idea, *How
   Nature Works* (1996).
 - **1990: the abelian property.** Deepak Dhar proved that the order of topplings doesn't
-  matter, named it the *abelian sandpile model*, and showed it has deep algebraic
+  matter (the property that gives the model its name), and showed it has deep algebraic
   structure. On a finite grid with a sink edge, the stable piles that keep recurring as
-  you add grains form a mathematical group, the **sandpile group**. The number of those
+  you add grains form a mathematical group, which Dhar named the **sandpile group**. The number of those
   piles equals the number of spanning trees of the grid
   (*Self-organized critical state of sandpile automaton models*, Physical Review
   Letters 64, 1613).
 - **1991: chip-firing.** Combinatorialists study the same process on any graph, as a
   *chip-firing game*. Anders Björner, László Lovász and Peter Shor, *Chip-firing games on
-  graphs* (European Journal of Combinatorics 12).
+  graphs* (European Journal of Combinatorics 12, 1991).
 - **2010s: why the fractal looks the way it does.** For a long time the pattern from a
   single source was a well-known picture that nobody could explain. Wesley Pegden and
   Charles Smart proved that it has a definite limiting shape as the number of grains grows
-  (*Convergence of the Abelian sandpile*, Duke Mathematical Journal, 2013). With Lionel
+  (*Convergence of the Abelian sandpile*, Duke Mathematical Journal 162, 2013;
+  [arXiv:1105.0111](https://arxiv.org/abs/1105.0111)). With Lionel
   Levine they then explained its circles and triangles through **Apollonian circle
-  packings**, an ancient construction in which circles are nested inside the gaps
-  between circles (*Apollonian structure in the Abelian sandpile*, Geometric and
-  Functional Analysis, 2016).
+  packings**, named after the Greek geometer Apollonius of Perga, in which circles
+  fill the gaps between circles, smaller and smaller without end (*Apollonian structure in the Abelian sandpile*, Geometric and
+  Functional Analysis 26, 2016; [arXiv:1208.4839](https://arxiv.org/abs/1208.4839)).
 
 ## Things to try
 
@@ -81,8 +83,10 @@ them all at once.
 ## Further reading
 
 - Lionel Levine and James Propp, *What is a sandpile?*, Notices of the American
-  Mathematical Society 57 (2010): a two-page introduction for non-specialists.
-- The Wikipedia article *Abelian sandpile model*.
+  Mathematical Society 57 (2010), pages 976-979: a short introduction
+  ([free PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf)).
+- The Wikipedia article
+  [Abelian sandpile model](https://en.wikipedia.org/wiki/Abelian_sandpile_model).
 - Per Bak, *How Nature Works: The Science of Self-Organized Criticality* (1996).
 
 ## Variants
