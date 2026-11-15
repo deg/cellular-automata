@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "cellular_automata",
+  "project_id": "3b2e3b6e-41c0-4ee9-b556-2638b9a9dc70"
+}
