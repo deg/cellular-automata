@@ -2352,6 +2352,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "wireworld"
+version = "0.1.0"
+dependencies = [
+ "ca_core",
+]
+
+[[package]]
 name = "xkbcommon-dl"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

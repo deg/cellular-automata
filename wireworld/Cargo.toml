@@ -1,0 +1,8 @@
+[package]
+name = "wireworld"
+version = "0.1.0"
+edition = "2024"
+description = "Draw wires and watch electrons run through them: diodes, clocks and logic gates."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
