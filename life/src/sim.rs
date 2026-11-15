@@ -241,6 +241,48 @@ mod tests {
         );
     }
 
+    /// The first generation (a multiple of 30, up to `limit`) at which the glider gun on the
+    /// default 320 x 200 world stops repeating: its own 36 x 9 box differs from 30
+    /// generations before. `None` if it is still intact at `limit`.
+    fn gun_breaks_at(limit: u64, wrap: bool) -> Option<u64> {
+        let pattern = rle::PATTERNS
+            .iter()
+            .find(|p| p.name == "Gosper glider gun")
+            .unwrap();
+        let mut life = Life::new(320, 200, Rule::life(), wrap);
+        life.place_centred(&rle::parse(pattern.rle).unwrap());
+        let (x0, y0) = (160 - 18, 100 - 4);
+        let snapshot = |life: &Life| -> Vec<bool> {
+            (y0..y0 + 9)
+                .flat_map(|y| (x0..x0 + 36).map(move |x| (x, y)))
+                .map(|(x, y)| life.grid().get(x, y))
+                .collect()
+        };
+        let mut previous = snapshot(&life);
+        while life.generation < limit {
+            for _ in 0..30 {
+                life.step();
+            }
+            let now = snapshot(&life);
+            if now != previous {
+                return Some(life.generation);
+            }
+            previous = now;
+        }
+        None
+    }
+
+    /// The README's first tip: on the default world, with wrap on, the gun's own gliders
+    /// come round and wreck it (at generation 6,390); with wrap off they die at the edge and
+    /// the gun runs on (checked to 20,000). Slow, so ignored by default: run `make slow`.
+    /// If this number changes, update `life/README.md`, which quotes it.
+    #[test]
+    #[ignore = "slow: run with --release -- --ignored"]
+    fn wrapping_wrecks_the_glider_gun_and_a_dead_edge_does_not() {
+        assert_eq!(gun_breaks_at(20_000, true), Some(6_390));
+        assert_eq!(gun_breaks_at(20_000, false), None);
+    }
+
     /// The pulsar is a period-3 oscillator: it repeats after 3 generations and not before.
     #[test]
     fn pulsar_has_period_three() {
@@ -251,6 +293,16 @@ mod tests {
         life.step();
         life.step();
         assert_eq!(live_cells(&life), start);
+    }
+
+    /// A pasted pattern can be bigger than the world. Placing it must keep the part that
+    /// fits and drop the rest, not panic on an out-of-range cell.
+    #[test]
+    fn a_pattern_bigger_than_the_world_is_clipped() {
+        let mut life = Life::new(4, 3, Rule::life(), false);
+        let shape = rle::parse("10o$10o$10o$10o$10o!").unwrap();
+        life.place_centred(&shape);
+        assert_eq!(life.population(), 12, "every cell of the 4 x 3 world");
     }
 
     /// Every built-in pattern must parse, and fit the default world when placed.

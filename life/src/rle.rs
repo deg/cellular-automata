@@ -59,6 +59,11 @@ pub struct Shape {
     pub size: (usize, usize),
 }
 
+/// The largest repeat count accepted: far beyond any world here (640 cells wide), but small
+/// enough that a mistyped or hostile count can't make the parser allocate billions of cells,
+/// or overflow a coordinate.
+const MAX_COUNT: usize = 10_000;
+
 /// Parse an RLE pattern.
 pub fn parse(text: &str) -> Result<Shape, String> {
     let mut cells = Vec::new();
@@ -72,9 +77,13 @@ pub fn parse(text: &str) -> Result<Shape, String> {
         for c in line.chars() {
             let n = || -> Result<usize, String> {
                 if count.is_empty() {
-                    Ok(1)
-                } else {
-                    count.parse().map_err(|_| format!("bad count '{count}'"))
+                    return Ok(1);
+                }
+                match count.parse::<usize>() {
+                    Ok(n) if n <= MAX_COUNT => Ok(n),
+                    _ => Err(format!(
+                        "repeat count {count} is too large (at most {MAX_COUNT})"
+                    )),
                 }
             };
             match c {
@@ -138,6 +147,15 @@ mod tests {
     fn ignores_comments_and_line_breaks() {
         let Shape { cells, .. } = parse("#N Blinker\n#C a comment\nx = 3, y = 1\n2o\no!").unwrap();
         assert_eq!(cells, vec![(0, 0), (1, 0), (2, 0)]);
+    }
+
+    /// A huge repeat count must be an error, not a billion-cell allocation that hangs the app,
+    /// nor a coordinate overflow (a panic in debug builds, silent garbage in release).
+    #[test]
+    fn rejects_huge_repeat_counts() {
+        assert!(parse("1000000000o!").is_err());
+        assert!(parse("18446744073709551615b2bo!").is_err());
+        assert!(parse("10000o!").is_ok());
     }
 
     /// Garbage should be an error the UI can show, not a panic or an empty pattern.

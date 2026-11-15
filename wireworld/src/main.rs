@@ -3,7 +3,7 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Pace, Playback, eframe, line};
+use ca_core::{About, Advance, GridView, Pace, PaintStroke, Playback, eframe};
 use sim::{Cell, PATTERNS, Wireworld};
 
 fn main() {
@@ -26,18 +26,13 @@ struct WireworldApp {
     size: (usize, usize),
     brush: Cell,
     pattern: usize,
-    last_paint: Option<(usize, usize)>,
+    stroke: PaintStroke,
     dirty: bool,
 }
 
 impl eframe::App for WireworldApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| self.controls(ui));
-            });
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));
@@ -49,20 +44,17 @@ impl eframe::App for WireworldApp {
 
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
-            match shown.pressed {
-                Some(cell) => {
-                    let brush = if ui.input(|i| i.modifiers.shift) {
-                        Cell::Empty
-                    } else {
-                        self.brush
-                    };
-                    for (x, y) in line(self.last_paint.unwrap_or(cell), cell) {
-                        self.world.set(x, y, brush);
-                    }
-                    self.last_paint = Some(cell);
-                    self.dirty = true;
+            let cells = self.stroke.cells(shown.pressed);
+            if !cells.is_empty() {
+                let brush = if ui.input(|i| i.modifiers.shift) {
+                    Cell::Empty
+                } else {
+                    self.brush
+                };
+                for (x, y) in cells {
+                    self.world.set(x, y, brush);
                 }
-                None => self.last_paint = None,
+                self.dirty = true;
             }
         });
 
@@ -84,7 +76,7 @@ impl WireworldApp {
             size,
             brush: Cell::Conductor,
             pattern: 2, // the OR gate shows the most at once
-            last_paint: None,
+            stroke: PaintStroke::default(),
             dirty: true,
         };
         app.place_pattern();

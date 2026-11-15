@@ -1,0 +1,67 @@
+use crate::egui;
+use crate::line;
+
+/// The left-hand controls panel every demo uses: a fixed width, scrolling when its contents
+/// are taller than the window (a short browser window would otherwise cut off the bottom).
+/// Call it before the central panel, so the grid gets only the space left over.
+pub fn controls_panel(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
+    egui::Panel::left("controls")
+        .resizable(false)
+        .default_size(300.0)
+        .show(ui, |ui| {
+            egui::ScrollArea::vertical().show(ui, add_contents);
+        });
+}
+
+/// Turns a held pointer into the cells to paint each frame.
+///
+/// The pointer can cross many cells between two frames; painting only the cell under it
+/// would leave a dotted trail. This remembers the last cell of the stroke and returns the
+/// whole line from there, and forgets it when the button is released, so the next stroke
+/// doesn't join on to the last.
+#[derive(Default)]
+pub struct PaintStroke {
+    last: Option<(usize, usize)>,
+}
+
+impl PaintStroke {
+    /// The cells to paint this frame, given [`crate::GridResponse::pressed`]. Empty when the
+    /// pointer is not pressed on the grid.
+    pub fn cells(&mut self, pressed: Option<(usize, usize)>) -> Vec<(usize, usize)> {
+        match pressed {
+            Some(cell) => {
+                let cells = line(self.last.unwrap_or(cell), cell);
+                self.last = Some(cell);
+                cells
+            }
+            None => {
+                self.last = None;
+                Vec::new()
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A press paints just the cell under it; a fast drag paints the whole line between the
+    /// frames' cells, so strokes are solid.
+    #[test]
+    fn a_drag_paints_a_solid_line() {
+        let mut s = PaintStroke::default();
+        assert_eq!(s.cells(Some((2, 2))), vec![(2, 2)]);
+        assert_eq!(s.cells(Some((5, 2))), vec![(2, 2), (3, 2), (4, 2), (5, 2)]);
+    }
+
+    /// Releasing ends the stroke: the next press must not draw a line back to where the last
+    /// stroke ended, or every new stroke would be joined to the old one.
+    #[test]
+    fn a_release_ends_the_stroke() {
+        let mut s = PaintStroke::default();
+        s.cells(Some((0, 0)));
+        assert!(s.cells(None).is_empty());
+        assert_eq!(s.cells(Some((9, 9))), vec![(9, 9)]);
+    }
+}

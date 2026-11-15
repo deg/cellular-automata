@@ -58,11 +58,12 @@ is B3/S23. Try:
 ## Things to try
 
 - **The gun.** It starts placed: press Run. Turn *Wrap around the edges* off, so gliders
-  die at the border instead of coming back and wrecking the gun.
+  die at the border. With wrap on, they come back round, and on the default world they
+  wreck the gun at generation 6,390.
 - **Draw.** Restart to clear, drag on the grid to draw live cells, shift-drag to erase,
-  then Run. Most random scribbles settle into still lifes and blinkers.
+  then Run. What do your scribbles settle into?
 - **Random soup.** *Random fill* at density 0.3 on the largest world, then Run at a high
-  speed. The soup burns down to scattered debris, with the odd glider escaping.
+  speed. Watch how the soup evolves, and whether gliders escape from it.
 - **A methuselah.** Restart, place the R-pentomino, and Run. Watch how much five cells
   make.
 - **Paste a pattern.** LifeWiki lists thousands, each with its RLE text. Paste one into

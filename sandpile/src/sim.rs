@@ -236,6 +236,16 @@ impl Sandpile {
         }
     }
 
+    /// Whether the cell `(dx, dy)` from the centre is on the grid, inside the frame, so that
+    /// grains dropped there stay on the pile. On a sink pile, a drip point where this is
+    /// false loses every grain dropped on it.
+    pub fn holds_relative(&self, dx: isize, dy: isize) -> bool {
+        let (cx, cy) = self.center();
+        self.grid
+            .offset(cx, cy, dx, dy)
+            .is_some_and(|(x, y)| !self.in_frame(x, y))
+    }
+
     /// Topple every unstable cell once, in raster order. Grains passed forward in the
     /// sweep can topple their new cell in the same sweep. Returns whether anything toppled.
     pub fn sweep(&mut self) -> bool {
@@ -638,6 +648,17 @@ mod tests {
         }
         assert_eq!(all.lost, 0, "grid too small for the test to mean anything");
         assert_eq!(all.grid(), one.grid());
+    }
+
+    /// The panel warns about drip points that lie off a sink grid; `holds_relative` decides
+    /// which. The centre is held, the frame cell at the edge and anything beyond are not.
+    #[test]
+    fn holds_relative_marks_cells_off_the_pile() {
+        let pile = Sandpile::new(11, &ORTHOGONAL, Boundary::Sink);
+        assert!(pile.holds_relative(0, 0));
+        assert!(pile.holds_relative(4, -4), "the last cell inside the frame");
+        assert!(!pile.holds_relative(5, 0), "the frame itself");
+        assert!(!pile.holds_relative(100, 0), "off the grid");
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.

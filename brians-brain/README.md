@@ -51,7 +51,8 @@ pair *without* the recovering pair behind it behaves quite differently: try draw
   collide.
 - **Draw.** Restart and drag a short line or a small blob, then Step through it a
   generation at a time to see how the recovery state steers it.
-- **A big soup.** Raise *seed size* to 1 and density to 0.3 for a world-sized start.
+- **A big soup.** Raise *seed size* to 1 and density to 0.3, then press *Random seed in
+  the middle* for a world-sized start.
 
 ## Further reading
 

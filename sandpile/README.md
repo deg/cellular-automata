@@ -82,7 +82,9 @@ them all at once.
   shift-click it again to remove it, and *Centre only* puts things back. Every drip feeds
   all the points at once. Add two or three, raise *grains per drip* to 100 or so, and Run:
   watch the piles grow into each other. Drip points stay put through Restart, so you can
-  try the same arrangement with either edge.
+  try the same arrangement with either edge. On a *grains fall off* grid, though, points
+  beyond its edge drip straight off it: their grains count as lost, and the panel says how
+  many points that is.
 - **One-off drops.** A plain click drops *grains per drip* grains on that cell, once.
 
 ## Further reading

@@ -50,10 +50,7 @@ struct SandpileApp {
 
 impl eframe::App for SandpileApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| self.controls(ui));
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         self.advance();
@@ -145,6 +142,19 @@ impl SandpileApp {
                 self.drip_points.reset_to_centre();
             }
         });
+        if self.pile.boundary() == Boundary::Sink {
+            let off = (self.drip_points.points().iter())
+                .filter(|&&(dx, dy)| !self.pile.holds_relative(dx, dy))
+                .count();
+            if off > 0 {
+                ui.small(
+                    RichText::new(format!(
+                        "{off} of them lie off this grid, so every grain dripped there falls off."
+                    ))
+                    .color(Color32::YELLOW),
+                );
+            }
+        }
         if self.drip_points.len() == 0 {
             ui.small(
                 RichText::new(

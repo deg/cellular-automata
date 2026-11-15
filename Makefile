@@ -9,7 +9,7 @@ DEMO  ?= sandpile
 PORT  ?= 8080
 
 .DEFAULT_GOAL := help
-.PHONY: help demos run web site serve test lint fmt fmt-check check timing setup siblings clean check-demo
+.PHONY: help demos run web site serve test lint fmt fmt-check check slow timing setup siblings clean check-demo
 
 ##@ Help
 
@@ -55,6 +55,9 @@ fmt: ## Format all code
 
 fmt-check: ## Fail if any code is not formatted
 	cargo fmt --all --check
+
+slow: ## Slow checks the READMEs rely on, e.g. Life's gun wrecked at 6,390 (release build)
+	cargo test --workspace --release -- --ignored --skip timing
 
 timing: ## Time 100,000- and 1,000,000-grain sandpiles (takes about 2 minutes)
 	cargo test --release -p sandpile timing -- --ignored --nocapture

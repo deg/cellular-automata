@@ -133,6 +133,7 @@ Everything goes through the Makefile; `make` alone lists the targets.
 
 ```bash
 make check                  # before every commit: fmt-check, clippy -D warnings, tests
+make slow                   # slow checks the READMEs quote (release build, a few minutes)
 make run DEMO=sandpile      # a demo in a native window
 make web DEMO=sandpile      # the same demo alone in the browser (trunk serve)
 make serve                  # every demo plus an index page, at localhost:8080
@@ -176,6 +177,8 @@ make siblings               # before/after a Rust update: build+test David's oth
     down rather than freeze.
   - `Rng`: a small seeded generator for random fills.
   - `About`: the side panel rendering the demo's `README.md`.
+  - `controls_panel`: the scrolling left panel each demo puts its controls in.
+  - `PaintStroke`: turns `GridResponse::pressed` into solid lines of cells to paint.
 - One directory per automaton (`sandpile`, `life`, `elementary`, `langtons-ant`,
   `brians-brain`, `wireworld`), each a binary crate with an `index.html` for trunk:
   - `main.rs` holds the UI.

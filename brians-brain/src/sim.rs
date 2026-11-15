@@ -18,6 +18,15 @@ pub enum Cell {
     Refractory,
 }
 
+/// Which way a glider travels.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Heading {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 pub struct Brain {
     grid: Grid<Cell>,
     counts: Vec<u8>,
@@ -45,6 +54,28 @@ impl Brain {
 
     pub fn count(&self, state: Cell) -> usize {
         self.grid.cells().iter().filter(|&&c| c == state).count()
+    }
+
+    /// Place the basic glider, travelling `heading`: two firing cells side by side at the
+    /// front, `(x, y)` and the next cell across, with two recovering cells right behind them.
+    /// The recovering pair is what makes it move cleanly (see the tests).
+    pub fn add_glider(&mut self, x: usize, y: usize, heading: Heading) {
+        let (across, behind): ((isize, isize), (isize, isize)) = match heading {
+            Heading::Up => ((1, 0), (0, 1)),
+            Heading::Down => ((1, 0), (0, -1)),
+            Heading::Left => ((0, 1), (1, 0)),
+            Heading::Right => ((0, 1), (-1, 0)),
+        };
+        let at = |dx: isize, dy: isize| ((x as isize + dx) as usize, (y as isize + dy) as usize);
+        for (fx, fy) in [at(0, 0), at(across.0, across.1)] {
+            self.set(fx, fy, Cell::Firing);
+        }
+        for (rx, ry) in [
+            at(behind.0, behind.1),
+            at(across.0 + behind.0, across.1 + behind.1),
+        ] {
+            self.set(rx, ry, Cell::Refractory);
+        }
     }
 
     pub fn step(&mut self) {
@@ -112,6 +143,35 @@ mod tests {
                 "generation {t}"
             );
             assert_eq!(b.count(Cell::Refractory), 2, "generation {t}");
+        }
+    }
+
+    /// "Add four gliders" relies on `add_glider` getting the orientation right in all four
+    /// directions: each glider must move one cell per generation the way it heads, intact.
+    #[test]
+    fn add_glider_moves_the_way_it_heads() {
+        for (heading, (dx, dy)) in [
+            (Heading::Up, (0, -1)),
+            (Heading::Down, (0, 1)),
+            (Heading::Left, (-1, 0)),
+            (Heading::Right, (1, 0)),
+        ] {
+            let mut b = Brain::new(41, 41, false);
+            b.add_glider(20, 20, heading);
+            let start = firing_cells(&b);
+            for _ in 0..10 {
+                b.step();
+            }
+            let moved: Vec<_> = start
+                .iter()
+                .map(|&(x, y)| {
+                    (
+                        (x as isize + 10 * dx) as usize,
+                        (y as isize + 10 * dy) as usize,
+                    )
+                })
+                .collect();
+            assert_eq!(firing_cells(&b), moved, "{heading:?}");
         }
     }
 

@@ -7,8 +7,15 @@ pub struct Rng(u64);
 impl Rng {
     /// A generator started from `seed`. Equal seeds give equal sequences.
     pub fn new(seed: u64) -> Self {
+        // splitmix64 spreads every bit of the seed through the state, so neighbouring seeds
+        // give unrelated sequences. (An XOR with `| 1` used to merge seeds 2k and 2k+1, so
+        // every other Restart repeated the previous random row.)
+        let mut z = seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^= z >> 31;
         // xorshift has a fixed point at zero, so steer clear of it.
-        Self(seed ^ 0x9E37_79B9_7F4A_7C15 | 1)
+        Self(if z == 0 { 1 } else { z })
     }
 
     pub fn next_u64(&mut self) -> u64 {
@@ -40,6 +47,15 @@ mod tests {
     fn equal_seeds_give_equal_sequences() {
         let (mut a, mut b) = (Rng::new(7), Rng::new(7));
         assert!((0..100).all(|_| a.next_u64() == b.next_u64()));
+    }
+
+    /// Demos bump the seed by one for each new random start, so neighbouring seeds must give
+    /// different sequences, or every other Restart shows the same random row again.
+    #[test]
+    fn neighbouring_seeds_differ() {
+        let firsts: std::collections::HashSet<u64> =
+            (0..1_000).map(|s| Rng::new(s).next_u64()).collect();
+        assert_eq!(firsts.len(), 1_000);
     }
 
     /// A random fill at density p should come out near p, or "30% random" would mislead.

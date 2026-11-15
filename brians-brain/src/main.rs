@@ -3,8 +3,10 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Pace, Playback, Rng, eframe, generations_per_frame, line};
-use sim::{Brain, Cell};
+use ca_core::{
+    About, Advance, GridView, Pace, PaintStroke, Playback, Rng, eframe, generations_per_frame,
+};
+use sim::{Brain, Cell, Heading};
 
 fn main() {
     ca_core::run("Brian's Brain", BrainApp::new);
@@ -27,18 +29,13 @@ struct BrainApp {
     density: f64,
     /// Fraction of the world's width and height the random seed fills, centred.
     seed_extent: f64,
-    last_paint: Option<(usize, usize)>,
+    stroke: PaintStroke,
     dirty: bool,
 }
 
 impl eframe::App for BrainApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| self.controls(ui));
-            });
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));
@@ -55,20 +52,17 @@ impl eframe::App for BrainApp {
 
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
-            match shown.pressed {
-                Some(cell) => {
-                    let state = if ui.input(|i| i.modifiers.shift) {
-                        Cell::Ready
-                    } else {
-                        Cell::Firing
-                    };
-                    for (x, y) in line(self.last_paint.unwrap_or(cell), cell) {
-                        self.brain.set(x, y, state);
-                    }
-                    self.last_paint = Some(cell);
-                    self.dirty = true;
+            let cells = self.stroke.cells(shown.pressed);
+            if !cells.is_empty() {
+                let state = if ui.input(|i| i.modifiers.shift) {
+                    Cell::Ready
+                } else {
+                    Cell::Firing
+                };
+                for (x, y) in cells {
+                    self.brain.set(x, y, state);
                 }
-                None => self.last_paint = None,
+                self.dirty = true;
             }
         });
 
@@ -91,7 +85,7 @@ impl BrainApp {
             size,
             density: 0.3,
             seed_extent: 0.25,
-            last_paint: None,
+            stroke: PaintStroke::default(),
             dirty: true,
         };
         app.random_seed();
@@ -105,6 +99,7 @@ impl BrainApp {
         ui.separator();
 
         self.playback.ui(ui);
+        ui.small("On a big world the top speeds are out of reach: each frame does at most about a million cell updates, so the world slows down instead of freezing.");
         ui.small(
             "Restart clears the world. Drag on the grid to draw firing cells; shift-drag to erase.",
         );
@@ -197,33 +192,10 @@ impl BrainApp {
     fn add_gliders(&mut self) {
         let (cx, cy) = (self.size.0 / 2, self.size.1 / 2);
         let d = 20;
-        // (firing cells, recovering cells) for each glider; recovering cells sit behind.
-        let gliders = [
-            (
-                [(cx, cy - d), (cx + 1, cy - d)],
-                [(cx, cy - d + 1), (cx + 1, cy - d + 1)],
-            ),
-            (
-                [(cx, cy + d), (cx + 1, cy + d)],
-                [(cx, cy + d - 1), (cx + 1, cy + d - 1)],
-            ),
-            (
-                [(cx - d, cy), (cx - d, cy + 1)],
-                [(cx - d + 1, cy), (cx - d + 1, cy + 1)],
-            ),
-            (
-                [(cx + d, cy), (cx + d, cy + 1)],
-                [(cx + d - 1, cy), (cx + d - 1, cy + 1)],
-            ),
-        ];
-        for (firing, recovering) in gliders {
-            for (x, y) in firing {
-                self.brain.set(x, y, Cell::Firing);
-            }
-            for (x, y) in recovering {
-                self.brain.set(x, y, Cell::Refractory);
-            }
-        }
+        self.brain.add_glider(cx, cy - d, Heading::Up);
+        self.brain.add_glider(cx, cy + d, Heading::Down);
+        self.brain.add_glider(cx - d, cy, Heading::Left);
+        self.brain.add_glider(cx + d, cy, Heading::Right);
         self.dirty = true;
     }
 }

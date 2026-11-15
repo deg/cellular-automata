@@ -52,12 +52,7 @@ struct ElementaryApp {
 
 impl eframe::App for ElementaryApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| self.controls(ui));
-            });
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));

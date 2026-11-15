@@ -172,6 +172,22 @@ mod tests {
         }
     }
 
+    /// Rule 184's traffic jams move backwards: a queue of stopped cars clears from the front,
+    /// one car per generation, so the queue's front edge moves back one cell per generation
+    /// even though every car only ever moves forwards. The README says so; this checks it.
+    #[test]
+    fn rule_184_jams_clear_from_the_front() {
+        let mut e = Elementary::new(100, 2, 184, true, Start::SingleCell);
+        let mut row = vec![false; 100];
+        row[50..60].fill(true); // ten cars, bumper to bumper
+        e.row = row;
+        for t in 1..=9 {
+            e.step();
+            let front = (50..100).take_while(|&i| e.row()[i]).last().unwrap();
+            assert_eq!(front, 59 - t, "generation {t}");
+        }
+    }
+
     /// Once the diagram is full it scrolls: the newest row stays at the bottom and the
     /// height never changes. An off-by-one here would show the current row twice or not at all.
     #[test]

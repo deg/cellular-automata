@@ -52,12 +52,7 @@ struct AntApp {
 
 impl eframe::App for AntApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| self.controls(ui));
-            });
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));
@@ -231,4 +226,26 @@ fn palette(n: usize) -> Vec<Color32> {
         colours.push(RAMP[lo].lerp_to_gamma(RAMP[hi], frac));
     }
     colours
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every rule length the parser accepts (2 to 12 colours) needs exactly one colour per
+    /// cell colour, starting with the blank, or drawing indexes past the end. The ramp
+    /// interpolation's index arithmetic is where that would go wrong.
+    #[test]
+    fn palette_has_one_colour_per_rule_colour() {
+        for n in 2..=12 {
+            let p = palette(n);
+            assert_eq!(p.len(), n);
+            assert_eq!(p[0], BLANK);
+        }
+        assert_eq!(
+            palette(12)[11],
+            RAMP[RAMP.len() - 1],
+            "the last colour ends the ramp"
+        );
+    }
 }

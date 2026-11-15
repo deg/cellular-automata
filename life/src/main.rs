@@ -4,7 +4,9 @@ mod rle;
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Pace, Playback, Rng, eframe, generations_per_frame, line};
+use ca_core::{
+    About, Advance, GridView, Pace, PaintStroke, Playback, Rng, eframe, generations_per_frame,
+};
 use sim::{Life, Rule};
 
 fn main() {
@@ -52,19 +54,13 @@ struct LifeApp {
     pasted: String,
     paste_error: Option<String>,
     density: f64,
-    /// The last cell painted in the current stroke, so a fast drag paints a solid line.
-    last_paint: Option<(usize, usize)>,
+    stroke: PaintStroke,
     dirty: bool,
 }
 
 impl eframe::App for LifeApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        egui::Panel::left("controls")
-            .resizable(false)
-            .default_size(300.0)
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| self.controls(ui));
-            });
+        ca_core::controls_panel(ui, |ui| self.controls(ui));
         self.about.show(ui);
 
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));
@@ -80,16 +76,13 @@ impl eframe::App for LifeApp {
 
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
-            match shown.pressed {
-                Some(cell) => {
-                    let alive = !ui.input(|i| i.modifiers.shift);
-                    for (x, y) in line(self.last_paint.unwrap_or(cell), cell) {
-                        self.life.set(x, y, alive);
-                    }
-                    self.last_paint = Some(cell);
-                    self.dirty = true;
+            let cells = self.stroke.cells(shown.pressed);
+            if !cells.is_empty() {
+                let alive = !ui.input(|i| i.modifiers.shift);
+                for (x, y) in cells {
+                    self.life.set(x, y, alive);
                 }
-                None => self.last_paint = None,
+                self.dirty = true;
             }
             if let Some((x, y)) = shown.hovered {
                 shown.response.on_hover_text(format!("({x}, {y})"));
@@ -119,7 +112,7 @@ impl LifeApp {
             pasted: String::new(),
             paste_error: None,
             density: 0.3,
-            last_paint: None,
+            stroke: PaintStroke::default(),
             dirty: true,
         };
         app.place(PatternSource::BuiltIn);
@@ -133,6 +126,7 @@ impl LifeApp {
         ui.separator();
 
         self.playback.ui(ui);
+        ui.small("On a big world the top speeds are out of reach: each frame does at most about a million cell updates, so the world slows down instead of freezing.");
         ui.small(
             "Restart clears the world. Drag on the grid to draw live cells; shift-drag to erase.",
         );
