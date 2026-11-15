@@ -57,13 +57,19 @@ impl eframe::App for SandpileApp {
         if self.dirty {
             let threshold = self.pile.threshold();
             let colours = palette(threshold);
-            self.view.set_image(ui.ctx(), self.pile.grid(), |h| {
-                if h >= threshold {
-                    UNSTABLE
-                } else {
-                    colours[h as usize]
-                }
-            });
+            // On a hex grid, show the central hexagon, plus any cell holding grains.
+            self.view.set_image_cropped(
+                ui.ctx(),
+                self.pile.grid(),
+                |h| {
+                    if h >= threshold {
+                        UNSTABLE
+                    } else {
+                        colours[h as usize]
+                    }
+                },
+                |h| h > 0,
+            );
             self.dirty = false;
         }
 

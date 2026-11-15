@@ -13,6 +13,8 @@ pub struct GridView {
     layout: Layout,
     /// The grid's size in cells, as of the last `set_image`.
     grid_size: (usize, usize),
+    /// The first texel column shown: the picture may be cropped (see [`Layout::crop`]).
+    crop_left: usize,
 }
 
 /// How a grid's cells are laid out in the texture, and so on screen.
@@ -88,6 +90,36 @@ impl Layout {
         ColorImage::new(size, pixels)
     }
 
+    /// The texel columns worth showing: all of them for a square layout. For hex, the
+    /// columns of the largest centred hexagon of cells (|dq|, |dr|, |dq + dr| at most half the
+    /// side), which drops the parallelogram's empty corners, widened as needed to include
+    /// every cell for which `occupied` is true, so cropping never hides a grain.
+    pub fn crop<T: Copy>(
+        self,
+        grid: &Grid<T>,
+        occupied: impl Fn(T) -> bool,
+    ) -> std::ops::Range<usize> {
+        let (w, h) = (grid.width(), grid.height());
+        let full = 0..self.texture_size(w, h)[0];
+        if self == Self::Square || w != h || w == 0 {
+            return full;
+        }
+        // On an n x n grid with centre c = n / 2, hexagon cells have 2dq + dr from -2c to 2c,
+        // so texel columns c to 5c + 1.
+        let c = w / 2;
+        let (mut lo, mut hi) = (c, 5 * c + 2);
+        for y in 0..h {
+            for x in 0..w {
+                if occupied(grid.get(x, y)) {
+                    let (tx, _) = self.cell_texel(x, y);
+                    lo = lo.min(tx);
+                    hi = hi.max(tx + self.cell_width());
+                }
+            }
+        }
+        lo.max(full.start)..hi.min(full.end)
+    }
+
     /// The cell drawn at texel `(tx, ty)` of a `w` x `h` grid, or `None` for a texel no cell
     /// covers (the empty corners of the hex layout).
     pub fn cell_at_texel(self, tx: usize, ty: usize, w: usize, h: usize) -> Option<(usize, usize)> {
@@ -116,13 +148,15 @@ pub struct GridResponse {
     image_rect: Rect,
     texel: egui::Vec2,
     layout: Layout,
+    crop_left: usize,
 }
 
 impl GridResponse {
     /// The screen rectangle of cell `(x, y)`, for drawing markers over the grid.
     pub fn cell_rect(&self, x: usize, y: usize) -> Rect {
         let (tx, ty) = self.layout.cell_texel(x, y);
-        let min = self.image_rect.min + vec2(tx as f32 * self.texel.x, ty as f32 * self.texel.y);
+        let tx = tx as f32 - self.crop_left as f32; // negative if cropped off, which is fine
+        let min = self.image_rect.min + vec2(tx * self.texel.x, ty as f32 * self.texel.y);
         let size = vec2(self.layout.cell_width() as f32 * self.texel.x, self.texel.y);
         Rect::from_min_size(min, size)
     }
@@ -140,6 +174,7 @@ impl GridView {
             texture: None,
             layout: Layout::Square,
             grid_size: (0, 0),
+            crop_left: 0,
         }
     }
 
@@ -154,8 +189,36 @@ impl GridView {
         grid: &Grid<T>,
         color: impl Fn(T) -> Color32,
     ) {
+        self.set_image_cropped(ctx, grid, color, |_| true);
+    }
+
+    /// Like [`GridView::set_image`], but in the hex layout trims the parallelogram's empty
+    /// corners down to the central hexagon, widening only as far as needed to keep every cell
+    /// for which `occupied` is true in view. Has no effect on a square layout.
+    pub fn set_image_cropped<T: Copy>(
+        &mut self,
+        ctx: &egui::Context,
+        grid: &Grid<T>,
+        color: impl Fn(T) -> Color32,
+        occupied: impl Fn(T) -> bool,
+    ) {
         self.grid_size = (grid.width(), grid.height());
-        let image = self.layout.image(grid, color);
+        let full = self.layout.image(grid, color);
+        let columns = self.layout.crop(grid, occupied);
+        self.crop_left = columns.start;
+        let image = if columns.len() == full.size[0] {
+            full
+        } else {
+            let (fw, h) = (full.size[0], full.size[1]);
+            let pixels = (0..h)
+                .flat_map(|y| {
+                    full.pixels[y * fw + columns.start..y * fw + columns.end]
+                        .iter()
+                        .copied()
+                })
+                .collect();
+            ColorImage::new([columns.len(), h], pixels)
+        };
         match &mut self.texture {
             Some(texture) => texture.set(image, TextureOptions::NEAREST),
             None => {
@@ -176,6 +239,7 @@ impl GridView {
                 image_rect: Rect::NOTHING,
                 texel: egui::Vec2::ZERO,
                 layout: self.layout,
+                crop_left: 0,
             };
         };
 
@@ -192,14 +256,14 @@ impl GridView {
             .image(texture.id(), image_rect, uv, Color32::WHITE);
 
         let (gw, gh) = self.grid_size;
-        let layout = self.layout;
+        let (layout, crop_left) = (self.layout, self.crop_left);
         let cell_at = |pos: egui::Pos2| {
             let rel = pos - image_rect.min;
             let (tx, ty) = (rel.x / texel.x, rel.y / texel.y);
             if tx < 0.0 || ty < 0.0 || tx >= w || ty >= h {
                 return None;
             }
-            layout.cell_at_texel(tx as usize, ty as usize, gw, gh)
+            layout.cell_at_texel(tx as usize + crop_left, ty as usize, gw, gh)
         };
         let hovered = response.hover_pos().and_then(cell_at);
         let pressed = if response.is_pointer_button_down_on() {
@@ -224,6 +288,7 @@ impl GridView {
             image_rect,
             texel,
             layout,
+            crop_left,
         }
     }
 }
@@ -285,6 +350,43 @@ mod tests {
             match dy {
                 0 => assert_eq!(nx.abs_diff(cx), 2, "side neighbour ({dx}, {dy})"),
                 _ => assert_eq!((ny.abs_diff(cy), overlap), (1, 1), "neighbour ({dx}, {dy})"),
+            }
+        }
+    }
+
+    /// Cropping must drop the hex parallelogram's empty corners (the centred hexagon of an
+    /// n x n grid is 2n texels wide, not 3n - 1), must widen to keep any occupied cell in
+    /// view, and must leave a square layout alone.
+    #[test]
+    fn crop_trims_hex_corners_but_never_an_occupied_cell() {
+        let mut g = Grid::new(11, 11, false);
+        assert_eq!(Layout::Hex.crop(&g, |c| c), 5..27, "2 x 11 texels, centred");
+        assert_eq!(Layout::Hex.texture_size(11, 11)[0], 32);
+        g.set(0, 0, true); // the top-left corner cell, drawn at texels 0 and 1
+        assert_eq!(Layout::Hex.crop(&g, |c| c), 0..27);
+        g.set(10, 10, true); // the bottom-right corner, texels 30 and 31
+        assert_eq!(Layout::Hex.crop(&g, |c| c), 0..32);
+        assert_eq!(Layout::Square.crop(&g, |c| c), 0..11);
+    }
+
+    /// Every cell of the centred hexagon must lie inside the cropped columns, or the crop
+    /// would cut into a pile grown from the centre.
+    #[test]
+    fn crop_keeps_the_whole_central_hexagon() {
+        let n = 21;
+        let g = Grid::new(n, n, false);
+        let cols = Layout::Hex.crop(&g, |c| c);
+        let c = (n / 2) as isize;
+        for y in 0..n {
+            for x in 0..n {
+                let (dq, dr) = (x as isize - c, y as isize - c);
+                if dq.abs() <= c && dr.abs() <= c && (dq + dr).abs() <= c {
+                    let (tx, _) = Layout::Hex.cell_texel(x, y);
+                    assert!(
+                        cols.contains(&tx) && cols.contains(&(tx + 1)),
+                        "cell ({x}, {y})"
+                    );
+                }
             }
         }
     }

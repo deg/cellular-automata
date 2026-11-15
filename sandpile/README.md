@@ -111,4 +111,6 @@ holds for every such choice.
   the one above, which gives every cell exactly six neighbours touching it. A pile dropped
   on one cell has six-fold symmetry: turn it by 60 degrees and it looks the same (the
   demo's tests check this). Hex grids stop growing at 1,365 cells across, so that the
-  picture still fits in a browser.
+  picture still fits in a browser. A hex grid is really a slanted parallelogram of cells;
+  the demo shows only its central hexagon, widening the view if grains spread into the
+  corners.
