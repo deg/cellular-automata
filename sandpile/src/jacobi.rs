@@ -68,8 +68,8 @@ impl Quarter {
         self.extent
     }
 
-    /// Topple every unstable cell once, all at the same time. Returns how many cells
-    /// toppled (0 means the pile is stable).
+    /// Topple every unstable cell once, all at the same time. Returns the toppling events,
+    /// counted over each cell's mirror images (0 means the pile is stable).
     pub fn sweep(&mut self) -> u64 {
         // One cell beyond the grains: they spread at most one cell a sweep.
         let e = (self.extent + 1).min(self.q - 1);
@@ -103,10 +103,10 @@ impl Quarter {
                 &self.now[(y + 1) * s..(y + 2) * s],
             );
             let out = &mut self.next[y * s..(y + 1) * s];
-            let mut row = 0u32;
+            let mut row = 0u64;
             for x in 1..=e + 1 {
                 let v = mid[x];
-                row += (v >> shift != 0) as u32;
+                row += (v >> shift != 0) as u64;
                 let mut h = (v & mask) + (mid[x - 1] >> shift) + (mid[x + 1] >> shift);
                 h += (up[x] >> shift) + (dn[x] >> shift);
                 if N == 8 {
@@ -115,7 +115,13 @@ impl Quarter {
                 }
                 out[x] = h;
             }
-            toppled += u64::from(row);
+            // A cell stands for 4 mirror images, one on an axis for 2, the centre for 1.
+            let on_axis = (mid[1] >> shift != 0) as u64;
+            toppled += if y == 1 {
+                2 * row - on_axis
+            } else {
+                4 * row - 2 * on_axis
+            };
         }
         toppled
     }
@@ -149,5 +155,41 @@ impl Quarter {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The ghost cells at the origin, checked directly: 4 grains at the centre topple once
+    /// into a plus, and writing back fills all four quarters. A mistake in the ghosts (the
+    /// centre seeing its own mirror image, say) would show here before anywhere else.
+    #[test]
+    fn four_grains_make_a_plus() {
+        let mut g = Grid::new(11, 11, 0u32);
+        g.set(5, 5, 4);
+        let mut q = Quarter::from_grid(&g, 0, 4);
+        assert_eq!(q.sweep(), 1);
+        assert_eq!(q.sweep(), 0, "a plus is stable");
+        q.write_back(&mut g);
+        assert_eq!(g.get(5, 5), 0);
+        for (x, y) in [(4, 5), (6, 5), (5, 4), (5, 6)] {
+            assert_eq!(g.get(x, y), 1, "({x}, {y})");
+        }
+        assert_eq!(g.cells().iter().sum::<u32>(), 4);
+    }
+
+    /// With 8 neighbours, 8 grains at the centre must reach all 8 cells around it, the
+    /// diagonals through the corner ghost.
+    #[test]
+    fn eight_grains_reach_all_eight_neighbours() {
+        let mut g = Grid::new(11, 11, 0u32);
+        g.set(5, 5, 8);
+        let mut q = Quarter::from_grid(&g, 0, 8);
+        q.sweep();
+        q.write_back(&mut g);
+        assert_eq!(g.get(5, 5), 0);
+        assert_eq!(g.cells().iter().filter(|&&h| h == 1).count(), 8);
     }
 }

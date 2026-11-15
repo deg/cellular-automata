@@ -164,7 +164,7 @@ impl Sandpile {
             boundary,
             occupied: None,
             settled: true,
-            symmetric: boundary == Boundary::Grow && has_square_symmetry(offsets),
+            symmetric: boundary == Boundary::Grow && is_square_neighbourhood(offsets),
             mirror_stale: false,
             quarter: None,
             jacobi_sweeps: 0,
@@ -501,8 +501,7 @@ impl Sandpile {
         let q = self.quarter.as_mut().expect("in the Jacobi stage");
         let toppled = q.sweep();
         let extent = q.extent();
-        // Each toppled cell stands for about 4 mirror images (fewer on the axes).
-        self.topples += 4 * toppled;
+        self.topples += toppled;
         self.sweeps += 1;
         self.jacobi_sweeps += 1;
         self.mirror_stale = true;
@@ -698,13 +697,16 @@ impl Octant<'_> {
 /// Measured natively: 0.10 ns against 2.5 ns, so 25; 16 leaves room for the browser build.
 const JACOBI_CELLS_PER_CELL: usize = 16;
 
-/// Whether `offsets` look the same after mirroring across either axis or the diagonal,
-/// the condition for a centred pile to keep the square's 8-fold symmetry.
-fn has_square_symmetry(offsets: &[(isize, isize)]) -> bool {
+/// Whether `offsets` are exactly the 4 or the 8 square neighbours, the shapes the
+/// symmetric fast paths handle. Both look the same mirrored across either axis or the
+/// diagonal, which is what keeps a centred pile 8-fold symmetric.
+fn is_square_neighbourhood(offsets: &[(isize, isize)]) -> bool {
+    // Square symmetry alone isn't enough: the Jacobi stage hard-codes these two shapes
+    // (the four diagonals alone, say, are symmetric too, but would come out wrong).
     let set: std::collections::HashSet<_> = offsets.iter().copied().collect();
-    offsets.iter().all(|&(dx, dy)| {
-        set.contains(&(-dx, dy)) && set.contains(&(dx, -dy)) && set.contains(&(dy, dx))
-    })
+    [&ORTHOGONAL[..], &MOORE[..]]
+        .iter()
+        .any(|shape| shape.len() == set.len() && shape.iter().all(|o| set.contains(o)))
 }
 
 /// The distinct mirror images of offset `(i, j)` under the square's 8 symmetries.
@@ -1143,6 +1145,26 @@ mod tests {
         assert_eq!(fast.grid(), plain.grid());
     }
 
+    /// A drip point beyond the grid while the Jacobi stage runs: `add_relative` grows the
+    /// grid before the drop reaches `add`, so the quarter must survive the growth and be
+    /// written back at the new centre. The result must match a plain run.
+    #[test]
+    fn a_drop_beyond_the_grid_during_the_jacobi_stage_matches_the_plain_sweep() {
+        let mut fast = mid_jacobi(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
+        let far = fast.grid().width() as isize + 50;
+        fast.add_relative(far, 0, 500);
+        fast.relax_fully();
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry();
+        let (cx, cy) = plain.center();
+        plain.add(cx, cy, 20_000);
+        plain.relax_fully();
+        plain.add_relative(far, 0, 500);
+        plain.relax_fully();
+        assert_eq!(fast.grid().width(), plain.grid().width());
+        assert_eq!(fast.grid(), plain.grid());
+        assert_eq!((fast.grains, fast.lost), (20_500, 0));
+    }
+
     /// When a symmetric pile reaches its largest size, grains must start falling off the edge
     /// and be counted, as in the plain sweep: symmetric mode hands over to it.
     #[test]
@@ -1161,14 +1183,20 @@ mod tests {
         assert_eq!(fast.lost + sum(&fast), 5_000);
     }
 
-    /// Symmetric mode is only safe for neighbourhoods with the square's symmetry, and the
+    /// Symmetric mode is only safe for the two neighbourhoods its fast paths know: the four
+    /// diagonals alone are just as symmetric but came out wrong in the Jacobi stage. And the
     /// octant rules rely on counting each cell's distinct mirror images correctly: 1 for the
     /// centre, 4 on an axis or the diagonal, 8 elsewhere.
     #[test]
     fn square_symmetry_and_mirror_images() {
-        assert!(has_square_symmetry(&ORTHOGONAL));
-        assert!(has_square_symmetry(&MOORE));
-        assert!(!has_square_symmetry(&HEX));
+        assert!(is_square_neighbourhood(&ORTHOGONAL));
+        assert!(is_square_neighbourhood(&MOORE));
+        assert!(!is_square_neighbourhood(&HEX));
+        let diagonals = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
+        assert!(
+            !is_square_neighbourhood(&diagonals),
+            "symmetric, but not a shape the fast paths know"
+        );
         let counts: Vec<_> = [(0, 0), (3, 0), (2, 2), (3, 1)]
             .iter()
             .map(|&(i, j)| mirror_images(i, j).len())
