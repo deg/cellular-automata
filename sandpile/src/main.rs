@@ -3,7 +3,7 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{GridView, Playback, eframe};
+use ca_core::{About, GridView, Playback, eframe};
 use sim::{Boundary, ORTHOGONAL, Sandpile};
 
 fn main() {
@@ -24,6 +24,7 @@ const START_SIDE: usize = 101;
 struct SandpileApp {
     pile: Sandpile,
     view: GridView,
+    about: About,
     playback: Playback,
     boundary: Boundary,
     /// Grains added to the centre by the "Drop" button.
@@ -40,6 +41,7 @@ impl SandpileApp {
         Self {
             pile: Sandpile::new(START_SIDE, &ORTHOGONAL, boundary),
             view: GridView::new("sandpile"),
+            about: About::new(include_str!("../README.md")),
             playback: Playback::new(2_000, 100_000, "thousand cells / frame"),
             boundary,
             drop_amount: 100_000,
@@ -66,6 +68,7 @@ impl SandpileApp {
             "A cell holding {} grains topples, sending one to each neighbour.",
             self.pile.threshold()
         ));
+        self.about.toggle_button(ui);
         ui.separator();
 
         self.playback.ui(ui);
@@ -173,6 +176,7 @@ impl eframe::App for SandpileApp {
             .resizable(false)
             .default_size(300.0)
             .show(ui, |ui| self.controls(ui));
+        self.about.show(ui);
 
         self.advance();
         if self.dirty {
