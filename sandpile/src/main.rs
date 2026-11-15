@@ -4,9 +4,9 @@ mod drip;
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText, Stroke};
-use ca_core::{About, Advance, GridView, Playback, eframe};
+use ca_core::{About, Advance, GridView, Layout, Playback, eframe};
 use drip::DripPoints;
-use sim::{Boundary, MOORE, ORTHOGONAL, Sandpile};
+use sim::{Boundary, HEX, MOORE, ORTHOGONAL, Sandpile};
 
 fn main() {
     ca_core::run("Abelian sandpile", SandpileApp::new);
@@ -202,15 +202,25 @@ impl SandpileApp {
         });
         ui.horizontal(|ui| {
             ui.label("Neighbours:");
-            let four = ui.radio_value(&mut self.neighbours, Neighbours::Four, "4 (topple at 4)");
-            let eight = ui.radio_value(&mut self.neighbours, Neighbours::Eight, "8 (topple at 8)");
+            let mut changed = false;
+            for (choice, label) in [
+                (Neighbours::Four, "4"),
+                (Neighbours::Hex, "6 (hex grid)"),
+                (Neighbours::Eight, "8"),
+            ] {
+                changed |= ui
+                    .radio_value(&mut self.neighbours, choice, label)
+                    .changed();
+            }
             // A pile can't change neighbourhood midway, so a new choice starts a new pile at
             // once (waiting for Restart left the heading saying 4 under a ticked 8).
-            if four.changed() || eight.changed() {
+            if changed {
                 self.pile = new_pile(self.boundary, self.neighbours);
+                self.view.set_layout(self.neighbours.layout());
                 self.dirty = true;
             }
         });
+        ui.small("A cell topples when it holds one grain for each of its neighbours.");
         if self.boundary != self.pile.boundary() {
             ui.small("The new edge takes effect on Restart.");
         }
@@ -233,7 +243,7 @@ impl SandpileApp {
             ui.label(format!("{side} x {side}"));
             ui.end_row();
         });
-        if side >= sim::MAX_SIDE {
+        if side >= self.pile.max_side() {
             ui.small(
                 RichText::new("The grid is at its largest; grains now fall off the edge.")
                     .color(Color32::YELLOW),
@@ -312,13 +322,15 @@ impl SandpileApp {
 }
 
 fn new_pile(boundary: Boundary, neighbours: Neighbours) -> Sandpile {
-    Sandpile::new(START_SIDE, neighbours.offsets(), boundary)
+    Sandpile::new(START_SIDE, neighbours.offsets(), boundary).with_max_side(neighbours.max_side())
 }
 
 /// Which cells count as a cell's neighbours, and so how many grains make it topple.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Neighbours {
     Four,
+    /// Six, on a hex grid.
+    Hex,
     Eight,
 }
 
@@ -326,7 +338,24 @@ impl Neighbours {
     fn offsets(self) -> &'static [(isize, isize)] {
         match self {
             Self::Four => &ORTHOGONAL,
+            Self::Hex => &HEX,
             Self::Eight => &MOORE,
+        }
+    }
+
+    fn layout(self) -> Layout {
+        match self {
+            Self::Hex => Layout::Hex,
+            Self::Four | Self::Eight => Layout::Square,
+        }
+    }
+
+    /// The largest grid side whose picture still fits a 4096-texel texture, the limit in many
+    /// browsers. A hex grid of side n is drawn 3n - 1 texels wide.
+    fn max_side(self) -> usize {
+        match self {
+            Self::Hex => 1365,
+            Self::Four | Self::Eight => sim::MAX_SIDE,
         }
     }
 }
@@ -367,5 +396,18 @@ mod tests {
         let eight = palette(8);
         assert_eq!(eight.len(), 8);
         assert_eq!((eight[0], eight[7]), (PALETTE[0], PALETTE[3]));
+    }
+
+    /// The largest picture of each neighbourhood must fit a 4096-texel texture, the limit in
+    /// many browsers, or a big pile would fail to draw; and every max side must be odd, which
+    /// the sandpile requires.
+    #[test]
+    fn the_largest_grid_fits_a_texture() {
+        for n in [Neighbours::Four, Neighbours::Hex, Neighbours::Eight] {
+            let side = n.max_side();
+            let [w, h] = n.layout().texture_size(side, side);
+            assert!(w <= 4096 && h <= 4096, "{n:?}: {w} x {h}");
+            assert_eq!(side % 2, 1);
+        }
     }
 }

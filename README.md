@@ -7,7 +7,7 @@ the browser, and explains itself: the rule, its history, and things to try.
 
 | Demo | What it shows |
 |---|---|
-| [Abelian sandpile](sandpile/) | Grains dropped on one cell topple onto their 4 or 8 neighbours and settle into a fractal. |
+| [Abelian sandpile](sandpile/) | Grains dropped on one cell topple onto their neighbours, on a square or hex grid, and settle into a fractal. |
 | [Conway's Game of Life](life/) | Cells live or die by counting their neighbours; gliders, guns and other rules to try. |
 | [Elementary cellular automata](elementary/) | All 256 one-dimensional rules, from the chaos of Rule 30 to the computer inside Rule 110. |
 | [Langton's ant](langtons-ant/) | An ant follows two rules, wanders for about 10,000 steps, then builds a highway. |

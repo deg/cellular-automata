@@ -106,5 +106,9 @@ holds for every such choice.
   neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
   the eight directions. The colours spread over the eight heights. Drop 100,000 grains
   and compare the shape with the four-neighbour pile.
-- **Hex grid** (planned): a cell topples at 6, sending one grain to each of its six
-  neighbours.
+- **Hex grid.** Choose *6 (hex grid)*. Each cell is a hexagon with six neighbours, and
+  topples at 6. The cells are drawn as offset bricks, each row shifted half a cell from
+  the one above, which gives every cell exactly six neighbours touching it. A pile dropped
+  on one cell has six-fold symmetry: turn it by 60 degrees and it looks the same (the
+  demo's tests check this). Hex grids stop growing at 1,365 cells across, so that the
+  picture still fits in a browser.

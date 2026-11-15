@@ -30,13 +30,19 @@ pub const MOORE: [(isize, isize); 8] = [
     (-1, -1),
 ];
 
-/// Grids never grow past this many cells on a side: bigger textures fail in many browsers.
+/// The six neighbours of a hex cell in axial coordinates (see `ca_core::Layout::Hex`): the
+/// two beside it in its row, and two each in the rows above and below.
+pub const HEX: [(isize, isize); 6] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)];
+
+/// By default grids never grow past this many cells on a side: bigger textures fail in many
+/// browsers. A layout that draws cells wider than one texel needs a smaller limit, set with
+/// [`Sandpile::with_max_side`].
 pub const MAX_SIDE: usize = 4001;
 
 /// What happens to grains that topple off the edge of the grid.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Boundary {
-    /// The grid grows (up to [`MAX_SIDE`]), so no grain is ever lost.
+    /// The grid grows (up to its maximum side), so no grain is ever lost.
     Grow,
     /// The grid keeps its size and grains falling off the edge are lost.
     Sink,
@@ -90,13 +96,15 @@ pub struct Sandpile {
     deltas: Vec<isize>,
     threshold: u32,
     reach: usize,
+    /// The grid never grows past this side; see [`Sandpile::with_max_side`].
+    max_side: usize,
     boundary: Boundary,
     /// Every grain lies inside this box, or nothing does when it is `None`.
     occupied: Option<Bounds>,
     settled: bool,
     /// Grains currently on the grid.
     pub grains: u64,
-    /// Grains that fell off a sink edge (or off the edge of a grid at [`MAX_SIDE`]).
+    /// Grains that fell off a sink edge (or off the edge of a grid at its maximum side).
     pub lost: u64,
     /// Toppling events so far; a cell toppling `k` times at once counts once.
     pub topples: u64,
@@ -131,6 +139,7 @@ impl Sandpile {
             deltas: Vec::new(),
             threshold: offsets.len() as u32,
             reach,
+            max_side: MAX_SIDE,
             boundary,
             occupied: None,
             settled: true,
@@ -141,6 +150,21 @@ impl Sandpile {
         };
         pile.compute_deltas();
         pile
+    }
+
+    /// Cap the grid's growth at `max_side` (odd, like every side here) instead of
+    /// [`MAX_SIDE`]. The hex layout draws a pile 3 times as wide as its side, so it needs one.
+    pub fn with_max_side(mut self, max_side: usize) -> Self {
+        assert!(
+            max_side % 2 == 1 && max_side >= self.grid.width(),
+            "bad max side {max_side}"
+        );
+        self.max_side = max_side;
+        self
+    }
+
+    pub fn max_side(&self) -> usize {
+        self.max_side
     }
 
     pub fn grid(&self) -> &Grid<u32> {
@@ -300,7 +324,7 @@ impl Sandpile {
         occupied.include(t.x0 - r, t.y0 - r);
         occupied.include(t.x1 + r, t.y1 + r);
         self.occupied = Some(occupied);
-        let draining = self.boundary == Boundary::Sink || self.grid.width() >= MAX_SIDE;
+        let draining = self.boundary == Boundary::Sink || self.grid.width() >= self.max_side;
         if draining && self.touches_frame(t) {
             self.drain_frame();
         }
@@ -369,11 +393,13 @@ impl Sandpile {
         self.grains -= drained;
     }
 
-    /// Pad the grid on every side, keeping it odd-sized and no larger than [`MAX_SIDE`].
+    /// Pad the grid on every side, keeping it odd-sized and no larger than its maximum side.
     /// Returns the margin added to every side, or `None` if the grid is at its largest.
     fn grow(&mut self) -> Option<usize> {
         let side = self.grid.width();
-        let margin = (side / 2).max(8).min(MAX_SIDE.saturating_sub(side) / 2);
+        let margin = (side / 2)
+            .max(8)
+            .min(self.max_side.saturating_sub(side) / 2);
         if margin == 0 {
             return None;
         }
@@ -659,6 +685,52 @@ mod tests {
         assert!(pile.holds_relative(4, -4), "the last cell inside the frame");
         assert!(!pile.holds_relative(5, 0), "the frame itself");
         assert!(!pile.holds_relative(100, 0), "off the grid");
+    }
+
+    /// On a hex grid a centred pile must have six-fold symmetry. In axial coordinates a
+    /// 60-degree turn about the centre maps the offset (dq, dr) to (-dr, dq + dr). This also
+    /// checks that the six offsets really form a hexagon: with a wrong one the pile would
+    /// lose the symmetry. And no grain may be lost, with every cell left below 6.
+    #[test]
+    fn hex_pile_has_six_fold_symmetry() {
+        let n = 20_000;
+        let mut pile = Sandpile::new(3, &HEX, Boundary::Grow);
+        assert_eq!(pile.threshold(), 6);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, n);
+        pile.relax_fully();
+        assert_eq!((sum(&pile), pile.lost), (u64::from(n), 0));
+        assert!(pile.grid().cells().iter().all(|&h| h < 6));
+        let g = pile.grid();
+        let (c, side) = (g.width() as isize / 2, g.width() as isize);
+        let at = |dq: isize, dr: isize| {
+            let (q, r) = (c + dq, c + dr);
+            ((0..side).contains(&q) && (0..side).contains(&r))
+                .then(|| g.get(q as usize, r as usize))
+        };
+        let mut compared = 0;
+        for dr in -c..=c {
+            for dq in -c..=c {
+                if let (Some(a), Some(b)) = (at(dq, dr), at(-dr, dq + dr)) {
+                    assert_eq!(a, b, "turning ({dq}, {dr})");
+                    compared += 1;
+                }
+            }
+        }
+        assert!(compared > 1_000);
+    }
+
+    /// A smaller maximum side must stop growth there, after which grains fall off the edge
+    /// and are counted as lost, as with a sink, instead of piling up unseen in the frame.
+    #[test]
+    fn growth_stops_at_a_custom_max_side() {
+        let mut pile = Sandpile::new(3, &HEX, Boundary::Grow).with_max_side(21);
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, 5_000);
+        pile.relax_fully();
+        assert_eq!(pile.grid().width(), 21);
+        assert!(pile.lost > 0);
+        assert_eq!(pile.lost + sum(&pile), 5_000);
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.

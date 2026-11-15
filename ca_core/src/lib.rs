@@ -34,4 +34,4 @@ pub use neighbours::moore_counts;
 pub use pace::{Pace, generations_per_frame};
 pub use playback::{Advance, Playback};
 pub use rng::Rng;
-pub use view::{GridResponse, GridView};
+pub use view::{GridResponse, GridView, Layout};

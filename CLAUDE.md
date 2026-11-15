@@ -100,8 +100,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `GridView`: draws a grid as one texture. Its `GridResponse` gives `hovered`,
     `pressed` (every frame held, for painting), `clicked` (once per click), and
     `cell_rect`/`cell_size` for drawing markers over cells. Both directions of the
-    mapping assume one square texel per cell: the hex sandpile must change that inside
-    `GridView`, not in the demo.
+    mapping go through its `Layout` (square, or hex as offset bricks), defined as plain
+    functions with round-trip tests; `Layout::image` builds the picture without a window.
   - `Playback`: Run, Pause, Step, Restart and a speed slider. Each frame,
     `take_restart()`, then `advance()` returns `Idle`, `Step` or `Run(speed)`.
   - `Pace`: turns steps per second into steps per frame, carrying the fraction.
