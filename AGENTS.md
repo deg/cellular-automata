@@ -155,6 +155,17 @@ make siblings               # before/after a Rust update: build+test David's oth
   and `../llm_wiki/src-tauri`.
 - `trunk` downloads `wasm-bindgen` and `wasm-opt` on its first build.
 
+## Deployment
+
+- The repo is public: https://github.com/deg/cellular-automata. Its beads sync there too
+  (`refs/dolt/data`), so they are public: keep them to engineering.
+- Every push to `main` rebuilds the site and deploys it to GitHub Pages at
+  https://automata.degel.com/, via `.github/workflows/pages.yml` (it runs `site/build.sh`).
+  A push therefore redeploys a public site: push only with David's go-ahead.
+- `automata.degel.com` is a CNAME to `deg.github.io` at GoDaddy, and `degel.com` is verified
+  on the `deg` GitHub account, which stops anyone else claiming the name. How it was set up,
+  and how to add another site, is in `../degel-ai-server/GITHUB_PAGES.md`.
+
 ## Architecture Overview
 
 - `ca_core/`: the shared crate, package `ca_core`. Don't name it `core`, which clashes
