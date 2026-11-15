@@ -22,6 +22,22 @@ pub struct GridResponse {
     /// The cell clicked this frame, reported once per click (on release, and not after a
     /// drag). Use this, not `pressed`, when a click means "do one thing here".
     pub clicked: Option<(usize, usize)>,
+    /// Where the grid was drawn, and the size of one cell on screen, for drawing over it.
+    image_rect: Rect,
+    scale: f32,
+}
+
+impl GridResponse {
+    /// The screen rectangle of cell `(x, y)`, for drawing markers over the grid.
+    pub fn cell_rect(&self, x: usize, y: usize) -> Rect {
+        let min = self.image_rect.min + vec2(x as f32, y as f32) * self.scale;
+        Rect::from_min_size(min, vec2(self.scale, self.scale))
+    }
+
+    /// The size of one cell on screen, in points.
+    pub fn cell_size(&self) -> f32 {
+        self.scale
+    }
 }
 
 impl GridView {
@@ -57,6 +73,8 @@ impl GridView {
                 hovered: None,
                 pressed: None,
                 clicked: None,
+                image_rect: Rect::NOTHING,
+                scale: 0.0,
             };
         };
 
@@ -95,6 +113,8 @@ impl GridView {
             hovered,
             pressed,
             clicked,
+            image_rect,
+            scale,
         }
     }
 }

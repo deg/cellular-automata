@@ -78,9 +78,12 @@ them all at once.
   and finer.
 - **Sink edge.** Choose *grains fall off* and Restart. Grains now escape at the edge of a
   small grid, which is the setting of the original 1987 paper and of the sandpile group.
-- **Two sources.** Each click on the grid drops *grains per drip* grains on that cell (one,
-  by default). Set it to 10,000, click a few times away from the centre, and run: watch the
-  two piles meet.
+- **Several sources.** Shift-click the grid to add a drip point, marked with a pink ring;
+  shift-click it again to remove it, and *Centre only* puts things back. Every drip feeds
+  all the points at once. Add two or three, raise *grains per drip* to 100 or so, and Run:
+  watch the piles grow into each other. Drip points stay put through Restart, so you can
+  try the same arrangement with either edge.
+- **One-off drops.** A plain click drops *grains per drip* grains on that cell, once.
 
 ## Further reading
 

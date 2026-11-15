@@ -199,6 +199,31 @@ impl Sandpile {
         true
     }
 
+    /// Drop `n` grains on the cell `(dx, dy)` away from the centre.
+    ///
+    /// The grid grows evenly on every side, so the centre stays the centre and a position
+    /// relative to it stays valid however much the grid grows, or across a Restart. A
+    /// growing pile grows until the cell fits; on a sink pile a cell off the grid has already
+    /// fallen off, so its grains count as lost. Returns false only if the grains don't fit
+    /// (see [`Sandpile::can_add`]).
+    pub fn add_relative(&mut self, dx: isize, dy: isize, n: u32) -> bool {
+        if !self.can_add(n) {
+            return false;
+        }
+        loop {
+            let (cx, cy) = self.center();
+            if let Some((x, y)) = self.grid.offset(cx, cy, dx, dy)
+                && !self.in_frame(x, y)
+            {
+                return self.add(x, y, n);
+            }
+            if self.boundary == Boundary::Sink || self.grow().is_none() {
+                self.lost += u64::from(n);
+                return true;
+            }
+        }
+    }
+
     /// Topple every unstable cell once, in raster order. Grains passed forward in the
     /// sweep can topple their new cell in the same sweep. Returns whether anything toppled.
     pub fn sweep(&mut self) -> bool {
@@ -539,6 +564,27 @@ mod tests {
     #[should_panic(expected = "must be odd")]
     fn an_even_side_is_refused() {
         Sandpile::new(100, &ORTHOGONAL, Boundary::Grow);
+    }
+
+    /// Drip points are kept relative to the centre, so one far outside a small grid must grow
+    /// the grid until it fits, and land exactly that far from the centre.
+    #[test]
+    fn add_relative_grows_the_grid_to_reach_far_cells() {
+        let mut pile = Sandpile::new(5, &ORTHOGONAL, Boundary::Grow);
+        assert!(pile.add_relative(-40, 25, 3));
+        let (cx, cy) = pile.center();
+        assert_eq!(pile.grid().get(cx - 40, cy + 25), 3);
+        assert_eq!((pile.grains, pile.lost), (3, 0));
+    }
+
+    /// On a sink pile a relative position off the grid has fallen off: its grains are lost,
+    /// and the grid must not grow.
+    #[test]
+    fn add_relative_off_a_sink_pile_is_lost() {
+        let mut pile = Sandpile::new(5, &ORTHOGONAL, Boundary::Sink);
+        assert!(pile.add_relative(10, 0, 2));
+        assert_eq!((pile.grains, pile.lost), (0, 2));
+        assert_eq!(pile.grid().width(), 5);
     }
 
     /// Not a check: prints how long big piles take, to compare relaxation strategies.

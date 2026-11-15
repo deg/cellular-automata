@@ -1,9 +1,11 @@
 //! Abelian sandpile demo: drop grains at the centre and watch them topple into a fractal.
 
+mod drip;
 mod sim;
 
-use ca_core::egui::{self, Color32, RichText};
+use ca_core::egui::{self, Color32, RichText, Stroke};
 use ca_core::{About, Advance, GridView, Playback, eframe};
+use drip::DripPoints;
 use sim::{Boundary, ORTHOGONAL, Sandpile};
 
 fn main() {
@@ -18,6 +20,8 @@ const PALETTE: [Color32; 4] = [
     Color32::from_rgb(0xe7, 0x6f, 0x51),
 ];
 const UNSTABLE: Color32 = Color32::WHITE;
+/// Rings marking the drip points: a colour the heights never use.
+const DRIP_MARK: Color32 = Color32::from_rgb(0xff, 0x3f, 0xb4);
 
 /// A small first grid: it grows as the pile does, so there is no need to guess a size.
 const START_SIDE: usize = 101;
@@ -31,9 +35,11 @@ struct SandpileApp {
     boundary: Boundary,
     /// Grains added to the centre by the "Drop" button.
     drop_amount: u32,
-    /// While running, add `drip_amount` grains to the centre whenever the pile is stable.
+    /// While running, add `drip_amount` grains to every drip point whenever the pile is
+    /// stable. A click on the grid also drops `drip_amount` grains, once.
     drip: bool,
     drip_amount: u32,
+    drip_points: DripPoints,
     /// The pile changed since its picture was last uploaded.
     dirty: bool,
 }
@@ -62,8 +68,17 @@ impl eframe::App for SandpileApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
             if let Some((x, y)) = shown.clicked {
-                self.dirty |= self.pile.add(x, y, self.drip_amount);
+                if ui.input(|i| i.modifiers.shift) {
+                    let (cx, cy) = self.pile.center();
+                    let at = (x as isize - cx as isize, y as isize - cy as isize);
+                    // Within about 8 pixels counts as clicking a point, however small cells are.
+                    let tolerance = (8.0 / shown.cell_size()).ceil().max(1.0) as isize;
+                    self.drip_points.toggle(at, tolerance);
+                } else {
+                    self.dirty |= self.pile.add(x, y, self.drip_amount);
+                }
             }
+            self.mark_drip_points(ui, &shown);
             if let Some((x, y)) = shown.hovered {
                 shown
                     .response
@@ -89,6 +104,7 @@ impl SandpileApp {
             drop_amount: 100_000,
             drip: true,
             drip_amount: 1,
+            drip_points: DripPoints::centre(),
             dirty: true,
         }
     }
@@ -110,13 +126,23 @@ impl SandpileApp {
         );
         ui.separator();
 
-        ui.checkbox(&mut self.drip, "Drip into the centre while running");
+        ui.checkbox(&mut self.drip, "Drip while running");
         ui.add(
             egui::Slider::new(&mut self.drip_amount, 1..=10_000)
                 .logarithmic(true)
                 .text("grains per drip"),
         );
-        ui.small("A drip waits until the last avalanche has stopped.");
+        ui.horizontal(|ui| {
+            let n = self.drip_points.len();
+            ui.label(format!("{n} drip point{}", if n == 1 { "" } else { "s" }));
+            if ui.button("Centre only").clicked() {
+                self.drip_points.reset_to_centre();
+            }
+        });
+        ui.small(
+            "Shift-click the grid to add a drip point, or to remove one. Each drip feeds every \
+             point at once, and waits until the last avalanche has stopped.",
+        );
         ui.separator();
 
         ui.horizontal(|ui| {
@@ -201,13 +227,13 @@ impl SandpileApp {
                 // A settled pile has nothing to topple, so a Step drips first, whether or
                 // not dripping is on: that is the only way a Step can do something.
                 if self.pile.is_stable() {
-                    self.drop_at_centre(self.drip_amount);
+                    self.drip_once();
                 }
                 1
             }
             Advance::Run(thousand_cells) => {
                 if self.drip && self.pile.is_stable() {
-                    self.drop_at_centre(self.drip_amount);
+                    self.drip_once();
                 }
                 // Budget by cells swept, not by sweeps: a sweep costs the pile's whole area,
                 // which grows with the pile, and a fixed sweep count would freeze big piles.
@@ -222,9 +248,30 @@ impl SandpileApp {
         }
     }
 
+    /// Add `drip_amount` grains to every drip point.
+    fn drip_once(&mut self) {
+        for &(dx, dy) in self.drip_points.points() {
+            self.dirty |= self.pile.add_relative(dx, dy, self.drip_amount);
+        }
+    }
+
     fn drop_at_centre(&mut self, n: u32) {
+        self.dirty |= self.pile.add_relative(0, 0, n);
+    }
+
+    /// Ring each drip point that lies on the grid, sized to stay visible on any zoom.
+    fn mark_drip_points(&self, ui: &egui::Ui, shown: &ca_core::GridResponse) {
         let (cx, cy) = self.pile.center();
-        self.dirty |= self.pile.add(cx, cy, n);
+        let radius = (shown.cell_size() * 0.7).max(5.0);
+        for &(dx, dy) in self.drip_points.points() {
+            let Some((x, y)) = self.pile.grid().offset(cx, cy, dx, dy) else {
+                continue; // off a sink grid after a Restart; its grains count as lost
+            };
+            let centre = shown.cell_rect(x, y).center();
+            let painter = ui.painter();
+            painter.circle_stroke(centre, radius + 1.5, Stroke::new(2.0, Color32::BLACK));
+            painter.circle_stroke(centre, radius, Stroke::new(2.0, DRIP_MARK));
+        }
     }
 }
 
