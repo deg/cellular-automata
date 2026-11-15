@@ -1,6 +1,7 @@
 //! Abelian sandpile demo: drop grains at the centre and watch them topple into a fractal.
 
 mod drip;
+mod jacobi;
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText, Stroke};
@@ -196,7 +197,8 @@ impl SandpileApp {
             ui.label("grains at the centre");
         });
         ui.small(
-            "100,000 grains settle in seconds at full speed; 1,000,000 take a few minutes. \
+            "On an empty, growing pile a drop at the centre settles fast: 1,000,000 grains in seconds at high speed. \
+             Once grains land off the centre, or on a hex grid, big piles take far longer. \
              Click the grid to drop a drip's worth of grains there.",
         );
         ui.separator();

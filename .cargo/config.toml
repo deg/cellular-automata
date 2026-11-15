@@ -1,0 +1,5 @@
+# WebAssembly SIMD for the browser builds (trunk and the Pages workflow both read this).
+# The sandpile's Jacobi stage relies on it: its 16-bit loop only vectorises with SIMD.
+# All current browsers support it.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

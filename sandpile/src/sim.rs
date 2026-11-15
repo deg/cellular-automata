@@ -12,7 +12,14 @@
 //! We relax by sweeping, in raster order and in place, over the box that holds every grain.
 //! Measured against a worklist of unstable cells, sweeping was 2 to 3 times faster in a
 //! native release build (100,000 grains: 1.1 s against 2.2 s; 1,000,000: 102 s against 307 s).
+//!
+//! A pile whose every grain went to the centre is much faster still: it has the square's
+//! 8-fold symmetry, so in-place sweeps cover one eighth of it, and once every height is
+//! small the [`crate::jacobi`] stage sweeps a quarter of it, simultaneously, in 16 bits.
+//! 1,000,000 grains then take 3.3 s natively (from 102 s), 100,000 take 0.07 s. Tried and
+//! dropped, measured no better: skipping inactive tiles, and a branch-free in-place loop.
 
+use crate::jacobi::{self, Quarter};
 use ca_core::Grid;
 
 /// The four orthogonal neighbours (von Neumann neighbourhood).
@@ -109,6 +116,12 @@ pub struct Sandpile {
     symmetric: bool,
     /// In symmetric mode, whether cells outside the octant are out of date.
     mirror_stale: bool,
+    /// In symmetric mode, once every height is small, the pile's quarter lives here and is
+    /// swept by the much faster Jacobi stage (see [`jacobi`]); `grid` is then a copy, made
+    /// up to date by [`Sandpile::sync_mirror`].
+    quarter: Option<Quarter>,
+    /// Sweeps done by the Jacobi stage, so tests can tell it was used.
+    jacobi_sweeps: u64,
 
     /// Grains currently on the grid.
     pub grains: u64,
@@ -153,7 +166,8 @@ impl Sandpile {
             settled: true,
             symmetric: boundary == Boundary::Grow && has_square_symmetry(offsets),
             mirror_stale: false,
-
+            quarter: None,
+            jacobi_sweeps: 0,
             grains: 0,
             lost: 0,
             topples: 0,
@@ -208,7 +222,10 @@ impl Sandpile {
     pub fn sweep_area(&self) -> usize {
         self.occupied.map_or(0, |b| {
             let b = self.clamp_inside_frame(b);
-            if self.symmetric {
+            if let Some(q) = &self.quarter {
+                let n = q.extent() + 2;
+                n * n / JACOBI_CELLS_PER_CELL
+            } else if self.symmetric {
                 let n = self.octant_extent(b) + 1;
                 n * (n + 1) / 2
             } else {
@@ -232,6 +249,8 @@ impl Sandpile {
         if !self.can_add(n) {
             return false;
         }
+        // The Jacobi stage holds the heights while it runs; put them back first.
+        self.leave_jacobi();
         if (x, y) != self.center() {
             self.break_symmetry();
         }
@@ -323,6 +342,12 @@ impl Sandpile {
         }
         let b = self.clamp_inside_frame(b);
         if self.symmetric {
+            if self.quarter.is_none() {
+                self.try_enter_jacobi(b);
+            }
+            if self.quarter.is_some() {
+                return self.sweep_jacobi();
+            }
             return self.sweep_octant(b);
         }
 
@@ -428,18 +453,76 @@ impl Sandpile {
         true
     }
 
+    /// Start the Jacobi stage if every height in the octant is below [`jacobi::LIMIT`] and
+    /// the grains are far enough from the edge that it can run until the grid must grow.
+    fn try_enter_jacobi(&mut self, b: Bounds) {
+        let n = self.octant_extent(b);
+        let c = self.grid.width() / 2;
+        if n + 2 * self.reach + 1 >= c {
+            return;
+        }
+        let tallest = (0..=n)
+            .flat_map(|j| (j..=n).map(move |i| (i, j)))
+            .map(|(i, j)| self.grid.get(c + i, c + j))
+            .max()
+            .unwrap_or(0);
+        if tallest >= jacobi::LIMIT {
+            return;
+        }
+        self.sync_mirror(); // the quarter includes cells below the diagonal
+        self.quarter = Some(Quarter::from_grid(&self.grid, n, self.offsets.len()));
+    }
+
+    /// One Jacobi sweep. When grains come near the edge, hand back to the octant sweep,
+    /// which grows the grid; the Jacobi stage restarts on the bigger grid.
+    fn sweep_jacobi(&mut self) -> bool {
+        let q = self.quarter.as_mut().expect("in the Jacobi stage");
+        let toppled = q.sweep();
+        let extent = q.extent();
+        // Each toppled cell stands for about 4 mirror images (fewer on the axes).
+        self.topples += 4 * toppled;
+        self.sweeps += 1;
+        self.jacobi_sweeps += 1;
+        self.mirror_stale = true;
+        if toppled == 0 {
+            self.settled = true;
+            return false;
+        }
+        if extent + 2 * self.reach + 1 >= self.grid.width() / 2 {
+            self.leave_jacobi();
+        }
+        true
+    }
+
+    /// End the Jacobi stage, if it is running, writing its heights back into the grid.
+    fn leave_jacobi(&mut self) {
+        if self.quarter.is_some() {
+            self.sync_mirror();
+            self.quarter = None;
+        }
+    }
+
     /// The largest offset from the centre, along either axis, of any cell in the box `b`.
     fn octant_extent(&self, b: Bounds) -> usize {
         let c = self.grid.width() / 2;
         (b.x1 - c).max(c - b.x0).max(b.y1 - c).max(c - b.y0)
     }
 
-    /// In symmetric mode, copy the octant into the rest of the grid, so it can be read.
+    /// In symmetric mode, bring the whole grid up to date so it can be read: from the
+    /// Jacobi stage's quarter while that runs, otherwise by mirroring the octant.
     fn sync_mirror(&mut self) {
         if !self.mirror_stale {
             return;
         }
         self.mirror_stale = false;
+        if let Some(q) = &self.quarter {
+            q.write_back(&mut self.grid);
+            let (c, edge) = (self.grid.width() / 2, q.extent() + self.reach);
+            let occupied = self.occupied.get_or_insert(Bounds::cell(c, c));
+            occupied.include(c - edge, c - edge);
+            occupied.include(c + edge, c + edge);
+            return;
+        }
         let Some(b) = self.occupied else { return };
         let c = self.grid.width() / 2;
         for y in b.y0..=b.y1 {
@@ -455,6 +538,7 @@ impl Sandpile {
     /// Leave symmetric mode for good, after filling in the whole grid. Called before any
     /// grain lands off the centre, which would break the symmetry.
     fn break_symmetry(&mut self) {
+        self.leave_jacobi();
         self.sync_mirror();
         self.symmetric = false;
     }
@@ -587,6 +671,10 @@ impl Octant<'_> {
         (reached, topples, any)
     }
 }
+
+/// How many Jacobi cells cost as much as one in-place cell, for the per-frame budget.
+/// Measured natively: 0.10 ns against 2.5 ns, so 25; 16 leaves room for the browser build.
+const JACOBI_CELLS_PER_CELL: usize = 16;
 
 /// Whether `offsets` look the same after mirroring across either axis or the diagonal,
 /// the condition for a centred pile to keep the square's 8-fold symmetry.
@@ -953,6 +1041,7 @@ mod tests {
                 fast.symmetric,
                 "the centred pile should have used the octant"
             );
+            assert!(fast.jacobi_sweeps > 0, "the Jacobi stage should have run");
             assert_eq!(fast.grid(), plain.grid(), "{} neighbours", offsets.len());
             assert_eq!((fast.grains, fast.lost), (30_000, 0));
         }
@@ -975,6 +1064,60 @@ mod tests {
         let fast = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
         let plain = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry());
         assert!(!fast.symmetric);
+        assert_eq!(fast.grid(), plain.grid());
+    }
+
+    /// Relax a centred pile until the Jacobi stage is running, part way through.
+    fn mid_jacobi(pile: Sandpile) -> Sandpile {
+        let mut pile = pile;
+        let (cx, cy) = pile.center();
+        pile.add(cx, cy, 20_000);
+        while pile.quarter.is_none() || pile.jacobi_sweeps < 100 {
+            assert!(
+                pile.relax(1) > 0,
+                "settled before the Jacobi stage got going"
+            );
+        }
+        pile
+    }
+
+    /// Dropping more grains at the centre while the Jacobi stage runs must hand its heights
+    /// back first, so nothing is lost or double-counted: the result matches a plain run.
+    #[test]
+    fn a_centre_drop_during_the_jacobi_stage_matches_the_plain_sweep() {
+        let mut fast = mid_jacobi(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
+        let (cx, cy) = fast.center();
+        fast.add(cx, cy, 3_000);
+        fast.relax_fully();
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry();
+        let (cx, cy) = plain.center();
+        plain.add(cx, cy, 20_000);
+        plain.relax_fully();
+        let (cx, cy) = plain.center();
+        plain.add(cx, cy, 3_000);
+        plain.relax_fully();
+        // Abelian: when the second drop lands doesn't change the final pile.
+        assert_eq!(fast.grid().width(), plain.grid().width());
+        assert_eq!(fast.grid(), plain.grid());
+        assert_eq!(fast.grains, 23_000);
+    }
+
+    /// A grain off the centre while the Jacobi stage runs must end it and symmetric mode
+    /// cleanly; the result matches a plain run of the same drops.
+    #[test]
+    fn breaking_symmetry_during_the_jacobi_stage_matches_the_plain_sweep() {
+        let mut fast = mid_jacobi(Sandpile::new(3, &MOORE, Boundary::Grow));
+        let (dx, dy) = (5, -9);
+        fast.add_relative(dx, dy, 2_000);
+        fast.relax_fully();
+        let mut plain = Sandpile::new(3, &MOORE, Boundary::Grow).without_symmetry();
+        let (cx, cy) = plain.center();
+        plain.add(cx, cy, 20_000);
+        plain.relax_fully();
+        plain.add_relative(dx, dy, 2_000);
+        plain.relax_fully();
+        assert!(!fast.symmetric);
+        assert_eq!(fast.grid().width(), plain.grid().width());
         assert_eq!(fast.grid(), plain.grid());
     }
 
