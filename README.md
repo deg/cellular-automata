@@ -3,7 +3,7 @@
 Demos of famous cellular automata, written in Rust. Each runs in a native window or in
 the browser, and explains itself: the rule, its history, and things to try.
 
-**Try them in your browser: <https://deg.github.io/cellular-automata/>**
+**Try them in your browser: <https://automata.degel.com/>**
 
 | Demo | What it shows |
 |---|---|

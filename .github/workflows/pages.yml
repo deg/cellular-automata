@@ -1,5 +1,5 @@
 # Build every demo for the web and publish them, with the index page, to GitHub Pages:
-# https://deg.github.io/cellular-automata/
+# https://automata.degel.com/
 # Runs on every push to main, and by hand from the Actions tab.
 name: Deploy demos to GitHub Pages
 
