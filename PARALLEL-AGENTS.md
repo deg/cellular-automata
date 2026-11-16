@@ -242,6 +242,18 @@ the conflicts early; the fixes came in as later merges.
   rule. The lesson: a builder's list of choices is the coordinator's review queue, to be
   checked against the existing code before anything is reported, not an item for the
   report.
+- **Fixed item by item, then declared consistent.** After the second round I reported the
+  listed items fixed, then found one more myself in the final side-by-side render (the
+  snowflakes showed the pointer's value as a sentence, the other new demos as a grid row),
+  and David asked for a consistency review across all the demos. The cause is structural:
+  each builder and each reviewer saw one demo, so nobody's job was the differences
+  *between* demos, and fixing the items someone happened to notice doesn't make the set
+  consistent. Consistency needs its own review, by an agent that reads every demo side by
+  side against a list of the conventions, as a planned step before reporting, not as a
+  reaction to a complaint.
+- **Times written from memory.** The first version of the timeline above gave times I had
+  estimated as I went, and several were wrong by most of an hour. Recorded times (here,
+  the merge commits) are the only ones to quote.
 - **Shared code was planned but didn't fit.** The plan was to move the hex neighbour offsets
   into `ca_core` for the snowflakes and the lattice gas. The lattice gas used offset rows
   (as its source paper does), not axial coordinates, so only the sandpile and the
@@ -264,8 +276,11 @@ the conflicts early; the fixes came in as later merges.
    readout grid, panels that fit the laptop screen), and check each builder's "choices"
    against the other demos before reporting. Render every demo side by side to see
    inconsistencies.
-9. Merge early, merge often, with a script that refuses to commit markers or a failing build.
-10. One full build and one rendered check of the whole site at the end.
+9. A cross-demo consistency review as a planned step, after the per-demo reviews: a fresh
+   agent that reads every demo against the conventions, with the coordinator fixing or
+   dispatching what it finds.
+10. Merge early, merge often, with a script that refuses to commit markers or a failing build.
+11. One full build and one rendered check of the whole site at the end.
 
 ## Cost
 
