@@ -54,24 +54,24 @@ impl Preset {
 
     fn label(self) -> &'static str {
         match self {
-            Self::Plate => "Flat plate in a wind",
-            Self::Cylinder => "Cylinder in a wind",
-            Self::Channel => "Flow down a channel",
-            Self::Pulse => "A pulse of gas at rest",
+            Self::Plate => "Plate",
+            Self::Cylinder => "Cylinder",
+            Self::Channel => "Channel",
+            Self::Pulse => "Sound pulse",
         }
     }
 
     fn hint(self) -> &'static str {
         match self {
             Self::Plate => {
-                "A wall across the wind. Behind it the flow turns back on itself in two eddies, which grow."
+                "A flat plate across the wind. Behind it the flow turns back on itself in two eddies, which grow."
             }
-            Self::Cylinder => "A round obstacle. Its wake is smaller than the plate's.",
+            Self::Cylinder => "A cylinder in the wind. Its wake is smaller than the plate's.",
             Self::Channel => {
-                "Walls along the top and bottom. The gas sticks to them, and the flow slows near them."
+                "Wind down a channel with walls along the top and bottom. The gas sticks to them, and the flow slows near them."
             }
             Self::Pulse => {
-                "A dense disc of gas in still gas. It spreads as a ring at the speed of sound, as round as on a real gas."
+                "A dense disc of gas at rest in still gas. It spreads as a ring at the speed of sound, as round as on a real gas."
             }
         }
     }
@@ -213,21 +213,22 @@ impl GasApp {
             dirty: true,
         };
         app.restart();
+        app.playback.running = true; // the plate's wake is best seen forming
         app
     }
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice gas");
-        ui.label("Particles hop along the lines of a hexagonal lattice, at most one per direction at each node. When they meet at a node, they scatter, keeping their number and momentum. Averaged over many nodes, they flow like a fluid.");
+        ui.label("Particles hop between the nodes of a hexagonal lattice and scatter when they meet, keeping their number and momentum. Averaged over many nodes, they flow like a fluid.");
         self.about.toggle_button(ui);
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("Restart sets up the start again. Drag on the lattice to draw walls; shift-drag to erase them.");
+        ui.small("Drag on the lattice to draw walls; shift-drag to erase.");
         ui.separator();
 
-        ui.label(RichText::new("Show").strong());
         ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new("Show").strong());
             for show in Show::ALL {
                 if ui
                     .selectable_label(self.show == show, show.label())
@@ -238,23 +239,26 @@ impl GasApp {
                     self.dirty = true;
                 }
             }
+            ui.checkbox(&mut self.arrows, "Arrows");
         });
         ui.small(self.show.hint());
-        ui.checkbox(&mut self.arrows, "Arrows: the averaged velocity");
-        ui.label("Average over blocks of (nodes across)");
-        if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
-            self.blocks = blocks(self.kind, self.size, self.block);
-            // Sample the gas as it is, so the flow views aren't blank until the next step.
-            self.blocks.add(&self.lattice);
-            self.field = Field::new(&self.blocks);
-            self.dirty = true;
-        }
-        ui.label("and over about (steps)");
-        ui.add(egui::Slider::new(&mut self.window, 1.0..=1_000.0).logarithmic(true));
+        egui::CollapsingHeader::new("Averaging and brush").show(ui, |ui| {
+            ui.label("Blocks of (nodes across)");
+            if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
+                self.blocks = blocks(self.kind, self.size, self.block);
+                // Sample the gas as it is, so the flow views aren't blank until the next step.
+                self.blocks.add(&self.lattice);
+                self.field = Field::new(&self.blocks);
+                self.dirty = true;
+            }
+            ui.label("over about (steps)");
+            ui.add(egui::Slider::new(&mut self.window, 1.0..=1_000.0).logarithmic(true));
+            ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
+        });
         ui.separator();
 
-        ui.label(RichText::new("Lattice").strong());
         ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new("Lattice").strong());
             for (kind, label, hint) in [
                 (Kind::Hex, "Hexagonal (FHP)", "Six directions: FHP-I, which flows like a real fluid."),
                 (Kind::Square, "Square (HPP)", "Four directions: the earlier HPP model, which doesn't. Each row keeps its own momentum, so the flow never spreads from row to row."),
@@ -268,30 +272,31 @@ impl GasApp {
                 }
             }
         });
-        ui.separator();
-
-        ui.label(RichText::new("Start").strong());
-        for preset in Preset::ALL {
-            if ui
-                .selectable_label(self.preset == preset, preset.label())
-                .on_hover_text(preset.hint())
-                .clicked()
-            {
-                self.preset = preset;
-                // A sound wave moves fast: see it as density, averaged over few steps.
-                // The flows are slow and noisy: average them for longer.
-                if preset == Preset::Pulse {
-                    (self.show, self.window) = (Show::Density, 5.0);
-                } else if self.window < 20.0 || self.show == Show::Density {
-                    (self.show, self.window) = (Show::Vorticity, 100.0);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(RichText::new("Start").strong());
+            for preset in Preset::ALL {
+                if ui
+                    .selectable_label(self.preset == preset, preset.label())
+                    .on_hover_text(preset.hint())
+                    .clicked()
+                {
+                    self.preset = preset;
+                    // A sound wave moves fast: see it as density, averaged over few steps.
+                    // The flows are slow and noisy: average them for longer.
+                    if preset == Preset::Pulse {
+                        (self.show, self.window) = (Show::Density, 5.0);
+                    } else if self.window < 20.0 || self.show == Show::Density {
+                        (self.show, self.window) = (Show::Vorticity, 100.0);
+                    }
+                    self.restart();
                 }
-                self.restart();
             }
-        }
+        });
         ui.small(self.preset.hint());
-        ui.add(egui::Slider::new(&mut self.density, 0.05..=0.5).text("density"));
-        ui.add(egui::Slider::new(&mut self.speed, 0.0..=0.4).text("wind speed"));
-        ui.small("Density is particles per direction per node; speed, node spacings per step. The wind changes at once, the gas already there on Restart.");
+        ui.add(egui::Slider::new(&mut self.density, 0.05..=0.5).text("density"))
+            .on_hover_text("Particles per direction per node. Takes effect on Restart.");
+        ui.add(egui::Slider::new(&mut self.speed, 0.0..=0.4).text("wind"))
+            .on_hover_text("The wind's speed, in node spacings per step. Changes the wind at once; the gas already there on Restart.");
         if let Some(inflow) = &mut self.lattice.inflow {
             inflow.speed = self.speed;
             inflow.density = self.density;
@@ -307,53 +312,43 @@ impl GasApp {
                 }
             }
         });
-        ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
         ui.separator();
 
         self.stats(ui);
     }
 
+    /// The readout, kept to a few lines so the panel fits a laptop screen.
     fn stats(&self, ui: &mut egui::Ui) {
         let l = &self.lattice;
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("step");
-            ui.label(l.steps.to_string());
-            ui.end_row();
-            let n = l.particles();
-            ui.label("particles");
-            ui.label(n.to_string());
-            ui.end_row();
-            if l.inflow.is_some() && l.kind() == Kind::Hex {
-                ui.label("Mach number");
-                ui.label(format!("{:.2}", self.speed / SOUND_SPEED))
-                    .on_hover_text("The wind's speed over the speed of sound, 1/√2 node spacings per step.");
-                ui.end_row();
-            }
-            let width = self.preset.obstacle_width(l.kind(), l.height());
-            if let (Some(_), Some(width), Kind::Hex) = (l.inflow, width, l.kind()) {
-                ui.label("Reynolds number");
-                ui.label(format!("{:.0}", sim::reynolds(self.speed, width, self.density)))
-                    .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity for this density (Frisch et al. 1987). Higher means more eddies; this lattice gas can't go far.");
-                ui.end_row();
-            }
-            if let Some((x, y)) = self.hovered {
-                let c = l.get(x, y);
-                ui.label(format!("node ({x}, {y})"));
-                ui.label(if c & WALL != 0 {
-                    "wall".to_string()
-                } else {
-                    format!("{} particles", (c & PARTICLES).count_ones())
-                });
-                ui.end_row();
-                let (px, py) = l.position(x, y);
-                let f = &self.field;
-                let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
-                let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
-                ui.label("averaged velocity");
-                ui.label(format!("({ux:.3}, {uy:.3})"));
-                ui.end_row();
-            }
-        });
+        ui.label(format!("step {}, {} particles", l.steps, l.particles()));
+        let width = self.preset.obstacle_width(l.kind(), l.height());
+        if let (Some(_), Kind::Hex) = (l.inflow, l.kind()) {
+            let mach = format!("Mach {:.2}", self.speed / SOUND_SPEED);
+            let text = match width {
+                Some(width) => format!(
+                    "{mach}, Reynolds {:.0}",
+                    sim::reynolds(self.speed, width, self.density)
+                ),
+                None => mach,
+            };
+            ui.label(text).on_hover_text("Mach: the wind's speed over the speed of sound, 1/√2 node spacings per step. Reynolds: speed x obstacle width x g / viscosity, with FHP's g and viscosity at this density (Frisch et al. 1987); higher means more eddies.");
+        }
+        if let Some((x, y)) = self.hovered {
+            let c = l.get(x, y);
+            let here = if c & WALL != 0 {
+                "wall".to_string()
+            } else {
+                match (c & PARTICLES).count_ones() {
+                    1 => "1 particle".to_string(),
+                    n => format!("{n} particles"),
+                }
+            };
+            let (px, py) = l.position(x, y);
+            let f = &self.field;
+            let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
+            let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
+            ui.label(format!("({x}, {y}): {here}, flow ({ux:.2}, {uy:.2})"));
+        }
     }
 
     fn advance(&mut self, dt: f64) {

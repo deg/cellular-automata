@@ -169,8 +169,8 @@
       // FHP-I particles blowing past a plate, then averaged over blocks and steps: each
       // pixel is the swirl (vorticity) of the mean flow, coral one way and blue the other.
       const STONE = [0xb8, 0xbc, 0xc8];
-      const w = 80, h = 48, random = rng(1986);
-      const wind = 0.3, density = 0.2, plateX = 20, plateRows = 6;
+      const w = 64, h = 40, random = rng(1986);
+      const wind = 0.3, density = 0.2, plateX = 16, plateRows = 5;
       // A node is a byte. Bits 0-5: particles moving at 0°, 60°, ... 300° (y up); bit 6 a
       // wall; bit 7 the random bit choosing which way a head-on pair turns.
       const rot = (n, k) => ((n << k) | (n >> (6 - k))) & 63;
@@ -201,7 +201,7 @@
         const wall = Math.abs(x + (y & 1) / 2 - plateX) < 1 && Math.abs(y - h / 2) < plateRows;
         cells[y * w + x] = (random() < 0.5 ? 128 : 0) | (wall ? 64 : fresh());
       }
-      // Blocks of 8 nodes by 8 rows, summed over every other step from step 80.
+      // Blocks of 8 nodes by 8 rows, summed over every third step from step 45.
       const bw = 8, bh = 8, nx = w / bw, ny = Math.floor(h / bh);
       const n = new Float64Array(nx * ny), jx = new Float64Array(nx * ny), jy = new Float64Array(nx * ny);
       // One step: collide at every node, then stream every particle to its neighbour.
@@ -244,9 +244,9 @@
           }
         }
       }
-      for (let t = 0; t < 220; t++) {
+      for (let t = 0; t < 120; t++) {
         step();
-        if (t >= 80 && t % 2 === 0) accumulate();
+        if (t >= 45 && t % 3 === 0) accumulate();
       }
       // Mean velocity per block, then its curl, du_y/dx - du_x/dy (y up; rows run down),
       // across blocks bw nodes wide and bh rows of sqrt(3)/2 tall.
@@ -254,24 +254,30 @@
       const uy = jy.map((v, k) => v * Math.sqrt(3) / 4 / Math.max(1, n[k]));
       const at = (a, x, y) => a[Math.min(ny - 1, Math.max(0, y)) * nx + Math.min(nx - 1, Math.max(0, x))];
       const dy = bh * Math.sqrt(3) / 2;
-      const curl = (x, y) => (at(uy, x + 1, y) - at(uy, x - 1, y)) / (2 * bw) +
-        (at(ux, x, y + 1) - at(ux, x, y - 1)) / (2 * dy);
+      const curl = new Float64Array(nx * ny);
+      for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+        curl[y * nx + x] = (at(uy, x + 1, y) - at(uy, x - 1, y)) / (2 * bw) +
+          (at(ux, x, y + 1) - at(ux, x, y - 1)) / (2 * dy);
+      }
+      // Interpolated between block centres, one value per pixel.
       const swirl = new Float64Array(W * H);
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-        const gx = (x + 0.5) * nx / W - 0.5, gy = (y + 0.5) * (h / bh) / H - 0.5;
+        const gx = (x + 0.5) * nx / W - 0.5, gy = (y + 0.5) * ny / H - 0.5;
         const x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
-        swirl[y * W + x] = (curl(x0, y0) * (1 - fx) + curl(x0 + 1, y0) * fx) * (1 - fy) +
-          (curl(x0, y0 + 1) * (1 - fx) + curl(x0 + 1, y0 + 1) * fx) * fy;
+        swirl[y * W + x] = (at(curl, x0, y0) * (1 - fx) + at(curl, x0 + 1, y0) * fx) * (1 - fy) +
+          (at(curl, x0, y0 + 1) * (1 - fx) + at(curl, x0 + 1, y0 + 1) * fx) * fy;
       }
-      // The demo's scale: shear across an eddy about 30 nodes wide.
+      // The demo's scale: shear across an eddy about 30 nodes wide. Colours in 32 steps
+      // each way, blue for clockwise and coral for counter-clockwise.
       const scale = 1 / (wind / 15);
       const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+      const shades = [BLUE, CORAL].map((c) => Array.from({ length: 33 }, (_, k) => mix(NAVY, c, k / 32)));
       const plate = [plateX * W / w, plateRows * H / h];
       paint(canvas, W, H, swirl, (v, i) => {
         const x = i % W, y = (i / W) | 0;
         if (Math.abs(x + 0.5 - plate[0]) < 0.8 && Math.abs(y + 0.5 - H / 2) < plate[1]) return STONE;
         const t = Math.max(-1, Math.min(1, v * scale));
-        return t < 0 ? mix(NAVY, BLUE, -t) : mix(NAVY, CORAL, t);
+        return shades[t < 0 ? 0 : 1][Math.round(Math.abs(t) * 32)];
       });
     },
 

@@ -112,17 +112,17 @@ lattice is symmetric enough. That is where the hexagon matters.
 
 ## Things to try
 
-- **Flat plate in a wind.** Run it and watch the **Swirl** view. Two layers of opposite
+- **Plate.** The demo opens on it, running, in the **Swirl** view. Two layers of opposite
   spin peel off the plate's ends, and between them, behind the plate, the arrows shrink and
   turn back: a pair of eddies, growing with time. Switch to **Speed** to see the still
   bubble of the wake.
 - **Particles.** Switch to the particle view while the plate runs: the flow you just saw is
   invisible in the raw automaton. The arrows still show it.
-- **A pulse of gas at rest.** A dense disc spreads as a ring at the speed of sound,
+- **Sound pulse.** A dense disc of gas at rest spreads as a ring at the speed of sound,
   1/√2 node spacings per step. The ring stays round, though the particles move in only
   six directions. (On the square lattice a pulse spreads nearly round too: sound alone
   doesn't show HPP's flaw. Flow does; see the next item.)
-- **The square lattice (HPP).** Switch the lattice to **Square** and run the flat plate
+- **The square lattice (HPP).** Switch the lattice to **Square** and run the plate
   again. HPP keeps the momentum of every row, and of every column, separately: "far too
   many conserved quantities for physical modeling" (Frisch et al. 1987). So momentum
   never passes from one row to the next, and nothing like viscosity acts across the flow.
@@ -131,9 +131,9 @@ lattice is symmetric enough. That is where the hexagon matters.
   400 nodes behind the plate.
 - **Draw your own obstacle.** Drag on the lattice to draw walls, shift-drag to erase. A
   wall across the whole channel blocks the wind; a gap in it makes a jet.
-- **Flow down a channel.** Walls along the top and bottom. The gas sticks to them, and the
+- **Channel.** Walls along the top and bottom. The gas sticks to them, and the
   slow layers next to the walls thicken downstream.
-- **Change the averaging.** Small blocks and short windows show detail but noise; large
+- **Change the averaging** (under **Averaging and brush**). Small blocks and short windows show detail but noise; large
   ones show smooth flow. Try 6 nodes and 10 steps, then 32 and 500.
 - **Change the wind.** A faster wind means a higher Reynolds number and bigger eddies, but
   also a denser pile-up of gas in front of the obstacle (see **Density**).
