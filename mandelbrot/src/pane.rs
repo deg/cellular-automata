@@ -46,6 +46,14 @@ impl Pane {
         self.go_home = true;
     }
 
+    /// Make the home view a different one, and go there.
+    pub fn set_home(&mut self, centre: [f64; 2], span: [f64; 2]) {
+        if self.home != (centre, span) {
+            self.home = (centre, span);
+            self.go_home = true;
+        }
+    }
+
     /// How much bigger than the home view things look now.
     pub fn magnification(&self) -> f64 {
         self.home_step / (self.picture.view().step() * self.scale as f64)

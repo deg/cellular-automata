@@ -56,6 +56,20 @@ const ORBIT_DRAWN: usize = 1_000;
 /// The dots on the cycle an orbit settles into, and the pinned point: the site's gold.
 const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
+/// The overview map's share of each frame's work, and its limit: it is computed once (until
+/// the window or the limit changes), so it can be slow to start.
+const MAP_ITERATIONS: u64 = 400_000;
+const MAP_MOST_STEPS: u32 = 1_000;
+
+/// The small pictures drawn over the main one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Overlay {
+    /// The Julia set of c, bottom right.
+    Julia,
+    /// The whole set, with the main view marked on it, top right.
+    Map,
+}
+
 /// What is under the pointer: its plane point, what its pixel knows, and its orbit.
 struct Hover {
     point: [f64; 2],
@@ -66,6 +80,8 @@ struct Hover {
 struct MandelbrotApp {
     mandelbrot: Pane,
     julia: Pane,
+    /// The overview map: the whole of whichever set fills the view.
+    map: Pane,
     about: About,
     playback: Playback,
     pace: Pace,
@@ -82,6 +98,7 @@ struct MandelbrotApp {
     /// The Julia set fills the view, in place of the Mandelbrot set.
     julia_full: bool,
     show_orbit: bool,
+    show_map: bool,
     hover: Option<Hover>,
 }
 
@@ -108,6 +125,7 @@ impl MandelbrotApp {
         Self {
             mandelbrot: Pane::new("mandelbrot", Family::Mandelbrot, m_centre, m_span),
             julia: Pane::new("julia", Family::Julia(FIRST_JULIA), j_centre, j_span),
+            map: Pane::new("map", Family::Mandelbrot, m_centre, m_span),
             about: About::new(include_str!("../README.md")),
             playback,
             pace: Pace::default(),
@@ -119,6 +137,7 @@ impl MandelbrotApp {
             show_julia: true,
             julia_full: false,
             show_orbit: true,
+            show_map: true,
             hover: None,
         }
     }
@@ -140,6 +159,28 @@ impl MandelbrotApp {
         }
     }
 
+    /// The insets drawn over the picture in `rect` this frame.
+    fn overlays(&self, rect: Rect) -> Vec<(Overlay, Rect)> {
+        let mut found = Vec::new();
+        if self.show_julia && !self.julia_full {
+            found.push((Overlay::Julia, inset_rect(rect)));
+        }
+        if self.show_map {
+            let (_, span) = self.map_home();
+            found.push((Overlay::Map, map_rect(rect, span)));
+        }
+        found
+    }
+
+    /// The overview map's view: the whole of the set filling the picture.
+    fn map_home(&self) -> ([f64; 2], [f64; 2]) {
+        if self.julia_full {
+            JULIA_HOME
+        } else {
+            MANDELBROT_HOME
+        }
+    }
+
     fn picture_area(&mut self, ui: &mut egui::Ui, dt: f64) {
         let (rect, response) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
         let scale = if self.sharp {
@@ -147,32 +188,35 @@ impl MandelbrotApp {
         } else {
             1.0
         };
-        // A click first: one on the inset enlarges it, and the rest of the frame must then
-        // treat the Julia set as filling the view.
-        let in_inset = |app: &Self, pos: Option<egui::Pos2>| {
-            app.show_julia && !app.julia_full && pos.is_some_and(|p| inset_rect(rect).contains(p))
+        let overlay_at = |app: &Self, pos: Option<egui::Pos2>| {
+            let pos = pos?;
+            app.overlays(rect)
+                .into_iter()
+                .find(|(_, r)| r.contains(pos))
+                .map(|(o, _)| o)
         };
+        // A click first: one on the Julia inset enlarges it, and the rest of the frame must
+        // then treat the Julia set as filling the view.
         if response.clicked() {
             let pos = response.interact_pointer_pos();
-            self.click(pos, in_inset(self, pos), rect);
+            self.click(pos, overlay_at(self, pos), rect);
         }
-        let inset = (self.show_julia && !self.julia_full).then(|| inset_rect(rect));
         let pointer = response.hover_pos();
-        let over_inset = in_inset(self, pointer);
+        let over = overlay_at(self, pointer);
 
         self.active_mut().fit(rect, scale);
         let (pan, zoom) = gestures(ui, &response, rect);
-        if pan != Vec2::ZERO && (response.dragged() || !over_inset) {
+        if pan != Vec2::ZERO && (response.dragged() || over.is_none()) {
             self.active_mut().pan(pan);
         }
-        if zoom != 1.0 && !over_inset {
+        if zoom != 1.0 && over.is_none() {
             let anchor = pointer.unwrap_or(rect.center()) - rect.min;
             self.active_mut().zoom(anchor, zoom);
         }
         self.advance(dt);
 
         // What is under the pointer, and the Julia set to show.
-        self.hover = pointer.filter(|_| !over_inset).and_then(|pos| {
+        self.hover = pointer.filter(|_| over.is_none()).and_then(|pos| {
             let (point, pixel) = self.active().pixel_at(pos, rect)?;
             let steps = self.active().picture().limit().min(ORBIT_STEPS);
             let orbit = match self.julia_full {
@@ -214,51 +258,128 @@ impl MandelbrotApp {
             let active = self.active();
             draw_orbit(&painter, &hover.orbit, 1.0, |p| active.to_screen(p, rect));
         }
-        if let Some(inset) = inset {
-            self.julia.fit(inset, scale);
-            self.julia.update(&ctx, &self.colours, INSET_ITERATIONS);
-            painter.rect_filled(inset, 0.0, self.colours.palette().inside());
-            let inset_painter = painter.with_clip_rect(inset);
-            self.julia.paint(&inset_painter, inset);
-            if self.show_orbit {
-                // The orbit of 0 belongs to the Julia set's plane, where the whole of a bounded
-                // orbit is always in view, however far the main picture is zoomed.
-                let steps = self.mandelbrot.picture().limit().min(ORBIT_STEPS);
-                let path = orbit([0.0, 0.0], self.julia_c, steps);
-                let julia = &self.julia;
-                draw_orbit(&inset_painter, &path, 0.6, |p| julia.to_screen(p, inset));
-            }
+
+        for (overlay, inner) in self.overlays(rect) {
+            let hovered = over == Some(overlay);
+            let inner_painter = painter.with_clip_rect(inner);
+            painter.rect_filled(inner, 0.0, self.colours.palette().inside());
+            let caption = match overlay {
+                Overlay::Julia => {
+                    self.draw_julia_inset(&ctx, &inner_painter, inner, scale);
+                    "Julia set"
+                }
+                Overlay::Map => {
+                    self.draw_map(&ctx, &inner_painter, inner, scale);
+                    "Overview"
+                }
+            };
             let edge = Stroke::new(
                 1.5,
-                Color32::from_white_alpha(if over_inset { 230 } else { 140 }),
+                Color32::from_white_alpha(if hovered { 230 } else { 140 }),
             );
-            painter.rect_stroke(inset, 0.0, edge, egui::StrokeKind::Outside);
+            painter.rect_stroke(inner, 0.0, edge, egui::StrokeKind::Outside);
             painter.text(
-                inset.left_top() + egui::vec2(6.0, 4.0),
+                inner.left_top() + egui::vec2(6.0, 4.0),
                 Align2::LEFT_TOP,
-                "Julia set",
+                caption,
                 FontId::proportional(13.0),
                 Color32::from_white_alpha(220),
             );
-            if over_inset {
+            if hovered {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
             }
-            if !self.julia.picture().is_done() {
-                ui.ctx().request_repaint();
-            }
+        }
+        if !self.julia.picture().is_done() || !self.map.picture().is_done() {
+            ui.ctx().request_repaint();
         }
     }
 
-    /// A click on the inset enlarges the Julia set. A click on the Mandelbrot set pins the
-    /// Julia set's c there, so the pointer can move away.
-    fn click(&mut self, pos: Option<egui::Pos2>, on_inset: bool, rect: Rect) {
-        if on_inset {
-            self.enlarge_julia(true);
-        } else if !self.julia_full
-            && let Some((point, _)) = pos.and_then(|p| self.mandelbrot.pixel_at(p, rect))
+    /// The Julia set of c in its inset, with the orbit of 0, which belongs to its plane.
+    fn draw_julia_inset(
+        &mut self,
+        ctx: &egui::Context,
+        painter: &egui::Painter,
+        inset: Rect,
+        scale: f32,
+    ) {
+        self.julia.fit(inset, scale);
+        self.julia.update(ctx, &self.colours, INSET_ITERATIONS);
+        self.julia.paint(painter, inset);
+        if self.show_orbit {
+            // The whole of a bounded orbit is always in view here, however far the main
+            // picture is zoomed.
+            let steps = self.mandelbrot.picture().limit().min(ORBIT_STEPS);
+            let path = orbit([0.0, 0.0], self.julia_c, steps);
+            let julia = &self.julia;
+            draw_orbit(painter, &path, 0.6, |p| julia.to_screen(p, inset));
+        }
+    }
+
+    /// The whole set in the overview map, with the main view marked on it: a rectangle, or
+    /// cross hairs once that is too small to see.
+    fn draw_map(&mut self, ctx: &egui::Context, painter: &egui::Painter, inner: Rect, scale: f32) {
+        let (centre, span) = self.map_home();
+        let family = self.active().picture().family();
+        self.map.set_family(family);
+        self.map.set_home(centre, span);
+        self.map.fit(inner, scale);
+        self.map
+            .raise_limit(self.active().picture().limit().min(MAP_MOST_STEPS));
+        self.map.update(ctx, &self.colours, MAP_ITERATIONS);
+        self.map.paint(painter, inner);
+
+        let view = self.active().picture().view();
+        let corner = |x: f64, y: f64| self.map.to_screen(view.at(x, y), inner);
+        let shown = Rect::from_two_pos(
+            corner(0.0, 0.0),
+            corner(view.width as f64, view.height as f64),
+        );
+        let shadow = Stroke::new(3.0, Color32::from_black_alpha(150));
+        let mark = Stroke::new(1.5, GOLD);
+        if shown.width().max(shown.height()) >= 8.0 {
+            for stroke in [shadow, mark] {
+                painter.rect_stroke(shown, 0.0, stroke, egui::StrokeKind::Middle);
+            }
+        } else {
+            let c = shown.center();
+            for stroke in [shadow, mark] {
+                painter.line_segment([c - egui::vec2(9.0, 0.0), c - egui::vec2(3.0, 0.0)], stroke);
+                painter.line_segment([c + egui::vec2(3.0, 0.0), c + egui::vec2(9.0, 0.0)], stroke);
+                painter.line_segment([c - egui::vec2(0.0, 9.0), c - egui::vec2(0.0, 3.0)], stroke);
+                painter.line_segment([c + egui::vec2(0.0, 3.0), c + egui::vec2(0.0, 9.0)], stroke);
+            }
+        }
+        // A Julia set's map is its own plane, where the orbit of a starting point belongs.
+        if self.julia_full
+            && self.show_orbit
+            && let Some(hover) = &self.hover
         {
-            self.julia_c = point;
-            self.pinned = true;
+            let map = &self.map;
+            draw_orbit(painter, &hover.orbit, 0.6, |p| map.to_screen(p, inner));
+        }
+    }
+
+    /// A click on the Julia inset enlarges it, and one on the map moves the main view there.
+    /// A click on the Mandelbrot set pins the Julia set's c, so the pointer can move away.
+    fn click(&mut self, pos: Option<egui::Pos2>, on: Option<Overlay>, rect: Rect) {
+        match on {
+            Some(Overlay::Julia) => self.enlarge_julia(true),
+            Some(Overlay::Map) => {
+                let (_, span) = self.map_home();
+                let inner = map_rect(rect, span);
+                if let Some((point, _)) = pos.and_then(|p| self.map.pixel_at(p, inner)) {
+                    let at = self.active().to_screen(point, rect);
+                    self.active_mut().pan(rect.center() - at);
+                }
+            }
+            None => {
+                if !self.julia_full
+                    && let Some((point, _)) = pos.and_then(|p| self.mandelbrot.pixel_at(p, rect))
+                {
+                    self.julia_c = point;
+                    self.pinned = true;
+                }
+            }
         }
     }
 
@@ -327,6 +448,10 @@ impl MandelbrotApp {
         }
         ui.checkbox(&mut self.sharp, "Sharp: a point for every screen pixel")
             .on_hover_text("On a high-density screen, four times the work for a crisper picture.");
+        ui.checkbox(&mut self.show_map, "Show the overview map")
+            .on_hover_text(
+                "The whole set, with the view marked on it in gold. Click it to move there.",
+            );
         ui.checkbox(
             &mut self.show_orbit,
             "Show the orbit of the point under the pointer",
@@ -451,6 +576,7 @@ impl MandelbrotApp {
         if self.playback.take_restart() {
             self.mandelbrot.restart();
             self.julia.restart();
+            self.map.restart();
         }
         let limit = self.active().picture().limit();
         match self.playback.advance() {
@@ -478,6 +604,18 @@ fn inset_rect(rect: Rect) -> Rect {
     Rect::from_min_size(
         rect.right_bottom() - egui::vec2(side + margin, side + margin),
         egui::vec2(side, side),
+    )
+}
+
+/// The overview map's place: as wide as the Julia inset, in the top-right corner, and as tall
+/// as the whole set's `span` needs.
+fn map_rect(rect: Rect, span: [f64; 2]) -> Rect {
+    let width = (rect.width().min(rect.height()) * INSET_SIZE).round();
+    let height = (width * (span[1] / span[0]) as f32).round();
+    let margin = 10.0;
+    Rect::from_min_size(
+        rect.right_top() + egui::vec2(-(width + margin), margin),
+        egui::vec2(width, height),
     )
 }
 

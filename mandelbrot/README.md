@@ -148,6 +148,9 @@ inset shatter.
   The count times the distance tends to π. Many people noticed this independently in the
   early 1990s. To see it, zoom in on the pinch until the pointer can sit that close, raise
   the stop limit past the count you expect, and hover.
+- **Keep your bearings with the overview map** (top right). It shows the whole set, with
+  the view marked in gold: a rectangle, or cross hairs once you are too deep for one. Click
+  the map to jump the view there, at the same zoom.
 - **Raise the stop limit as you zoom.** Deep in, the edge is made of points that take
   hundreds or thousands of steps to escape. With too low a limit they all look inside, and
   the picture goes blobby. "Go there now" jumps straight to the limit.
