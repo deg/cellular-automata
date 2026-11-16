@@ -178,8 +178,8 @@ side panel and the one on GitHub are the same file, and can't drift apart.
   from the demo's page title and the text from its `Cargo.toml`. A new demo appears
   without touching the script.
 - Each card's picture is drawn when the page loads, by a few lines of JavaScript in
-  `site/thumbs.js`: a tiny run of that automaton in its own colours. The header band is
-  Rule 30. There are no image files to keep up to date.
+  `site/thumbs.js`: a tiny run of that automaton in its own colours. There are no image
+  files to keep up to date.
 - This page is `HOW-IT-WORKS.md`, turned into HTML at build time by `tools/mdpage`, a
   small Rust program using the `pulldown-cmark` Markdown parser.
 - `make serve` builds the site and serves it locally at <http://localhost:8080/>.
@@ -244,3 +244,17 @@ edge) uses the plain method, which gives the same answer, just slower.
    it gets a generic one.
 7. `make check`, then `make serve`. It appears on the index page by itself, and on the
    live site after the next push.
+
+## Credits
+
+Developed with:
+
+- [Claude Code](https://github.com/anthropics/claude-code), Anthropic's AI coding agent,
+  which wrote much of the code and documentation under David's direction.
+- [Beads](https://github.com/gastownhall/beads), an issue tracker built for coding
+  agents. Every task in this project was a bead: filed, worked and closed.
+- [Beads Utils](https://github.com/deg/beads-utils), David's tools for managing agentic
+  work with Beads and Claude Code: including the finalize and close-out routines
+  this project was run with.
+
+© 2026 David Goldfarb, deg@degel.com.

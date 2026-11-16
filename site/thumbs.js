@@ -1,5 +1,5 @@
 // Small pictures for the index page: each card's canvas gets a tiny run of its own
-// automaton, in the demo's colours, and the header band grows Rule 30. Canvases are
+// automaton, in the demo's colours. Canvases are
 // matched by data-demo (the demo's directory name); an unknown name gets a generic
 // picture, so a new demo still has one.
 (() => {
@@ -38,9 +38,9 @@
     ctx.putImageData(img, 0, 0);
   }
 
-  // Rows of an elementary rule from a first row; returns the w x h cells. With `ring`, the
-  // row's ends are neighbours, so a wide band has no stripes at its edges.
-  function elementary(rule, first, h, ring = false) {
+  // Rows of an elementary rule from a first row; returns the w x h cells. Beyond the row's
+  // ends, cells are always 0.
+  function elementary(rule, first, h) {
     const w = first.length;
     const cells = new Uint8Array(w * h);
     cells.set(first);
@@ -48,8 +48,7 @@
       for (let x = 0; x < w; x++) {
         const at = (dx) => {
           const nx = x + dx;
-          if (nx >= 0 && nx < w) return cells[(y - 1) * w + nx];
-          return ring ? cells[(y - 1) * w + (nx + w) % w] : 0;
+          return nx >= 0 && nx < w ? cells[(y - 1) * w + nx] : 0;
         };
         const left = at(-1), right = at(1);
         cells[y * w + x] = (rule >> ((left << 2) | (at(0) << 1) | right)) & 1;
@@ -175,51 +174,8 @@
     paint(canvas, W, H, elementary(110, first, H), (v) => (v ? TEAL : NAVY));
   }
 
-  // The header band: Rule 30 from a random row, cells about 4 pixels across, drawn a
-  // row at a time once on load (all at once if the reader prefers reduced motion).
-  function band(canvas, animate) {
-    const w = Math.max(60, Math.round(canvas.clientWidth / 4));
-    const h = Math.max(20, Math.round(canvas.clientHeight / 4));
-    const random = rng(30);
-    const first = Uint8Array.from({ length: w }, () => (random() < 0.5 ? 1 : 0));
-    const cells = elementary(30, first, h, true);
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    const row = (y) => {
-      const img = ctx.createImageData(w, 1);
-      for (let x = 0; x < w; x++) {
-        const [r, g, b] = cells[y * w + x] ? GOLD : NAVY;
-        img.data.set([r, g, b, 255], x * 4);
-      }
-      ctx.putImageData(img, 0, y);
-    };
-    if (!animate) {
-      for (let y = 0; y < h; y++) row(y);
-      return;
-    }
-    let y = 0;
-    const start = performance.now();
-    const step = (now) => {
-      const upto = Math.min(h, Math.ceil(((now - start) / 1200) * h));
-      while (y < upto) row(y++);
-      if (y < h) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }
 
-  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   for (const canvas of document.querySelectorAll("canvas[data-demo]")) {
-    const demo = canvas.dataset.demo;
-    if (demo === "rule30-band") {
-      band(canvas, !still);
-      let timer;
-      addEventListener("resize", () => {
-        clearTimeout(timer);
-        timer = setTimeout(() => band(canvas, false), 150);
-      });
-    } else {
-      (pictures[demo] || generic)(canvas);
-    }
+    (pictures[canvas.dataset.demo] || generic)(canvas);
   }
 })();

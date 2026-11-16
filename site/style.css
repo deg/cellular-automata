@@ -62,7 +62,7 @@ a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-r
 /* Header */
 /* Vertical padding only: .wrap supplies the sides, and a `padding` shorthand here would
    override them (same specificity, later rule), pulling the header out of line. */
-.masthead { padding-block: 56px 8px; }
+.masthead { padding-block: 56px 40px; }
 .masthead h1 {
   margin: 0;
   font-size: clamp(2.4rem, 6vw, 3.8rem);
@@ -83,16 +83,6 @@ a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-r
 }
 .button:hover { background: var(--ink); color: var(--paper); }
 
-/* The hero band: Rule 30 drawn by thumbs.js. */
-.band {
-  display: block;
-  width: 100%;
-  height: clamp(90px, 16vw, 160px);
-  margin: 36px 0 44px;
-  image-rendering: pixelated;
-  border-radius: 6px;
-  background: var(--screen);
-}
 
 /* Demo cards */
 .cards {

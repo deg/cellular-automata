@@ -9,7 +9,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-dist="$root/dist"
 cd "$root"
 
 demos=()
@@ -22,18 +21,18 @@ if [[ ${#demos[@]} -eq 0 ]]; then
   exit 1
 fi
 
-command rm -rf "$dist"
-mkdir -p "$dist"
+# Build into a directory of our own, and swap it in at the end. Two builds at once (say a
+# `make serve` while another build runs) used to share dist/: each began by deleting it,
+# pulling it from under the other, whose trunk then failed copying its wasm into a
+# directory that no longer existed.
+final="$root/dist"
+dist="$(mktemp -d "$root/dist.building.XXXXXX")"
+trap 'command rm -rf "$dist"' EXIT
 
 entries=""
 for dir in "${demos[@]}"; do
   echo "== building $dir"
-  # trunk occasionally fails copying the optimised wasm into dist, and a rerun succeeds;
-  # retry once rather than fail the whole site (cause unknown: cellular-automata-z02).
-  if ! (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir"); then
-    echo "== trunk failed for $dir; retrying once (see bead cellular-automata-z02)" >&2
-    (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
-  fi
+  (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
   title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$dir/index.html" | head -1)"
   blurb="$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -1)"
   entries+="      <li><a class=\"card\" href=\"$dir/\"><canvas class=\"thumb\" data-demo=\"$dir\" aria-hidden=\"true\"></canvas><span class=\"card-title\">${title:-$dir}</span><span class=\"card-text\">$blurb</span></a></li>"$'\n'
@@ -49,4 +48,7 @@ cp "$root/site/style.css" "$root/site/thumbs.js" "$dist/"
 cargo run --release --quiet -p mdpage -- \
   "$root/HOW-IT-WORKS.md" "$root/site/page.html" "$dist/how-it-works.html"
 
-echo "== built ${#demos[@]} demo(s) into $dist"
+command rm -rf "$final"
+mv "$dist" "$final"
+trap - EXIT
+echo "== built ${#demos[@]} demo(s) into $final"

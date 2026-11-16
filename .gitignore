@@ -9,3 +9,4 @@
 # Rust / trunk build output
 target/
 dist/
+dist.building.*/

@@ -44,4 +44,6 @@ In brief; [HOW-IT-WORKS.md](HOW-IT-WORKS.md) has the full picture.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Copyright © 2026 David Goldfarb, deg@degel.com.
+
+MIT licensed. See [LICENSE](LICENSE).
