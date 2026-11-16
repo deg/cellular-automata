@@ -20,6 +20,8 @@ pub struct Pane {
     pan_carry: Vec2,
     /// The picture must be uploaded again.
     redraw: bool,
+    /// Seen through a fisheye lens (see `sim::Lens`).
+    fisheye: bool,
 }
 
 impl Pane {
@@ -34,6 +36,7 @@ impl Pane {
             home_step: placeholder.step(),
             pan_carry: Vec2::ZERO,
             redraw: true,
+            fisheye: false,
         }
     }
 
@@ -67,7 +70,7 @@ impl Pane {
         if self.go_home {
             self.go_home = false;
             self.scale = scale;
-            let home = Viewport::fit(w, h, self.home.0, self.home.1);
+            let home = Viewport::fit(w, h, self.home.0, self.home.1).with_fisheye(self.fisheye);
             self.home_step = home.step() * scale as f64;
             self.replace(self.picture.family(), home);
             return;
@@ -77,6 +80,15 @@ impl Pane {
             let step = v.step() * self.scale as f64 / scale as f64;
             self.scale = scale;
             self.replace(self.picture.family(), v.resized(w, h, step));
+        }
+    }
+
+    /// Look through a fisheye lens, or not.
+    pub fn set_fisheye(&mut self, on: bool) {
+        if on != self.fisheye {
+            self.fisheye = on;
+            let view = self.picture.view().with_fisheye(on);
+            self.replace(self.picture.family(), view);
         }
     }
 
@@ -90,7 +102,10 @@ impl Pane {
     /// Start a new picture at the current limit, keeping the old one as a backdrop if it was
     /// finished (or there is nothing better).
     fn replace(&mut self, family: Family, view: Viewport) {
-        if self.picture.is_done() || !self.view.has_backdrop() {
+        if view.is_fisheye() || self.picture.view().is_fisheye() {
+            // The backdrop is drawn by mapping its corners, which a fisheye bends.
+            self.view.drop_backdrop();
+        } else if self.picture.is_done() || !self.view.has_backdrop() {
             self.view.keep_as_backdrop();
         }
         self.picture = Picture::new(family, view, self.picture.limit());

@@ -21,7 +21,29 @@ pub struct Viewport {
     step: f64,
     /// Whole pixels the view has been moved by since `base` was set.
     offset: [i64; 2],
+    lens: Lens,
 }
+
+/// How the picture's pixels are spread over the plane.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Lens {
+    /// Evenly: `step` plane units a pixel everywhere.
+    Flat,
+    /// A fisheye: flat, at `step` units a pixel, out to [`CORE`] of the way to the rim (a
+    /// circle as wide as the picture's shorter side), then growing exponentially, so the rim
+    /// is [`REACH`] from the centre. A point a fraction rho of the rim's radius R out is
+    /// step R rho from the centre inside the core, and step R (CORE + (e^(k (rho - CORE)) - 1)
+    /// / k) beyond it, which carries on from the core without a kink. `k` is solved from the
+    /// zoom, so the deeper the view, the more scales the ring round the core squeezes in.
+    Fisheye { k: f64 },
+}
+
+/// The fraction of the way to a fisheye's rim that is flat, at the view's own zoom.
+pub const CORE: f64 = 0.5;
+
+/// How far from the centre a fisheye's rim reaches: enough to take in the whole set (radius
+/// 2) from any centre near it.
+pub const REACH: f64 = 4.0;
 
 /// The smallest step allowed, relative to the size of the coordinates: below about 16 units
 /// in the last place, neighbouring pixels would round to the same f64 point and the picture
@@ -40,7 +62,60 @@ impl Viewport {
             base: centre,
             step,
             offset: [0, 0],
+            lens: Lens::Flat,
         }
+    }
+
+    /// This view through a fisheye lens, or flat.
+    pub fn with_fisheye(&self, on: bool) -> Self {
+        let lens = if on {
+            Lens::Fisheye {
+                k: fisheye_k(REACH / (self.step * self.rim())),
+            }
+        } else {
+            Lens::Flat
+        };
+        Self { lens, ..*self }
+    }
+
+    pub fn is_fisheye(&self) -> bool {
+        matches!(self.lens, Lens::Fisheye { .. })
+    }
+
+    /// The radius of a fisheye's flat core, in plane units.
+    pub fn core_radius(&self) -> f64 {
+        self.step * self.rim() * CORE
+    }
+
+    /// The fisheye rim's radius, in pixels.
+    fn rim(&self) -> f64 {
+        self.width.min(self.height).max(1) as f64 / 2.0
+    }
+
+    /// The plane point at the centre of the picture.
+    fn middle(&self) -> [f64; 2] {
+        [
+            self.base[0] + self.offset[0] as f64 * self.step,
+            self.base[1] - self.offset[1] as f64 * self.step,
+        ]
+    }
+
+    /// The plane point `(u, v)` pixels right of and below the centre, through the lens.
+    fn through_lens(&self, k: f64, u: f64, v: f64) -> [f64; 2] {
+        let [mx, my] = self.middle();
+        let r = u.hypot(v);
+        if r == 0.0 {
+            return [mx, my];
+        }
+        let big_r = self.rim();
+        let rho = r / big_r;
+        let t = if rho <= CORE {
+            rho
+        } else {
+            CORE + (k * (rho - CORE)).exp_m1() / k
+        };
+        let d = self.step * big_r * t;
+        [mx + u / r * d, my - v / r * d]
     }
 
     /// The view centred on `centre` that just shows `span` (plane width and height).
@@ -60,6 +135,9 @@ impl Viewport {
 
     /// The plane point of pixel `(x, y)`: the centre of that pixel.
     pub fn point(&self, x: usize, y: usize) -> [f64; 2] {
+        if self.is_fisheye() {
+            return self.at(x as f64 + 0.5, y as f64 + 0.5);
+        }
         // Whole numbers first, so the same pixel of the plane gets the same bits however the
         // view reached it.
         let i = (x as i64 + self.offset[0]) as f64 + 0.5 - self.width as f64 * 0.5;
@@ -71,6 +149,10 @@ impl Viewport {
     /// allowed: pixel `(i, j)` covers `i..i + 1` by `j..j + 1`. The plane's imaginary axis
     /// points up, the picture's y down.
     pub fn at(&self, x: f64, y: f64) -> [f64; 2] {
+        if let Lens::Fisheye { k } = self.lens {
+            let (u, v) = (x - self.width as f64 * 0.5, y - self.height as f64 * 0.5);
+            return self.through_lens(k, u, v);
+        }
         let i = x + self.offset[0] as f64 - self.width as f64 * 0.5;
         let j = y + self.offset[1] as f64 - self.height as f64 * 0.5;
         [self.base[0] + i * self.step, self.base[1] - j * self.step]
@@ -79,6 +161,24 @@ impl Viewport {
     /// Where the plane point `p` falls, in pixels from the top-left corner: the inverse of
     /// [`Viewport::at`].
     pub fn pixel_of(&self, p: [f64; 2]) -> [f64; 2] {
+        if let Lens::Fisheye { k } = self.lens {
+            let [mx, my] = self.middle();
+            let (dx, dy) = (p[0] - mx, my - p[1]);
+            let d = dx.hypot(dy);
+            let (cx, cy) = (self.width as f64 * 0.5, self.height as f64 * 0.5);
+            if d == 0.0 {
+                return [cx, cy];
+            }
+            let big_r = self.rim();
+            let t = d / (self.step * big_r);
+            let rho = if t <= CORE {
+                t
+            } else {
+                CORE + (k * (t - CORE)).ln_1p() / k
+            };
+            let r = big_r * rho;
+            return [cx + dx / d * r, cy + dy / d * r];
+        }
         let x = (p[0] - self.base[0]) / self.step - self.offset[0] as f64 + self.width as f64 * 0.5;
         let y =
             (self.base[1] - p[1]) / self.step - self.offset[1] as f64 + self.height as f64 * 0.5;
@@ -87,8 +187,13 @@ impl Viewport {
 
     /// This view magnified by `factor` about `(x, y)` (in pixels), which stays put on screen.
     /// The magnification stops where f64 runs out of precision, and where the view is wide
-    /// enough to show everything.
+    /// enough to show everything. A fisheye always zooms about its centre.
     pub fn zoomed(&self, x: f64, y: f64, factor: f64) -> Self {
+        if self.is_fisheye() {
+            let centre = self.middle();
+            let step = self.clamp_step(self.step / factor, centre);
+            return Self::new(self.width, self.height, centre, step).with_fisheye(true);
+        }
         let q = self.at(x, y);
         let step = self.clamp_step(self.step / factor, q);
         let base = [
@@ -115,7 +220,7 @@ impl Viewport {
     pub fn resized(&self, width: usize, height: usize, step: f64) -> Self {
         let mut view = Self::new(width, height, self.centre(), step);
         view.step = view.clamp_step(step, view.base);
-        view
+        view.with_fisheye(self.is_fisheye())
     }
 
     /// Whether zooming in further is blocked by f64's precision.
@@ -131,6 +236,31 @@ impl Viewport {
         let widest = WIDEST / self.width.min(self.height).max(1) as f64;
         step.max(self.smallest_step(near)).min(widest)
     }
+}
+
+/// The fisheye's k for a rim that reaches `ratio` times as far as a flat view would: the k
+/// with CORE + (e^(k (1 - CORE)) - 1) / k = ratio, found by bisection. A ratio of 1 or less
+/// (a view zoomed out past the whole set) needs no fisheye, and gets a k so small the lens
+/// is flat.
+fn fisheye_k(ratio: f64) -> f64 {
+    if ratio <= 1.0 + 1e-9 {
+        return 1e-9;
+    }
+    let ratio = ratio - CORE;
+    let f = |k: f64| (k * (1.0 - CORE)).exp_m1() / k;
+    let (mut lo, mut hi) = (1e-9, 1.0);
+    while f(hi) < ratio {
+        hi *= 2.0;
+    }
+    for _ in 0..200 {
+        let mid = 0.5 * (lo + hi);
+        if f(mid) < ratio {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    0.5 * (lo + hi)
 }
 
 /// What a pixel knows so far.
@@ -357,6 +487,15 @@ impl Picture {
     /// as it is. Only the strips uncovered at the edges start afresh.
     pub fn pan(&mut self, dx: i64, dy: i64) {
         if dx == 0 && dy == 0 {
+            return;
+        }
+        if self.view.is_fisheye() {
+            // Through a fisheye a move changes every pixel's point: start afresh.
+            self.view = self.view.panned(dx, dy);
+            self.z.fill([0.0; 2]);
+            self.steps.fill(0);
+            self.smooth.fill(FRESH);
+            self.rebuild_queue();
             return;
         }
         let (w, h) = (self.view.width, self.view.height);
@@ -818,6 +957,67 @@ mod tests {
         assert_eq!(moved.point(15, 17), v.point(10, 20));
         // The imaginary axis points up: the top row is the most positive.
         assert!(v.point(0, 0)[1] > v.point(0, 199)[1]);
+    }
+
+    /// A fisheye keeps the view's scale at the centre, reaches REACH at the rim, grows
+    /// steadily outwards, and its two mappings undo each other, at a deep zoom and a shallow
+    /// one. Zoomed out past the whole set, it is flat.
+    #[test]
+    fn fisheye_mappings() {
+        for factor in [30.0, 1e9] {
+            let v = home(400, 300)
+                .zoomed(200.0, 150.0, factor)
+                .with_fisheye(true);
+            let (cx, cy) = (200.0, 150.0);
+            let a = v.at(cx, cy);
+            // Flat, at the view's own scale, throughout the core.
+            let b = v.at(cx + 70.0, cy);
+            let core = (b[0] - a[0]).hypot(b[1] - a[1]) / 70.0;
+            assert!(
+                (core / v.step() - 1.0).abs() < 1e-5,
+                "scale in the core, x{factor}"
+            );
+            let rim = v.at(cx + 150.0, cy);
+            let reach = (rim[0] - a[0]).hypot(rim[1] - a[1]);
+            assert!(
+                (reach / REACH - 1.0).abs() < 1e-6,
+                "reach, x{factor}: {reach}"
+            );
+            let mut last = 0.0;
+            for r in [1.0, 10.0, 50.0, 100.0, 149.0] {
+                let p = v.at(cx + r * 0.6, cy - r * 0.8);
+                let d = (p[0] - a[0]).hypot(p[1] - a[1]);
+                assert!(d > last, "outwards, x{factor}");
+                last = d;
+                let back = v.pixel_of(p);
+                assert!(
+                    (back[0] - (cx + r * 0.6)).abs() < 1e-3
+                        && (back[1] - (cy - r * 0.8)).abs() < 1e-3,
+                    "round trip at r = {r}, x{factor}: {back:?}"
+                );
+            }
+        }
+        let wide = home(400, 300);
+        let flat = wide.point(17, 230);
+        let fish = wide
+            .zoomed(200.0, 150.0, 0.25)
+            .with_fisheye(true)
+            .point(17, 230);
+        let flat_wide = wide.zoomed(200.0, 150.0, 0.25).point(17, 230);
+        assert!((fish[0] - flat_wide[0]).abs() < 1e-6 && (fish[1] - flat_wide[1]).abs() < 1e-6);
+        assert_ne!(flat, fish);
+    }
+
+    /// Panning a fisheye picture recomputes it, and must match a fresh picture of the moved
+    /// view.
+    #[test]
+    fn fisheye_panning_matches_a_fresh_picture() {
+        let view = home(60, 40).zoomed(30.0, 20.0, 20.0).with_fisheye(true);
+        let mut p = finished(view, 60);
+        p.pan(5, -3);
+        p.work(u64::MAX);
+        let fresh = finished(*p.view(), 60);
+        assert!(state(&p) == state(&fresh));
     }
 
     /// Zooming in stops where neighbouring pixels would round to the same point.

@@ -61,6 +61,18 @@ impl PlaneView {
     /// Draw into `rect`, which shows `current` at `scale` pixels per point.
     pub fn paint(&self, painter: &Painter, rect: Rect, scale: f32, current: &Viewport) {
         let painter = painter.with_clip_rect(rect);
+        let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+        if current.is_fisheye() {
+            // A fisheye bends straight lines, so the corners can't place the picture; it is
+            // always a picture of the current view (every move recomputes it), so it goes
+            // where the view is.
+            if let Some((texture, view)) = &self.texture {
+                let size = egui::vec2(view.width as f32, view.height as f32) / scale;
+                let shown = Rect::from_min_size(rect.min, size);
+                painter.image(texture.id(), shown, uv, Color32::WHITE);
+            }
+            return;
+        }
         for (texture, view) in self.backdrop.iter().chain(self.texture.iter()) {
             let corner = |x: f64, y: f64| {
                 let [px, py] = current.pixel_of(view.at(x, y));
@@ -70,7 +82,6 @@ impl PlaneView {
                 corner(0.0, 0.0),
                 corner(view.width as f64, view.height as f64),
             );
-            let uv = Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
             painter.image(texture.id(), shown, uv, Color32::WHITE);
         }
     }

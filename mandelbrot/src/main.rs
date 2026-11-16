@@ -52,6 +52,8 @@ const MOST_STEPS: u32 = 1_000_000;
 /// The most steps of the pointer's orbit followed (looking for a cycle), and drawn.
 const ORBIT_STEPS: u32 = 20_000;
 const ORBIT_DRAWN: usize = 1_000;
+/// Pieces each step of a drawn orbit is cut into, so it can bend through a fisheye.
+const ORBIT_SEGMENT_PIECES: usize = 12;
 
 /// The dots on the cycle an orbit settles into, and the pinned point: the site's gold.
 const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
@@ -99,6 +101,8 @@ struct MandelbrotApp {
     julia_full: bool,
     show_orbit: bool,
     show_map: bool,
+    /// See the main picture through a fisheye lens (see `sim::Lens`).
+    fisheye: bool,
     hover: Option<Hover>,
 }
 
@@ -138,6 +142,7 @@ impl MandelbrotApp {
             julia_full: false,
             show_orbit: true,
             show_map: true,
+            fisheye: false,
             hover: None,
         }
     }
@@ -204,6 +209,11 @@ impl MandelbrotApp {
         let pointer = response.hover_pos();
         let over = overlay_at(self, pointer);
 
+        let fisheye = self.fisheye;
+        self.active_mut().set_fisheye(fisheye);
+        if !self.julia_full {
+            self.julia.set_fisheye(false); // the inset is always flat
+        }
         self.active_mut().fit(rect, scale);
         let (pan, zoom) = gestures(ui, &response, rect);
         if pan != Vec2::ZERO && (response.dragged() || over.is_none()) {
@@ -340,12 +350,27 @@ impl MandelbrotApp {
         );
         let shadow = Stroke::new(3.0, Color32::from_black_alpha(150));
         let mark = Stroke::new(1.5, GOLD);
-        if shown.width().max(shown.height()) >= 8.0 {
+        // A fisheye's corners take in the whole set, so it is marked by its flat core.
+        let core = self.map.to_screen(view.centre(), inner);
+        let core_radius = {
+            let [cx, cy] = view.centre();
+            let edge = self.map.to_screen([cx + view.core_radius(), cy], inner);
+            (edge - core).length()
+        };
+        if view.is_fisheye() && core_radius >= 4.0 {
+            for stroke in [shadow, mark] {
+                painter.circle_stroke(core, core_radius, stroke);
+            }
+        } else if !view.is_fisheye() && shown.width().max(shown.height()) >= 8.0 {
             for stroke in [shadow, mark] {
                 painter.rect_stroke(shown, 0.0, stroke, egui::StrokeKind::Middle);
             }
         } else {
-            let c = shown.center();
+            let c = if view.is_fisheye() {
+                core
+            } else {
+                shown.center()
+            };
             for stroke in [shadow, mark] {
                 painter.line_segment([c - egui::vec2(9.0, 0.0), c - egui::vec2(3.0, 0.0)], stroke);
                 painter.line_segment([c + egui::vec2(3.0, 0.0), c + egui::vec2(9.0, 0.0)], stroke);
@@ -452,6 +477,8 @@ impl MandelbrotApp {
         }
         ui.checkbox(&mut self.sharp, "Sharp: a point for every screen pixel")
             .on_hover_text("On a high-density screen, four times the work for a crisper picture.");
+        ui.checkbox(&mut self.fisheye, "Fisheye: the whole set round the edge")
+            .on_hover_text("The middle shows the view at its zoom. Outside it, the scale grows until the rim takes in the whole set, so the context stays in view. Zooming centres on the middle.");
         ui.checkbox(&mut self.show_map, "Show the overview map")
             .on_hover_text(
                 "The whole set, with the view marked on it in gold. Click it to move there.",
@@ -677,22 +704,28 @@ fn draw_orbit(
     size: f32,
     to_screen: impl Fn([f64; 2]) -> egui::Pos2,
 ) {
-    let points: Vec<egui::Pos2> = orbit
-        .points
-        .iter()
-        .take(ORBIT_DRAWN)
-        .map(|&p| to_screen(p))
-        .collect();
+    let shown = &orbit.points[..orbit.points.len().min(ORBIT_DRAWN)];
+    let points: Vec<egui::Pos2> = shown.iter().map(|&p| to_screen(p)).collect();
+    // Each step is a straight line in the plane, which a fisheye bends: draw it through
+    // points along the way, mapped one by one. (On a flat view they stay on the line.)
+    let mut path = vec![points[0]];
+    for pair in shown.windows(2) {
+        let [a, b] = [pair[0], pair[1]];
+        for i in 1..=ORBIT_SEGMENT_PIECES {
+            let t = i as f64 / ORBIT_SEGMENT_PIECES as f64;
+            path.push(to_screen([
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+            ]));
+        }
+    }
     let shadow = Color32::from_black_alpha(150);
     let ink = Color32::from_white_alpha(220);
     painter.add(egui::Shape::line(
-        points.clone(),
+        path.clone(),
         Stroke::new(3.0 * size, shadow),
     ));
-    painter.add(egui::Shape::line(
-        points.clone(),
-        Stroke::new(1.25 * size, ink),
-    ));
+    painter.add(egui::Shape::line(path, Stroke::new(1.25 * size, ink)));
     for &p in &points {
         painter.circle_filled(p, 2.5 * size, ink);
     }

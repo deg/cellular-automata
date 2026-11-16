@@ -151,6 +151,9 @@ inset shatter.
 - **Keep your bearings with the overview map** (top right). It shows the whole set, with
   the view marked in gold: a rectangle, or cross hairs once you are too deep for one. Click
   the map to jump the view there, at the same zoom.
+- **Try the fisheye.** Zoomed in, turn on *Fisheye*: the middle half of the circle shows the
+  view at its own zoom, and beyond it the scale grows until the rim takes in the whole set,
+  so you can see where you are. The deeper you are, the more scales the ring squeezes in.
 - **Raise the stop limit as you zoom.** Deep in, the edge is made of points that take
   hundreds or thousands of steps to escape. With too low a limit they all look inside, and
   the picture goes blobby. "Go there now" jumps straight to the limit.
