@@ -27,8 +27,10 @@ freezes once it has gathered 1.
 
 The crystal starts as one ice cell in a field where every cell holds **β** (beta), the
 background vapour. Outside a circle around the seed the water is held at β, as in Reiter's
-runs, so fresh vapour keeps arriving from all sides. Growth stops when the ice nears that
-circle.
+runs, so fresh vapour keeps arriving from all sides. Growth stops when the ice comes
+within two rows of that circle. Its radius counts rows of cells, as Reiter's program does,
+so the demo's three sizes are his: the crystals stop at the same step as in the tables on
+his auxiliary page.
 
 The crystal's tips reach out into the vapour, and γ is added evenly over its whole skin.
 Reiter offered γ as the simplest extension of the model, and as a rough stand-in for water
@@ -95,8 +97,6 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 - **The presets** are Reiter's own examples: his Figure 4's thin dendrite, thick dendrite,
   stellar and sector forms; a plate; and *Many levels*, his Figure 5's α = 2.003, "a
   pretty growth pattern with many levels of dendrites". Each starts again from a seed.
-  The sector here grows more like a plate, with small gaps, than in Reiter's picture,
-  whose edges are scalloped.
 - **Change conditions as it grows.** A real crystal falls through air of changing
   temperature and humidity. γ and α take effect at once, so you can do the same. Reiter's
   Figure 7 grew a plate with β = 0.4 and γ = 0.5, then lowered γ to 0.001 to grow
@@ -111,7 +111,7 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   extra cells near it, and the arms come out different. Reiter's Figure 6 started from
   small random clusters instead of a single seed.
 - **Room to grow.** A bigger field gives finer detail, but takes longer: the thin dendrite
-  needs about 9,000 steps at radius 200.
+  needs about 7,800 steps at radius 200.
 
 ## Further reading
 

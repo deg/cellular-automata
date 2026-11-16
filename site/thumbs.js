@@ -238,18 +238,19 @@
       // Reiter's model, the demo's Stellar preset, grown from one seed on a small hex grid
       // (axial coordinates) until the ice nears the circle held at the background.
       const VAPOUR = [0x6c, 0x8c, 0xc4], OLD_ICE = [0x8f, 0xc1, 0xe3];
-      const R = 30, beta = 0.6, gamma = 0.01;
-      const c = Math.floor(2 * R / Math.sqrt(3)) + 2, n = 2 * c + 1;
+      // R counts hex rows, as Reiter's program does: the circle is R sqrt(3)/2 cells wide.
+      const R = 35, beta = 0.6, gamma = 0.01;
+      const c = R + 2, n = 2 * c + 1;
       let water = new Float64Array(n * n).fill(beta), next = new Float64Array(n * n).fill(beta);
       const field = new Float64Array(n * n).fill(beta), ice = new Uint8Array(n * n);
       const rec = new Uint8Array(n * n), list = [];
       for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
         const q = x - c, r = y - c;
-        if (q * q + q * r + r * r <= R * R) list.push(y * n + x);
+        if (4 * (q * q + q * r + r * r) < 3 * R * R) list.push(y * n + x);
       }
       const inside = Int32Array.from(list), m = inside.length;
       water[c * n + c] = 1;
-      for (let reach = 0; reach < (R - 2) * (R - 2);) {
+      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) {
         for (let k = 0; k < m; k++) { const i = inside[k]; ice[i] = water[i] >= 1 ? 1 : 0; }
         for (let k = 0; k < m; k++) {
           const i = inside[k];
@@ -270,7 +271,7 @@
       let most = 1;
       for (const i of inside) most = Math.max(most, water[i]);
       // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates).
-      const w = 160, h = 100, scale = R / 46, cells = new Float64Array(w * h);
+      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Float64Array(w * h);
       for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
         const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), q = (px + 0.5 - w / 2) * scale - r / 2;
         let rq = Math.round(q), rr = Math.round(r);

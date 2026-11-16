@@ -23,7 +23,13 @@
 //!
 //! It starts from one ice cell (water 1) in a field of constant `beta`, the background
 //! vapour. Cells outside a circle of radius [`Crystal::radius`] around the seed are held at
-//! `beta`, the far field; growth stops when the ice comes within [`MARGIN`] cells of it.
+//! `beta`, the far field; growth stops when the ice comes within [`MARGIN`] of it.
+//!
+//! Radii are measured as Reiter's script measures them, in hex **rows**: a radius of `N`
+//! is `N * sqrt(3)/2` cell widths. His function `cir` scales each row's offset by sin 60°,
+//! and puts the fixed boundary at the distance of the top row, `N` rows from the seed, and
+//! the circle where growth stops at the third row, 2 rows in. So his "radius 200" is a circle
+//! of 173.2 cell widths, and the step counts in his tables come out the same here.
 
 use ca_core::Grid;
 
@@ -32,8 +38,8 @@ use ca_core::Grid;
 /// as `sandpile::sim::HEX`, copied so this demo does not depend on the sandpile.
 pub const HEX: [(isize, isize); 6] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)];
 
-/// Growth stops when an ice cell comes this close to the boundary circle. Reiter's script
-/// likewise stops when the ice reaches a circle just inside the fixed boundary.
+/// Growth stops when an ice cell comes this many rows from the boundary circle, as in
+/// Reiter's script (the circle through its third row).
 pub const MARGIN: usize = 2;
 
 /// The model's parameters, in Reiter's notation.
@@ -81,10 +87,7 @@ pub const PRESETS: &[Preset] = &[
     },
     Preset {
         name: "Sector",
-        // Reiter's picture of these parameters has scalloped edges; here the crystal stays
-        // closer to a plate, with the small gaps. The growth rate matches: his table for
-        // radius 200 records 171 steps for every beta = 0.9 crystal, one ring a step.
-        note: "Figure 4's sector form. Here it grows more like a plate, with small gaps.",
+        note: "Figure 4: a somewhat abstract sector form, with small gaps.",
         params: params(1.0, 0.9, 0.05),
     },
     Preset {
@@ -122,21 +125,20 @@ pub struct Crystal {
 }
 
 impl Crystal {
-    /// A single ice seed in a field of `params.beta`, with room to grow to `radius` cells.
+    /// A single ice seed in a field of `params.beta`, with room to grow to `radius` hex rows.
     pub fn new(radius: usize, params: Params) -> Self {
         assert!(radius > MARGIN + 1, "too small to grow");
         assert!(
             (0.0..1.0).contains(&params.beta),
             "the background must not be ice"
         );
-        // The circle reaches 2R/sqrt(3) cells out along an axial coordinate, so this leaves
-        // every inside cell's neighbours on the grid (held at beta).
-        let c = (2.0 * radius as f64 / 3f64.sqrt()) as usize + 2;
+        // No inside cell is `radius` or more steps along an axial coordinate from the
+        // centre, so this leaves every inside cell's neighbours on the grid (held at beta).
+        let c = radius + 2;
         let side = 2 * c + 1;
-        let r2 = (radius * radius) as i64;
         let rows = (0..side)
             .map(|y| {
-                let inside = |x: usize| distance2(x, y, c) <= r2;
+                let inside = |x: usize| within(distance2(x, y, c), radius);
                 // The disc is convex, so the inside cells of a row are contiguous.
                 match (0..side).find(|&x| inside(x)) {
                     Some(x0) => x0..(x0..side).find(|&x| !inside(x)).unwrap_or(side),
@@ -174,7 +176,7 @@ impl Crystal {
         (c, c)
     }
 
-    /// Radius of the boundary circle, in cells.
+    /// Radius of the boundary circle, in hex rows.
     pub fn radius(&self) -> usize {
         self.radius
     }
@@ -197,9 +199,9 @@ impl Crystal {
         self.ice
     }
 
-    /// The distance from the centre to the farthest ice, in cell widths.
+    /// The distance from the centre to the farthest ice, in hex rows (as the radius).
     pub fn reach(&self) -> f64 {
-        (self.reach2 as f64).sqrt()
+        (self.reach2 as f64 * 4.0 / 3.0).sqrt()
     }
 
     /// The most water in any cell (ice keeps gaining `gamma`, most at the oldest ice).
@@ -207,10 +209,10 @@ impl Crystal {
         self.most
     }
 
-    /// Whether the ice has come within [`MARGIN`] of the boundary, so growth has stopped.
+    /// Whether the ice has come within [`MARGIN`] rows of the boundary, so growth has
+    /// stopped.
     pub fn finished(&self) -> bool {
-        let limit = (self.radius - MARGIN) as i64;
-        self.reach2 >= limit * limit
+        !within(self.reach2, self.radius - MARGIN)
     }
 
     /// Whether cell `(x, y)` was receptive in the last step (false before the first).
@@ -223,8 +225,8 @@ impl Crystal {
     /// circle where growth stops can be frozen, so a stray click near the edge of the field
     /// can't end the growth.
     pub fn freeze(&mut self, x: usize, y: usize) {
-        let limit = (self.radius - MARGIN) as i64;
-        if self.is_inside(x, y) && distance2(x, y, self.water.width() / 2) < limit * limit {
+        let d2 = distance2(x, y, self.water.width() / 2);
+        if self.is_inside(x, y) && within(d2, self.radius - MARGIN) {
             let w = self.water.get(x, y).max(1.0);
             self.set(x, y, w);
         }
@@ -333,6 +335,14 @@ impl Crystal {
 fn distance2(x: usize, y: usize, c: usize) -> i64 {
     let (q, r) = (x as i64 - c as i64, y as i64 - c as i64);
     q * q + q * r + r * r
+}
+
+/// Whether a squared distance `d2` (in cell widths, from [`distance2`]) lies strictly inside
+/// a circle of `rows` hex rows: `d2 < (rows * sqrt(3)/2)²`, kept in integers so the circle is
+/// exactly symmetric. Reiter's `cir` likewise counts a cell on the circle as outside.
+fn within(d2: i64, rows: usize) -> bool {
+    let rows = rows as i64;
+    4 * d2 < 3 * rows * rows
 }
 
 /// The sum of a cell's six neighbours, given as the sums of its three opposite pairs.
@@ -450,35 +460,49 @@ mod tests {
         }
     }
 
-    /// The first step from a lone seed, worked by hand from the rule with `alpha = 1`
-    /// (weights 1/2 and 1/12). Receptive: the seed and its six neighbours.
+    /// The first step from a lone seed, worked by hand from the rule. A neighbour weighs
+    /// `alpha/12` and the cell itself `1 - alpha/2`. Receptive: the seed and its six
+    /// neighbours.
     /// - The seed's neighbours are all receptive, so nothing diffuses in: 1 + gamma.
-    /// - A neighbour of the seed keeps beta + gamma, plus 1/12 of each of its three
-    ///   non-receptive neighbours (beta each): 1.25 beta + gamma.
-    /// - At hex distance 2, a cell on an axis keeps half its beta and gets 1/12 of the five
-    ///   of its neighbours that are not receptive: 11/12 beta. A cell between two axes
-    ///   touches two receptive cells: 10/12 beta.
+    /// - A neighbour of the seed keeps beta + gamma, plus alpha/12 of each of its three
+    ///   non-receptive neighbours (beta each).
+    /// - At hex distance 2, a cell on an axis keeps `1 - alpha/2` of its beta and gets
+    ///   alpha/12 of the five of its neighbours that are not receptive; a cell between two
+    ///   axes touches two receptive cells, so gets four.
     /// - Farther out nothing has changed: beta.
+    ///
+    /// At alpha = 1 (weights 1/2 and 1/12) that is 1.25 beta + gamma, 11/12 beta and 10/12
+    /// beta; at alpha = 2 (weights 0 and 1/6) 1.5 beta + gamma, 5/6 beta and 4/6 beta.
     #[test]
     fn first_step_by_hand() {
-        let Params { beta, gamma, .. } = STANDARD;
-        let mut crystal = Crystal::new(20, STANDARD);
-        crystal.step();
-        for dr in -5..=5isize {
-            for dq in -5..=5isize {
-                let on_axis = dq == 0 || dr == 0 || dq + dr == 0;
-                let want = match hex_distance(dq, dr) {
-                    0 => 1.0 + gamma,
-                    1 => 1.25 * beta + gamma,
-                    2 if on_axis => 11.0 / 12.0 * beta,
-                    2 => 10.0 / 12.0 * beta,
-                    _ => beta,
-                };
-                let got = water_at(&crystal, dq, dr);
-                assert!((got - want).abs() < 1e-12, "({dq}, {dr}): {got} != {want}");
+        for (alpha, ring1, axis, between) in [
+            (1.0, 1.25, 11.0 / 12.0, 10.0 / 12.0),
+            (2.0, 1.5, 5.0 / 6.0, 4.0 / 6.0),
+            (0.5, 1.125, 0.75 + 5.0 / 24.0, 0.75 + 4.0 / 24.0),
+        ] {
+            let p = Params { alpha, ..STANDARD };
+            let Params { beta, gamma, .. } = p;
+            let mut crystal = Crystal::new(20, p);
+            crystal.step();
+            for dr in -5..=5isize {
+                for dq in -5..=5isize {
+                    let on_axis = dq == 0 || dr == 0 || dq + dr == 0;
+                    let want = match hex_distance(dq, dr) {
+                        0 => 1.0 + gamma,
+                        1 => ring1 * beta + gamma,
+                        2 if on_axis => axis * beta,
+                        2 => between * beta,
+                        _ => beta,
+                    };
+                    let got = water_at(&crystal, dq, dr);
+                    assert!(
+                        (got - want).abs() < 1e-12,
+                        "alpha {alpha} ({dq}, {dr}): {got} != {want}"
+                    );
+                }
             }
+            assert_eq!((crystal.ice_cells(), crystal.receptive_cells()), (1, 7));
         }
-        assert_eq!((crystal.ice_cells(), crystal.receptive_cells()), (1, 7));
     }
 
     /// Diffusion moves water but never makes or loses any: the only change in the total is
@@ -487,7 +511,7 @@ mod tests {
     /// step, and only from the crystal).
     #[test]
     fn only_gamma_changes_the_total_water() {
-        let mut crystal = Crystal::new(60, params(1.0, 0.35, 0.001));
+        let mut crystal = Crystal::new(80, params(1.0, 0.35, 0.001));
         let mut total = crystal.total_water();
         for _ in 0..50 {
             crystal.step();
@@ -586,14 +610,24 @@ mod tests {
         }
     }
 
+    /// The smallest distance `k` along an axis (in cell widths) at which an ice cell
+    /// ends growth: the first not strictly inside the circle `radius - MARGIN` rows out.
+    fn stop_distance(crystal: &Crystal) -> isize {
+        (0..)
+            .find(|&k: &isize| !within((k * k) as i64, crystal.radius() - MARGIN))
+            .unwrap()
+    }
+
     /// Ice reaching the circle stops growth, so it never gets near the cells held at beta.
     #[test]
     fn growth_stops_near_the_boundary() {
         let mut crystal = Crystal::new(12, params(1.0, 0.0, 1.0));
         grow(&mut crystal, 1_000);
         assert!(crystal.finished());
-        // A gamma = 1 plate grows one ring a step, to the circle's radius less the margin.
-        assert_eq!(crystal.generation as usize, crystal.radius() - MARGIN);
+        // A gamma = 1 plate grows one ring a step, and its corners, on the axes, are its
+        // farthest cells. 10 rows is 8.66 cell widths, so the corners stop it at 9.
+        assert_eq!(stop_distance(&crystal), 9);
+        assert_eq!(crystal.generation, 9);
         let ice = crystal.ice_cells();
         assert!(!crystal.step());
         assert_eq!(crystal.ice_cells(), ice);
@@ -603,7 +637,7 @@ mod tests {
     #[test]
     fn freezing_near_the_edge_is_refused() {
         let mut crystal = Crystal::new(20, STANDARD);
-        let stop = (crystal.radius() - MARGIN) as isize;
+        let stop = stop_distance(&crystal);
         let (x, y) = at(&crystal, stop, 0);
         crystal.freeze(x, y);
         assert_eq!((crystal.ice_cells(), crystal.finished()), (1, false));
@@ -624,16 +658,74 @@ mod tests {
             "still growing at {}",
             crystal.generation
         );
-        let reach = crystal.reach();
-        let disc = std::f64::consts::PI * reach * reach;
+        // The disc out to the farthest ice, in cell widths, holds pi r² / (sqrt(3)/2) cells.
+        let r = crystal.reach() * 3f64.sqrt() / 2.0;
+        let disc = std::f64::consts::PI * r * r / (3f64.sqrt() / 2.0);
         let fraction = crystal.ice_cells() as f64 / disc;
         assert!(fraction < 0.3, "ice covers {fraction:.2} of its disc");
-        let tip = (crystal.radius() - MARGIN - 2) as isize;
+        let tip = stop_distance(&crystal) - 2;
         for (dq, dr) in HEX {
             assert!(
                 water_at(&crystal, dq * tip, dr * tip) >= 1.0,
                 "arm ({dq}, {dr})"
             );
         }
+    }
+
+    /// Reiter's auxiliary page has tables of crystals grown to radius 100, 200 and 400
+    /// (<https://webbox.lafayette.edu/~reiterc/mvp/sfn/nn/index.html>, `n/` and `nw/`).
+    /// Each picture's file name ends in the step its growth stopped at, as his script
+    /// returns it: one less than the steps taken (`mk_dla` returns `k-1`). So
+    /// `n_h0o6_x0o01_00856.png` (radius 200, beta 0.6, gamma 0.01) means 857 steps here.
+    /// These catch any change to the rule, or to the size and units of the circles.
+    #[test]
+    fn step_counts_match_reiters_tables() {
+        for (radius, beta, gamma, file_step) in [
+            (100, 0.9, 0.05, 84),  // nn_h0o9_x0o05_00084.png
+            (200, 0.9, 0.05, 171), // n_h0o9_x0o05_00171.png
+            (200, 0.6, 0.01, 856), // n_h0o6_x0o01_00856.png
+        ] {
+            let mut crystal = Crystal::new(radius, params(1.0, beta, gamma));
+            grow(&mut crystal, 20_000);
+            assert!(crystal.finished());
+            assert_eq!(
+                crystal.generation,
+                file_step + 1,
+                "radius {radius}, beta {beta}, gamma {gamma}"
+            );
+        }
+    }
+
+    /// The same, for the slow ones: the dendrites at radius 200 (thousands of steps each),
+    /// and the sector at radius 400.
+    #[test]
+    #[ignore = "slow: about 17,000 steps of a 94,000-cell field"]
+    fn slow_step_counts_match_reiters_tables() {
+        for (radius, beta, gamma, file_step) in [
+            (200, 0.3, 0.0001, 7814), // n_h0o3_x0o0001_07814.png
+            (200, 0.35, 0.001, 5049), // n_h0o35_x0o001_05049.png
+            (200, 0.4, 0.0001, 3726), // n_h0o4_x0o0001_03726.png
+            (400, 0.9, 0.05, 344),    // nw_h0o9_x0o05_00344.png
+        ] {
+            let mut crystal = Crystal::new(radius, params(1.0, beta, gamma));
+            grow(&mut crystal, 20_000);
+            assert!(crystal.finished());
+            assert_eq!(
+                crystal.generation,
+                file_step + 1,
+                "radius {radius}, beta {beta}, gamma {gamma}"
+            );
+        }
+    }
+
+    /// Figure 5's alpha = 2.003 (beta 0.4, gamma 0.0001) at radius 100, the only test of a
+    /// diffusion other than alpha = 1 over a whole growth. The counts were found
+    /// independently by a port of Reiter's J script, run with his circles.
+    #[test]
+    fn many_levels_at_radius_100() {
+        let mut crystal = Crystal::new(100, PRESETS[5].params);
+        grow(&mut crystal, 20_000);
+        assert!(crystal.finished());
+        assert_eq!((crystal.generation, crystal.ice_cells()), (914, 4027));
     }
 }

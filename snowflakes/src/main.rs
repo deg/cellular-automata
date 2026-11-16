@@ -21,9 +21,9 @@ const NEW_ICE: Color32 = Color32::from_rgb(0xf4, 0xf1, 0xde);
 /// The ice holding the most water, at the oldest parts of the crystal.
 const OLD_ICE: Color32 = Color32::from_rgb(0x8f, 0xc1, 0xe3);
 
-/// Room to grow: the radius of the circle held at the background, in cells. Reiter showed
-/// growth limited to radii 100, 200 and 400 on his auxiliary page.
-const RADII: &[usize] = &[100, 200, 300];
+/// Room to grow: the radius of the circle held at the background, in hex rows as Reiter
+/// measured it (see `sim`). His auxiliary page has tables of growth at these three radii.
+const RADII: &[usize] = &[100, 200, 400];
 
 struct SnowflakeApp {
     crystal: Crystal,
