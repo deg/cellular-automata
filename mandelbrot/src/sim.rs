@@ -6,7 +6,7 @@
 //! from where the last limit stopped rather than starting again. That is what lets the demo
 //! animate the limit one step at a time, like a generation of the other demos.
 //!
-//! Deep views of the Mandelbrot set (zoomed in past about 10^11, where f64 starts to run out
+//! Deep views of the Mandelbrot set (zoomed in past about 3 x 10^9, short of where f64 runs out
 //! of digits) are computed by *perturbation*: see [`Reference`].
 
 use crate::dd::Dd;
@@ -267,6 +267,13 @@ const SETTLED: f32 = f32::MAX;
 /// it escapes, would be taken for inside: see the test `settled_pixels_never_escape`.
 const SETTLE_TOLERANCE: f64 = 1e-10;
 
+/// The tolerance never exceeds this fraction of a pixel's width (as Fractint did): a fixed
+/// 1e-10 stopped points just outside a small copy of the set as inside once a pixel was
+/// narrower than that (near the period-10 copy at -1.99998588 at x1e9: 2 of 6 such pixels
+/// wrong, at x3e9 10 of 48). A tenth, a hundredth and a thousandth all fixed that; a
+/// hundredth leaves a margin and still stops nearly as many of the pixels truly inside.
+const SETTLE_PER_STEP: f64 = 1e-2;
+
 /// Which set a picture shows. Both iterate z -> z² + c; they differ in what a pixel's point
 /// stands for.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -318,6 +325,8 @@ pub struct Picture {
     /// Each pixel's z at the last step that was a power of two, to tell when it has settled
     /// into a cycle (see [`SETTLE_TOLERANCE`]).
     saved: Vec<[f64; 2]>,
+    /// [`SETTLE_TOLERANCE`], or less in a view whose pixels are narrower than it.
+    tolerance: f64,
 }
 
 /// Perturbation, for views too deep for f64. A pixel's point c is not representable in f64
@@ -393,6 +402,7 @@ impl Picture {
             reference: None,
             places: Vec::new(),
             saved: vec![[0.0; 2]; n],
+            tolerance: SETTLE_TOLERANCE.min(view.step() * SETTLE_PER_STEP),
         };
         if family == Family::Mandelbrot && view.perturbed() {
             picture.reference = Some(Reference::new(view.reference_point()));
@@ -537,7 +547,7 @@ impl Picture {
             if k >= stop {
                 break;
             }
-            if k > 0 && (zr - sr).abs() + (zi - si).abs() < SETTLE_TOLERANCE {
+            if k > 0 && (zr - sr).abs() + (zi - si).abs() < self.tolerance {
                 self.smooth[i] = SETTLED;
                 break;
             }
@@ -1118,8 +1128,23 @@ mod tests {
         assert_eq!(moved.pixel_of_view(&shallow, 10.0, 20.0), [15.0, 17.0]);
     }
 
+    /// The centre of a small copy of the set of this period on the real axis near -2, by
+    /// Newton's method from just right of -2.
+    fn copy_centre(period: u32) -> f64 {
+        let mut c = -1.99999f64;
+        for _ in 0..100 {
+            let (mut z, mut dz) = (0.0f64, 0.0f64);
+            for _ in 0..period {
+                dz = 2.0 * z * dz + 1.0;
+                z = z * z + c;
+            }
+            c -= z / dz;
+        }
+        c
+    }
+
     /// A pixel stopped as settled must really be inside: the plain loop must not see it
-    /// escape even with ten times the steps. Checked where it is hardest, near the edge of
+    /// escape even with thirty times the steps. Checked where it is hardest, near the edge of
     /// the set and its small copies, at several zooms; and the stopping must pay: on the
     /// spike at x8,103, where every pixel is inside, most must stop early.
     #[test]
@@ -1146,6 +1171,22 @@ mod tests {
                 Viewport::fit(120, 90, [0.2501, 0.0], [3.2, 2.6]).zoomed(60.0, 45.0, 1e6),
                 2_000,
             ),
+            (
+                "period-8 copy x1e8",
+                Viewport::fit(100, 80, [copy_centre(8), 0.0], [3.2, 2.6]).zoomed(50.0, 40.0, 1e8),
+                3_000,
+            ),
+            // Where a fixed tolerance of 1e-10 got pixels wrong.
+            (
+                "period-10 copy x1e9",
+                Viewport::fit(100, 80, [copy_centre(10), 0.0], [3.2, 2.6]).zoomed(50.0, 40.0, 1e9),
+                3_000,
+            ),
+            (
+                "period-10 copy x3e9",
+                Viewport::fit(100, 80, [copy_centre(10), 0.0], [3.2, 2.6]).zoomed(50.0, 40.0, 3e9),
+                3_000,
+            ),
         ];
         for (what, view, limit) in views {
             let mut p = Picture::new(Family::Mandelbrot, view, limit);
@@ -1157,7 +1198,7 @@ mod tests {
                         settled += 1;
                         early += usize::from(k < limit / 2);
                         assert_eq!(
-                            escape_step(view.point(x, y), 10 * limit),
+                            escape_step(view.point(x, y), 30 * limit),
                             None,
                             "{what}: ({x}, {y}) settled at step {k} but escapes"
                         );

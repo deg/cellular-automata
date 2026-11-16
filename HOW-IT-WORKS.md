@@ -173,8 +173,8 @@ is sized from the speed measured as it goes, since the browser and native builds
 different speeds. A new view is filled in coarse pixels first, with the old
 view drawn scaled underneath until it is.
 
-Zoomed past about 10^11, f64 can no longer hold each pixel's point, so a deep view uses
-*perturbation* (`sim::Reference`): one reference orbit is computed in double-double
+Zoomed past about 3 × 10^9, a few hundred times short of where f64 can no longer hold
+each pixel's point, a deep view switches to *perturbation* (`sim::Reference`): one reference orbit is computed in double-double
 arithmetic (`mandelbrot/src/dd.rs`, two f64s, about 32 digits), and every pixel iterates
 only its small difference from it, in f64, rebasing onto the start of the reference when
 its orbit drifts away. Shallow views keep the plain loop, unchanged; a deep pixel costs
