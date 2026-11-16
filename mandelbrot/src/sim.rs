@@ -350,7 +350,14 @@ impl Picture {
         self.z[i] = [zr, zi];
         self.steps[i] = k;
         let finished = !self.smooth[i].is_nan() || k >= self.limit;
-        ((k - start) as u64 + PIXEL_COST, finished)
+        // A pixel already at the limit only needed checking: charge it as such, not as a
+        // pixel's full overhead, or a pass over thousands of them eats the frame's budget.
+        let cost = if k == start {
+            1
+        } else {
+            (k - start) as u64 + PIXEL_COST
+        };
+        (cost, finished)
     }
 
     /// Move the picture `dx` pixels right and `dy` down, keeping every pixel still in view
@@ -368,16 +375,26 @@ impl Picture {
     }
 
     /// Queue every pixel not yet finished, coarse ones first, and start a new pass.
+    ///
+    /// Fresh pixels go first. After a pan they are only the strip just uncovered, while the
+    /// pixels kept from before are mostly at the limit already; in a view that is mostly
+    /// inside the set, there are a great many of those, and putting them first left the new
+    /// strip blank until the drag stopped.
     fn rebuild_queue(&mut self) {
         let (w, h) = (self.view.width, self.view.height);
         self.queue.clear();
-        for level in 0..3 {
-            for y in 0..h {
-                for x in 0..w {
-                    let i = y * w + x;
-                    let open = self.smooth[i] == FRESH || self.smooth[i].is_nan();
-                    if open && coarseness(x, y) == level {
-                        self.queue.push(i as u32);
+        for fresh in [true, false] {
+            for level in 0..3 {
+                for y in 0..h {
+                    for x in 0..w {
+                        let i = y * w + x;
+                        let s = self.smooth[i];
+                        if (s == FRESH) == fresh
+                            && (s == FRESH || s.is_nan())
+                            && coarseness(x, y) == level
+                        {
+                            self.queue.push(i as u32);
+                        }
                     }
                 }
             }
@@ -643,6 +660,29 @@ mod tests {
             p.work(u64::MAX);
             assert!(state(&p) == state(&fresh), "after panning ({dx}, {dy})");
         }
+    }
+
+    /// After a pan, the strip just uncovered must be computed before the pixels kept from
+    /// before, or in a mostly-inside view (thousands of pixels running at the limit) the
+    /// strip stayed blank for the whole drag. So the fresh pixels lead the queue, and a
+    /// small budget fills them in first.
+    #[test]
+    fn panning_computes_the_new_strip_first() {
+        // Inside the period-3 bulb above the main cardioid: nearly all pixels run to the
+        // limit without escaping, and the shortcut doesn't cover them.
+        let view = Viewport::fit(80, 60, [-0.1226, 0.7449], [0.04, 0.03]);
+        let mut p = finished(view, 300);
+        p.pan(4, 0);
+        let fresh = p.smooth.iter().filter(|&&s| s == FRESH).count();
+        assert_eq!(fresh, 4 * 60);
+        assert!(
+            p.queue[..fresh]
+                .iter()
+                .all(|&i| p.smooth[i as usize] == FRESH)
+        );
+        // Enough budget for the strip alone fills it.
+        p.work(fresh as u64 * (300 + PIXEL_COST));
+        assert!(p.smooth.iter().all(|&s| s != FRESH), "strip still blank");
     }
 
     /// The pixels the shortcut skips must be ones plain iteration never sees escape.
