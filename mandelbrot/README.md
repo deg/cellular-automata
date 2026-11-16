@@ -123,7 +123,7 @@ inset shatter.
 
 ## Things to try
 
-- **Restart, then Step.** Hover over a point to see its number and the step at which it
+- **Watch one point.** Press *Restart*, then *Step*, and hover over a point to see its number and the step at which it
   escapes. Points in the big heart shape (the *main cardioid*) and the disc to its left are
   known to be inside without iterating, and the demo says so.
 - **Follow an orbit.** The white path in the Julia inset is the orbit of 0 under the

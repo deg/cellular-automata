@@ -184,7 +184,7 @@ impl SnowflakeApp {
             r.pointer(self.pointer.map(|(x, y)| {
                 let w = crystal.water().get(x, y);
                 let state = if w >= 1.0 { "ice" } else { "vapour" };
-                format!("water {w:.4} ({state})")
+                format!("({x}, {y}): water {w:.4} ({state})")
             }));
         });
         if self.crystal.finished() {

@@ -182,7 +182,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - The readout at the bottom is `ca_core::readout`, lowercase singular labels, numbers
     through `grouped`, and its last row is `pointer` ("under the pointer"), not a tooltip.
   - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
-    chosen one's note below (a drop-down only for long lists). A section's strong heading
+    chosen one's note below (a drop-down only for long lists: Life's patterns,
+    Wireworld's circuits). A section's strong heading
     on its own line; option chips in lowercase; the world/size block last before the
     readout; "World:" for a 2D world's size.
 - The demos' order on the index page is `site/order.txt`, and the root README's table must

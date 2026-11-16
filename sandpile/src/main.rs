@@ -141,6 +141,7 @@ impl SandpileApp {
         );
         ui.separator();
 
+        ui.label(RichText::new("Drip").strong());
         ui.checkbox(&mut self.drip, "Drip while running");
         ui.add(
             egui::Slider::new(&mut self.drip_amount, 1..=10_000)
@@ -182,6 +183,7 @@ impl SandpileApp {
         );
         ui.separator();
 
+        ui.label(RichText::new("Drop").strong());
         ui.horizontal_wrapped(|ui| {
             let fits = self.pile.can_add(self.drop_amount);
             let drop = ui
@@ -208,6 +210,7 @@ impl SandpileApp {
         );
         ui.separator();
 
+        ui.label(RichText::new("Grid").strong());
         ui.horizontal_wrapped(|ui| {
             ui.label("Edge:");
             ui.radio_value(&mut self.boundary, Boundary::Grow, "grow the grid");
@@ -239,6 +242,14 @@ impl SandpileApp {
         if self.boundary != self.pile.boundary() {
             ui.small("The new edge takes effect on Restart.");
         }
+        ui.horizontal_wrapped(|ui| {
+            for (h, &color) in palette(self.pile.threshold()).iter().enumerate() {
+                ui.label(RichText::new("■").color(color));
+                ui.label(h.to_string());
+            }
+            ui.label(RichText::new("■").color(UNSTABLE));
+            ui.label("toppling");
+        });
         ui.separator();
 
         let side = self.pile.grid().width();
@@ -272,16 +283,6 @@ impl SandpileApp {
                     .color(Color32::YELLOW),
             );
         }
-        ui.separator();
-
-        ui.horizontal_wrapped(|ui| {
-            for (h, &color) in palette(self.pile.threshold()).iter().enumerate() {
-                ui.label(RichText::new("■").color(color));
-                ui.label(h.to_string());
-            }
-            ui.label(RichText::new("■").color(UNSTABLE));
-            ui.label("toppling");
-        });
     }
 
     /// Apply this frame's Restart, Step or Run to the pile.

@@ -245,7 +245,7 @@ impl LoopsApp {
             );
             r.pointer(self.hovered.map(|(x, y)| {
                 let s = self.loops.grid().get(x, y);
-                format!("{s} {}", NAMES[s as usize])
+                format!("({x}, {y}): {s} {}", NAMES[s as usize])
             }));
         });
     }

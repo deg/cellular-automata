@@ -2,7 +2,7 @@
 name = "mandelbrot"
 version = "0.1.0"
 edition = "2024"
-description = "Repeat z → z² + c and see which points stay near 0: the most famous fractal, step by step and zoomable."
+description = "Repeat z → z² + c and see which points stay near 0, step by step, zooming in."
 
 [dependencies]
 ca_core = { path = "../ca_core" }

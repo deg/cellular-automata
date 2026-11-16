@@ -484,7 +484,7 @@ impl MandelbrotApp {
         self.playback.ui(ui);
         ui.small("Each step lets every point take one more turn of z → z² + c. Running speeds up as it goes, since later steps change less; set a low speed to watch it slowly. Restart goes back to step 0.");
         let limit = self.active().picture().limit();
-        ui.label(format!("Steps so far: {limit}"));
+        ui.label(format!("Steps so far: {}", ca_core::grouped(limit as u64)));
         ui.horizontal_wrapped(|ui| {
             ui.label("Stop at");
             ui.add(
@@ -629,9 +629,14 @@ impl MandelbrotApp {
                 "in the main cardioid or the disc left of it: known to be inside, without iterating"
                     .to_string()
             }
-            Pixel::Settled(n) => format!("settled into a cycle by step {n}: inside the set"),
-            Pixel::Running(n) => format!("still near 0 after {n} steps"),
-            Pixel::Escaped { step, .. } => format!("escapes at step {step}"),
+            Pixel::Settled(n) => format!(
+                "settled into a cycle by step {}: inside the set",
+                ca_core::grouped(n as u64)
+            ),
+            Pixel::Running(n) => format!("still near 0 after {} steps", ca_core::grouped(n as u64)),
+            Pixel::Escaped { step, .. } => {
+                format!("escapes at step {}", ca_core::grouped(step as u64))
+            }
         });
         // The orbit is followed from the pointer's point as an f64, which in a deep view is
         // rounded to the same value for every pixel near it: its fate would then contradict
@@ -641,9 +646,9 @@ impl MandelbrotApp {
             _ if deep => None,
             Fate::Cycle(1) => Some("z settles on a single point".to_string()),
             Fate::Cycle(p) => Some(format!("z settles into a cycle of {p} points")),
-            Fate::Undecided(n) if n > 0 && !matches!(hover.pixel, Pixel::Escaped { .. }) => {
-                Some(format!("no cycle found in {n} steps"))
-            }
+            Fate::Undecided(n) if n > 0 && !matches!(hover.pixel, Pixel::Escaped { .. }) => Some(
+                format!("no cycle found in {} steps", ca_core::grouped(n as u64)),
+            ),
             _ => None,
         };
         if let Some(cycle) = cycle {
@@ -825,16 +830,7 @@ fn magnification(m: f64) -> String {
     if m < 10.0 {
         format!("×{m:.1}")
     } else if m < 1e6 {
-        let whole = m.round() as u64;
-        let digits = whole.to_string();
-        let mut grouped = String::new();
-        for (i, d) in digits.chars().enumerate() {
-            if i > 0 && (digits.len() - i).is_multiple_of(3) {
-                grouped.push(',');
-            }
-            grouped.push(d);
-        }
-        format!("×{grouped}")
+        format!("×{}", ca_core::grouped(m.round() as u64))
     } else {
         format!("×{m:.1e}")
     }
