@@ -37,7 +37,7 @@ pub const PATTERNS: &[Pattern] = &[
     },
     Pattern {
         name: "R-pentomino",
-        note: "Five cells that take 1103 generations to settle (on an unbounded plane).",
+        note: "Five cells that take 1,103 generations to settle (on an unbounded plane).",
         rle: "b2o$2o$bo!",
     },
     Pattern {
@@ -47,7 +47,7 @@ pub const PATTERNS: &[Pattern] = &[
     },
     Pattern {
         name: "Acorn",
-        note: "Seven cells that take 5206 generations to settle (on an unbounded plane).",
+        note: "Seven cells that take 5,206 generations to settle (on an unbounded plane).",
         rle: "bo5b$3bo3b$2o2b3o!",
     },
 ];

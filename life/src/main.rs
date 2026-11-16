@@ -5,15 +5,17 @@ mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
 use ca_core::{
-    About, Advance, GridView, Pace, PaintStroke, Playback, Rng, eframe, generations_per_frame,
+    About, Advance, GridView, NAVY, Pace, PaintStroke, Playback, Rng, eframe,
+    generations_per_frame, grouped,
 };
+use rle::Shape;
 use sim::{Life, Rule};
 
 fn main() {
     ca_core::run("Conway's Game of Life", LifeApp::new);
 }
 
-const DEAD: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
+const DEAD: Color32 = NAVY;
 const ALIVE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
 /// Rules worth trying, with what to look for. Each is a "Life-like" B/S rule.
@@ -39,6 +41,13 @@ const RULES: &[(&str, &str, &str)] = &[
 /// World sizes offered, in cells.
 const SIZES: &[(usize, usize)] = &[(160, 100), (320, 200), (640, 400)];
 
+/// What Restart puts back: the last pattern placed or random fill.
+enum Opening {
+    Pattern(usize),
+    Pasted(Shape),
+    Random,
+}
+
 struct LifeApp {
     life: Life,
     view: GridView,
@@ -51,10 +60,13 @@ struct LifeApp {
     rule_text: String,
     rule_error: Option<String>,
     pattern: usize,
+    opening: Opening,
     pasted: String,
     paste_error: Option<String>,
     density: f64,
     stroke: PaintStroke,
+    /// The cell under the pointer, for the readout.
+    pointer: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -84,10 +96,9 @@ impl eframe::App for LifeApp {
                 }
                 self.dirty = true;
             }
-            if let Some((x, y)) = shown.hovered {
-                shown
-                    .response
-                    .on_hover_text_at_pointer(format!("({x}, {y})"));
+            if shown.hovered != self.pointer {
+                self.pointer = shown.hovered;
+                ui.ctx().request_repaint(); // the controls were drawn before this
             }
         });
 
@@ -100,6 +111,7 @@ impl eframe::App for LifeApp {
 impl LifeApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let size = SIZES[1];
+        let pattern = 2; // the glider gun: something happens as soon as you press Run
         let mut app = Self {
             life: Life::new(size.0, size.1, Rule::life(), true),
             view: GridView::new("life"),
@@ -110,14 +122,16 @@ impl LifeApp {
             size,
             rule_text: Rule::life().to_string(),
             rule_error: None,
-            pattern: 2, // the glider gun: something happens as soon as you press Run
+            pattern,
+            opening: Opening::Pattern(pattern),
             pasted: String::new(),
             paste_error: None,
             density: 0.3,
             stroke: PaintStroke::default(),
+            pointer: None,
             dirty: true,
         };
-        app.place(PatternSource::BuiltIn);
+        app.restart();
         app
     }
 
@@ -128,10 +142,12 @@ impl LifeApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("On a big world the top speeds are out of reach: each frame does at most about a million cell updates, so the world slows down instead of freezing.");
-        ui.small(
-            "Restart clears the world. Drag on the grid to draw live cells; shift-drag to erase.",
-        );
+        ca_core::speed_cap_note(ui, "world");
+        if ui.button("Clear").clicked() {
+            self.life.clear();
+            self.dirty = true;
+        }
+        ui.small("Restart puts back the last pattern placed, or a fresh random fill; Clear empties the world. Drag on the grid to draw live cells; shift-drag to erase.");
         ui.separator();
 
         ui.label(RichText::new("Patterns").strong());
@@ -149,6 +165,7 @@ impl LifeApp {
                 self.place(PatternSource::BuiltIn);
             }
             if ui.button("Random fill").clicked() {
+                self.opening = Opening::Random;
                 self.random_fill();
             }
         });
@@ -172,14 +189,22 @@ impl LifeApp {
         ui.separator();
 
         ui.label(RichText::new("Rule").strong());
+        let typed = Rule::parse(&self.rule_text).ok();
+        let chosen = RULES
+            .iter()
+            .find(|&&(_, rule, _)| typed.is_some() && Rule::parse(rule).ok() == typed);
         ui.horizontal_wrapped(|ui| {
-            for &(name, rule, note) in RULES {
-                if ui.button(name).on_hover_text(note).clicked() {
+            for &(name, rule, _) in RULES {
+                let selected = chosen.is_some_and(|&(n, _, _)| n == name);
+                if ui.selectable_label(selected, name).clicked() {
                     self.rule_text = rule.to_string();
                     self.apply_rule();
                 }
             }
         });
+        if let Some(&(_, _, note)) = chosen {
+            ui.small(note);
+        }
         ui.horizontal_wrapped(|ui| {
             let edit = ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(120.0));
             if edit.changed() {
@@ -201,28 +226,33 @@ impl LifeApp {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
-                    self.life = Life::new(size.0, size.1, self.life.rule, self.life.wrap);
-                    self.dirty = true;
+                    self.pointer = None;
+                    self.restart();
                 }
             }
         });
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("generation");
-            ui.label(self.life.generation.to_string());
-            ui.end_row();
-            ui.label("population");
-            ui.label(self.life.population().to_string());
-            ui.end_row();
+        let (w, h) = self.size;
+        let pointer = self.pointer.filter(|&(x, y)| x < w && y < h).map(|(x, y)| {
+            let state = if self.life.grid().get(x, y) {
+                "alive"
+            } else {
+                "dead"
+            };
+            format!("({x}, {y}): {state}")
+        });
+        ca_core::readout(ui, |r| {
+            r.row("generation", grouped(self.life.generation));
+            r.row("population", grouped(self.life.population() as u64));
+            r.pointer(pointer);
         });
     }
 
     /// Apply this frame's Restart, Step or Run.
     fn advance(&mut self, dt: f64) {
         if self.playback.take_restart() {
-            self.life.clear();
-            self.dirty = true;
+            self.restart();
         }
         let steps = match self.playback.advance() {
             Advance::Idle => 0,
@@ -239,6 +269,22 @@ impl LifeApp {
         self.dirty |= steps > 0;
     }
 
+    /// Back to the opening, keeping the rule and wrap: a new world of the current size with
+    /// the last pattern placed, or a fresh random fill at the current density.
+    fn restart(&mut self) {
+        self.life = Life::new(self.size.0, self.size.1, self.life.rule, self.life.wrap);
+        match &self.opening {
+            Opening::Pattern(i) => {
+                let shape = rle::parse(rle::PATTERNS[*i].rle).expect("built-in patterns parse");
+                self.life.place_centred(&shape);
+            }
+            Opening::Pasted(shape) => self.life.place_centred(shape),
+            Opening::Random => self.random_fill(),
+        }
+        self.dirty = true;
+    }
+
+    /// Place a pattern at the centre, over whatever is there, and make it the opening.
     fn place(&mut self, source: PatternSource) {
         let text = match source {
             PatternSource::BuiltIn => rle::PATTERNS[self.pattern].rle,
@@ -247,6 +293,10 @@ impl LifeApp {
         match rle::parse(text) {
             Ok(shape) => {
                 self.life.place_centred(&shape);
+                self.opening = match source {
+                    PatternSource::BuiltIn => Opening::Pattern(self.pattern),
+                    PatternSource::Pasted => Opening::Pasted(shape),
+                };
                 self.paste_error = None;
                 self.dirty = true;
             }

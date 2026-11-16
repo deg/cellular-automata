@@ -15,8 +15,8 @@ crawl across the grid, and patterns that build other patterns.
 ## History
 
 - **1970: the game.** The British mathematician John Horton Conway devised Life. It
-  reached the world through Martin Gardner's *Mathematical Games* column in **Scientific
-  American, October 1970**, which was based on Gardner's conversations with Conway.
+  reached the world through Martin Gardner's *Mathematical Games* column in Scientific
+  American, October 1970, which was based on Gardner's conversations with Conway.
 - **The glider.** While Conway's group was tracking the R-pentomino (one of the patterns
   in this demo), Richard K. Guy spotted a five-cell shape that crawls diagonally across
   the grid: the **glider**. Sources disagree on whether that was 1969 or 1970. It is often
@@ -37,8 +37,8 @@ crawl across the grid, and patterns that build other patterns.
 - **Gosper glider gun**: the prize-winner. Press Run and watch it fire.
 - **Pulsar**: a large oscillator that repeats every 3 generations.
 - **R-pentomino, Acorn, Diehard**: *methuselahs*, tiny patterns that take a very long
-  time to settle. On an unbounded grid the R-pentomino (5 cells) settles after 1103
-  generations and the acorn (7 cells) after 5206. The diehard vanishes completely after
+  time to settle. On an unbounded grid the R-pentomino (5 cells) settles after 1,103
+  generations and the acorn (7 cells) after 5,206. The diehard vanishes completely after
   exactly 130. This demo's world is finite, so the first two end differently here: their
   gliders wrap around or hit the edge.
 
@@ -60,20 +60,22 @@ is B3/S23. Try:
 - **The gun.** It starts placed: press Run. Turn *Wrap around the edges* off, so gliders
   die at the border. With wrap on, they come back round, and on the default world they
   wreck the gun at generation 6,390.
-- **Draw.** Restart to clear, drag on the grid to draw live cells, shift-drag to erase,
-  then Run. What do your scribbles settle into?
+- **Draw.** Clear, drag on the grid to draw live cells, shift-drag to erase, then Run.
+  What do your scribbles settle into?
 - **Random soup.** *Random fill* at density 0.3 on the largest world, then Run at a high
   speed. Watch how the soup evolves, and whether gliders escape from it.
-- **A methuselah.** Restart, place the R-pentomino, and Run. Watch how much five cells
+- **A methuselah.** Clear, place the R-pentomino, and Run. Watch how much five cells
   make.
 - **Paste a pattern.** LifeWiki lists thousands, each with its RLE text. Paste one into
   *Paste an RLE pattern*.
 
 ## Further reading
 
+- The Wikipedia article
+  [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life).
 - [LifeWiki](https://conwaylife.com/wiki/Conway's_Game_of_Life), the community's
   encyclopedia of patterns and history.
-- Martin Gardner's [October 1970
-  column](https://www.ibiblio.org/lifepatterns/october1970.html).
+- Martin Gardner's
+  [October 1970 column](https://www.ibiblio.org/lifepatterns/october1970.html).
 - [Golly](https://golly.sourceforge.io/), a fast open-source Life simulator that can run
   enormous patterns.
