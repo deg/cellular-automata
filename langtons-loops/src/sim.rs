@@ -430,8 +430,8 @@ mod tests {
     }
 
     /// The paper's loop fits in "a rectangular area of just 10 by 15 cells" (p. 144), and
-    /// Wikipedia's table of loops gives it 86 cells (non-empty ones: Langton's Loops, "Langton's
-    /// loops", the comparison table, retrieved 2026-11-16).
+    /// the comparison table in Wikipedia's article "Langton's loops" (retrieved 2026-11-16)
+    /// gives it 86 cells, that is, cells not empty.
     #[test]
     fn the_starting_loop_is_10_by_15_with_86_cells() {
         let l = langton(30, 30, 5, 5);
