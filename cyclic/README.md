@@ -72,23 +72,24 @@ cycle.
   When there are many colours, it is mostly the threshold divided by the square of the
   range that decides which of these happens. Their colour plates include the rules here
   named *Perfect* (perfect spirals appearing out of a churning soup) and *Bootstrap
-  fixation*, and *Turbulence* is one of their two representative turbulent rules. The rule named *Lava lamp* here they called the "lava light".
+  fixation*, and *Turbulence* is one of their two representative turbulent rules. The
+  rule named *Lava lamp* here they called the "lava light".
 - **Why it mattered.** These rules are simple mathematical stand-ins for *excitable media*,
   through which waves of activity travel and turn into spirals. The papers list spiral
   waves in oscillating chemical reactions (the Belousov-Zhabotinsky reaction), in heart
-  muscle during atrial fibrillation, and in nerve networks. Fisch,
-  Gravner and Griffeath offered the cyclic automaton as a model simple enough to prove
-  things about. A closely related rule, the *Greenberg-Hastings model*, differs only in
-  that every colour except 0 advances automatically.
+  muscle during atrial fibrillation, and in nerve networks. Fisch, Gravner and Griffeath
+  offered the cyclic automaton as a model simple enough to prove things about. A closely
+  related rule, the *Greenberg-Hastings model*, differs only in that every colour except 0
+  advances automatically.
 
 Every preset but *Turbulence* is in the rule list of **MCell**, Mirek Wójtowicz's program
 for exploring cellular automata, and most take their names from it (*Bootstrap fixation*
 is MCell's *Cubism*). MCell credits each rule to a person, but several were published
 first by Fisch, Gravner and Griffeath (1991b): *Perfect* and *Bootstrap fixation* are
 their Plates H and G, *Turbulence* comes from their section 8, *Imperfect* and *Lava lamp*
-from section 10, and *313* from section 7. The panel gives both credits. MCell writes a rule as, for
-example, `R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box) neighbourhood (`NN`
-is von Neumann). The panel shows each rule in this notation.
+from section 10, and *313* from section 7. The panel gives both credits. MCell writes a
+rule as, for example, `R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box)
+neighbourhood (`NN` is von Neumann). The panel shows each rule in this notation.
 
 ## Things to try
 
