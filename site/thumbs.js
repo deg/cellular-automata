@@ -146,6 +146,25 @@
       paint(canvas, W, H, cells, (v) => [NAVY, SPARK, BLUE][v]);
     },
 
+    mandelbrot(canvas) {
+      // The whole set, each outside point coloured by the step its z passes 2 at, in
+      // bands. Twice the other pictures' detail: at 80 x 50 the set is a blob.
+      const w = 160, h = 100, step = 2.8 / h, limit = 200;
+      const cells = new Uint16Array(w * h); // the escape step, or 0 for the set
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const cr = -0.65 + (x + 0.5 - w / 2) * step, ci = (y + 0.5 - h / 2) * step;
+        let zr = 0, zi = 0, n = 0;
+        while (zr * zr + zi * zi <= 4 && n < limit) {
+          [zr, zi] = [zr * zr - zi * zi + cr, 2 * zr * zi + ci];
+          n++;
+        }
+        cells[y * w + x] = zr * zr + zi * zi > 4 ? n : 0;
+      }
+      const DUSK = [0x1f, 0x2a, 0x55];
+      paint(canvas, w, h, cells, (n) =>
+        n < 3 ? NAVY : n < 5 ? DUSK : [BLUE, TEAL, GOLD, CORAL][n % 4]);
+    },
+
     wireworld(canvas) {
       // The demo's OR gate: two clocks feeding one output through diodes.
       const rows = [

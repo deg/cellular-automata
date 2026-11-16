@@ -13,6 +13,7 @@ the browser, and explains itself: the rule, its history, and things to try.
 | [Langton's ant](langtons-ant/) | An ant follows two rules, wanders for about 10,000 steps, then builds a highway. |
 | [Brian's Brain](brians-brain/) | Cells fire, rest and recover like neurons; almost every pattern sets off moving. |
 | [Wireworld](wireworld/) | Draw wires and watch electrons run through them: diodes, clocks and logic gates. |
+| [The Mandelbrot set](mandelbrot/) | Not a cellular automaton but a fractal: repeat z → z² + c and see which points stay near 0, step by step, zooming in. |
 
 Each demo's own `README.md` holds its explanation and history; the app shows the same
 text in a side panel.
