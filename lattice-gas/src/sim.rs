@@ -168,6 +168,12 @@ pub fn viscosity(d: f64) -> f64 {
 
 /// The Reynolds number of a flow at speed `u` past an obstacle `l` node spacings across,
 /// at density `d`: `u l g / nu` (Frisch et al. 1987, equation (8.27)).
+///
+/// Written as Mach number times `l` times `R* = c_s g / nu` (their (8.29)–(8.30)), FHP-I's
+/// `R*` is at most 0.387, at d = 0.187 (their (8.32) and Table 1; FHP-III reaches 2.22, at
+/// d = 0.285). The wind must stay well below the speed of sound to keep the flow nearly
+/// incompressible (§8), so at Mach 0.5 an obstacle 100 nodes wide reaches only about 20:
+/// the README's "the Reynolds number stays in the tens".
 pub fn reynolds(u: f64, l: f64, d: f64) -> f64 {
     u * l * advection_factor(d) / viscosity(d)
 }
