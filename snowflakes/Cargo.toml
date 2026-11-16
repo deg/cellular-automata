@@ -1,0 +1,8 @@
+[package]
+name = "snowflakes"
+version = "0.1.0"
+edition = "2024"
+description = "Water freezes where the vapour reaches it first, and a seed grows into a snow crystal: plates, stars and branching dendrites."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
