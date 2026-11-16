@@ -234,7 +234,7 @@ impl Sandpile {
     /// the pile is symmetric; a Jacobi stage's cells count for less, being cheaper.
     pub fn sweep_area(&self) -> usize {
         if let Some(p) = &self.patch {
-            return p.area() / JACOBI_CELLS_PER_CELL;
+            return p.area() / patch_cells_per_cell(self.offsets.len());
         }
         self.occupied.map_or(0, |b| {
             let b = self.clamp_inside_frame(b);
@@ -837,9 +837,18 @@ impl Octant<'_> {
     }
 }
 
-/// How many Jacobi cells cost as much as one in-place cell, for the per-frame budget.
-/// Measured natively: 0.10 ns against 2.5 ns, so 25; 16 leaves room for the browser build.
+/// How many cells of the quarter cost as much as one in-place cell, for the per-frame
+/// budget. Measured natively: 0.10 ns against 2.5 ns, so 25; 16 leaves room for the
+/// browser build.
 const JACOBI_CELLS_PER_CELL: usize = 16;
+
+/// The same for a [`Patch`], by neighbour count. Measured natively, 1,000,000 grains, as the
+/// time per sweep (which counts the cells the same way in both) with the plain sweep against
+/// the patch: 10.5 off the centre (12.7 over a sink edge), 7.3 on hex. Eight neighbours,
+/// not measured, get the cautious 7.
+fn patch_cells_per_cell(neighbours: usize) -> usize {
+    if neighbours == 4 { 10 } else { 7 }
+}
 
 /// Whether `offsets` are exactly the 4 or the 8 square neighbours, the shapes the
 /// symmetric fast paths handle. Both look the same mirrored across either axis or the
