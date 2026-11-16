@@ -5,6 +5,7 @@ mod sim;
 use ca_core::egui::{self, Color32, RichText};
 use ca_core::{
     About, Advance, GridView, Pace, PaintStroke, Playback, Rng, eframe, generations_per_frame,
+    grouped,
 };
 use sim::{Cyclic, MAX_COLOURS, MAX_RANGE, Neighbourhood, PRESETS};
 
@@ -73,12 +74,14 @@ struct CyclicApp {
     playback: Playback,
     pace: Pace,
     colours: Vec<Color32>,
-    /// The seed of the current random start; Restart moves on to the next.
+    /// The seed of the random colours the world starts from; Restart goes back to them.
     seed: u64,
     size: (usize, usize),
     brush: usize,
     rng: Rng,
     stroke: PaintStroke,
+    /// The cell under the pointer last frame, for the readout.
+    hovered: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -99,6 +102,12 @@ impl eframe::App for CyclicApp {
 
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
+            if shown.hovered != self.hovered {
+                // The panel was drawn before the grid, so redraw it with the new cell now
+                // rather than on the next input event.
+                self.hovered = shown.hovered;
+                ui.ctx().request_repaint();
+            }
             let cells = self.stroke.cells(shown.pressed);
             if !cells.is_empty() {
                 let solid = ui.input(|i| i.modifiers.shift);
@@ -135,6 +144,7 @@ impl CyclicApp {
             brush: 6,
             rng: Rng::new(0),
             stroke: PaintStroke::default(),
+            hovered: None,
             dirty: true,
         };
         app.restart();
@@ -148,17 +158,15 @@ impl CyclicApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("On a big world the top speeds are out of reach: each frame does a fixed amount of work, so the world slows down instead of freezing.");
-        ui.small("Restart starts again from fresh random colours. Drag on the grid to paint random colours; shift-drag paints a patch of one colour.");
+        ca_core::speed_cap_note(ui, "world");
+        ui.small("Restart goes back to the random colours of the current seed.");
         ui.separator();
 
         ui.label(RichText::new("Presets").strong());
         ui.horizontal_wrapped(|ui| {
             for p in PRESETS {
-                let hover = format!("{}\n{}\n{}", p.note, p.rule.notation(), p.credit);
                 if ui
                     .selectable_label(self.ca.rule == p.rule, p.name)
-                    .on_hover_text(hover)
                     .clicked()
                 {
                     self.ca.rule = p.rule;
@@ -170,13 +178,18 @@ impl CyclicApp {
         if let Some(p) = PRESETS.iter().find(|p| p.rule == self.ca.rule) {
             ui.small(format!("{} {}", p.note, p.credit));
         }
-        ui.small("A preset starts again from the same random colours.");
         ui.separator();
 
         self.rule_controls(ui);
         ui.separator();
 
-        ui.label(RichText::new("World").strong());
+        ui.label(RichText::new("Draw").strong());
+        ui.small(
+            "Drag on the grid to paint random colours; shift-drag paints a patch of one colour.",
+        );
+        ui.add(egui::Slider::new(&mut self.brush, 1..=30).text("brush radius"));
+        ui.separator();
+
         ui.horizontal_wrapped(|ui| {
             ui.label("Random seed:");
             if ui
@@ -185,10 +198,15 @@ impl CyclicApp {
             {
                 self.restart();
             }
+            if ui.button("New colours").clicked() {
+                self.seed += 1;
+                self.restart();
+            }
         });
-        ui.checkbox(&mut self.ca.wrap, "Wrap around the edges");
+        ui.checkbox(&mut self.ca.wrap, "Wrap around the edges")
+            .on_hover_text("On: the world is a torus, and a wave leaving one side returns on the other. Off: nothing lies past the edge, so no cell there counts.");
         ui.horizontal_wrapped(|ui| {
-            ui.label("Size:");
+            ui.label("World:");
             for &size in SIZES {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
@@ -197,22 +215,25 @@ impl CyclicApp {
                 }
             }
         });
-        ui.label("Brush radius");
-        ui.add(egui::Slider::new(&mut self.brush, 1..=30));
         ui.separator();
 
         let cells = self.size.0 * self.size.1;
         let changed = self.ca.changed();
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("generation");
-            ui.label(self.ca.generation.to_string());
-            ui.end_row();
-            ui.label("changed last step");
-            ui.label(format!(
-                "{changed} ({:.1}%)",
-                100.0 * changed as f64 / cells as f64
-            ));
-            ui.end_row();
+        let grid = self.ca.grid();
+        ca_core::readout(ui, |r| {
+            r.row("generation", grouped(self.ca.generation));
+            r.row(
+                "changed last generation",
+                format!(
+                    "{} ({:.1}%)",
+                    grouped(changed as u64),
+                    100.0 * changed as f64 / cells as f64
+                ),
+            );
+            r.pointer(
+                self.hovered
+                    .map(|(x, y)| format!("({x}, {y}): colour {}", grid.get(x, y))),
+            );
         });
         if self.ca.generation > 0 && changed == 0 {
             ui.small("Nothing changed in the last generation: the world has fixated, and stays as it is unless you paint on it.");
@@ -226,8 +247,7 @@ impl CyclicApp {
     fn rule_controls(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Rule").strong());
         let mut rule = self.ca.rule;
-        ui.label("Range: how far a cell looks");
-        ui.add(egui::Slider::new(&mut rule.range, 1..=MAX_RANGE));
+        ui.add(egui::Slider::new(&mut rule.range, 1..=MAX_RANGE).text("range"));
         ui.horizontal_wrapped(|ui| {
             ui.label("Neighbourhood:");
             ui.radio_value(&mut rule.neighbourhood, Neighbourhood::Moore, "box")
@@ -247,8 +267,7 @@ impl CyclicApp {
         rule.threshold = rule.threshold.min(most);
         ui.label(format!("Threshold: next-colour cells needed, of {most}"));
         ui.add(egui::Slider::new(&mut rule.threshold, 1..=most).logarithmic(most > 40));
-        ui.label("Colours");
-        ui.add(egui::Slider::new(&mut rule.colours, 2..=MAX_COLOURS));
+        ui.add(egui::Slider::new(&mut rule.colours, 2..=MAX_COLOURS).text("colours"));
         ui.small(format!("In MCell's notation: {}", rule.notation()));
 
         if rule != self.ca.rule {
@@ -262,7 +281,6 @@ impl CyclicApp {
 
     fn advance(&mut self, dt: f64) {
         if self.playback.take_restart() {
-            self.seed += 1;
             self.restart();
         }
         let steps = match self.playback.advance() {

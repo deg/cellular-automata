@@ -90,8 +90,9 @@ impl Rule {
 pub struct Preset {
     pub name: &'static str,
     pub rule: Rule,
-    /// Where the rule was published first, if before MCell, and whom MCell's list credits
-    /// it to ("A rule by X"), which is not always who found it.
+    /// Who published the rule, and whom MCell's list credits it to ("A rule by X", which is
+    /// not always who found it), as the panel shows them. Plate and section numbers are in
+    /// each preset's doc comment.
     pub credit: &'static str,
     /// The smallest world, (width, height), on which it shows what `note` says: on smaller
     /// ones it freezes, or never gets past its first stage. (0, 0) for any world.
@@ -103,77 +104,99 @@ pub struct Preset {
 use Neighbourhood::{Moore, VonNeumann};
 
 /// Named rules. All but *Turbulence* are in MCell's rule list
-/// (<https://mcell.ca/app/data/rules.txt>), whose names they mostly use. "FGG 1991b" is Fisch, Gravner and Griffeath,
-/// "Threshold-range scaling of excitable cellular automata", where several appeared first.
+/// (<https://mcell.ca/app/data/rules.txt>, read 2026-11-16), whose names they mostly use.
+/// "FGG 1991a" is Fisch, Gravner and Griffeath, "Cyclic cellular automata in two
+/// dimensions"; "FGG 1991b" is their "Threshold-range scaling of excitable cellular
+/// automata", Statistics and Computing 1, where several of these appeared first.
 pub const PRESETS: &[Preset] = &[
+    // FGG 1991a's basic CCA, with the 14 colours of their pictures. MCell: "CCA",
+    // R1/T1/C14/NN, "A rule by David Griffeath".
     Preset {
         name: "CCA",
         rule: Rule::new(1, 1, 14, VonNeumann),
         min_size: (0, 0),
-        credit: "Fisch, Gravner and Griffeath (1989-91). MCell's \"CCA\", credited to David Griffeath.",
+        credit: "Fisch, Gravner and Griffeath, 1989–1991. In MCell's list, credited to David Griffeath.",
         note: "The basic rule. Droplets of waves eat the noise, then spirals appear and slowly take over.",
     },
+    // FGG 1991b, Plate H, "Perfect spirals pop up within a metastable phase" (1B, 3, 4).
+    // MCell: "Perfect", R1/T3/C4/NM, David Griffeath. The minimum world: perfect spirals
+    // took over on 9 of 10 seeds at 640 x 400, 2 of 10 at 320 x 200.
     Preset {
         name: "Perfect",
         rule: Rule::new(1, 3, 4, Moore),
         min_size: (640, 400),
-        credit: "FGG 1991b, Plate H. MCell's \"Perfect\", credited to David Griffeath.",
-        note: "A long, churning soup first; then, usually within a few thousand generations, perfect spiral cores appear and take over. It runs on the largest world: on smaller ones they seldom appear.",
+        credit: "Fisch, Gravner and Griffeath, 1991. In MCell's list, credited to David Griffeath.",
+        note: "A churning soup, until perfect spiral cores appear and take over, usually within a few thousand generations. It runs on the largest world, the only one where they usually appear.",
     },
+    // FGG 1991b, section 10.3, (1B, 2, 4): spirals overtaken by stable periodic objects
+    // (their structure 8b). MCell: "Imperfect", R1/T2/C4/NM, John Elliott.
     Preset {
         name: "Imperfect",
         rule: Rule::new(1, 2, 4, Moore),
         min_size: (0, 0),
-        credit: "FGG 1991b, section 10.3. MCell's \"Imperfect\", credited to John Elliott.",
+        credit: "Fisch, Gravner and Griffeath, 1991. In MCell's list, credited to John Elliott.",
         note: "Spirals form quickly. Later, a small structure that cycles on its own may appear and suddenly take over.",
     },
+    // FGG 1991b, section 7, gives (1B, 3, 3) as a rule whose loop test makes spirals.
+    // MCell: "313", R1/T3/C3/NM, David Griffeath.
     Preset {
         name: "313",
         rule: Rule::new(1, 3, 3, Moore),
         min_size: (0, 0),
-        credit: "FGG 1991b, section 7, as a rule that makes spirals. MCell's \"313\", credited to David Griffeath.",
+        credit: "Fisch, Gravner and Griffeath, 1991. In MCell's list, credited to David Griffeath.",
         note: "Only three colours, and still spirals.",
     },
+    // MCell: "Cyclic spirals", R3/T5/C8/NM, David Griffeath.
     Preset {
         name: "Cyclic spirals",
         rule: Rule::new(3, 5, 8, Moore),
         min_size: (0, 0),
-        credit: "MCell's \"Cyclic spirals\", credited to David Griffeath.",
+        credit: "In MCell's list, credited to David Griffeath.",
         note: "A larger range: broad, smooth spirals.",
     },
+    // FGG 1991b, section 8: (2D, 4, 5), one of their two "representative examples" of
+    // turbulence. The other, (2B, 5, 8) (their Plate F, MCell's "Turbulent phase"), froze
+    // on all 10 seeds tried at 320 x 200 and on 2 of 10 at 640 x 400; this one froze on all
+    // 10 at 160 x 100 and on none at 320 x 200. Not in MCell's list.
     Preset {
         name: "Turbulence",
         rule: Rule::new(2, 4, 5, VonNeumann),
         min_size: (320, 200),
-        credit: "FGG 1991b, section 8, one of their two representative turbulent rules. Not in MCell's list.",
+        credit: "Fisch, Gravner and Griffeath, 1991.",
         note: "Would-be spirals keep unravelling into debris that starts new waves, and it never settles. It needs at least the middle world: on the smallest it freezes.",
     },
+    // FGG 1991b, section 10.2, (2B, 10, 3), the "lava light". MCell: "LavaLamp",
+    // R2/T10/C3/NM, Jason Rampe.
     Preset {
         name: "Lava lamp",
         rule: Rule::new(2, 10, 3, Moore),
         min_size: (0, 0),
-        credit: "FGG 1991b, section 10.2, the \"lava light\". MCell's \"LavaLamp\", credited to Jason Rampe.",
+        credit: "Fisch, Gravner and Griffeath, 1991, who called it the \"lava light\". In MCell's list, credited to Jason Rampe.",
         note: "Blobs that separate and join, like a lava lamp.",
     },
+    // MCell: "Stripes", R3/T4/C5/NN, Mirek Wójtowicz.
     Preset {
         name: "Stripes",
         rule: Rule::new(3, 4, 5, VonNeumann),
         min_size: (0, 0),
-        credit: "MCell's \"Stripes\", credited to Mirek Wójtowicz.",
+        credit: "In MCell's list, credited to Mirek Wójtowicz.",
         note: "As the name says: the waves line up in stripes.",
     },
+    // MCell: "Fossil debris", R2/T9/C4/NM, David Griffeath.
     Preset {
         name: "Fossil debris",
         rule: Rule::new(2, 9, 4, Moore),
         min_size: (0, 0),
-        credit: "MCell's \"Fossil debris\", credited to David Griffeath.",
+        credit: "In MCell's list, credited to David Griffeath.",
         note: "Range 2, threshold 9, four colours.",
     },
+    // FGG 1991b, Plate G, "Fixation of a CCA in the bootstrap regime" (2D, 5, 3). MCell:
+    // "Cubism", R2/T5/C3/NN, Jason Rampe.
     Preset {
         name: "Bootstrap fixation",
         rule: Rule::new(2, 5, 3, VonNeumann),
         min_size: (0, 0),
-        credit: "FGG 1991b, Plate G. MCell's \"Cubism\", credited to Jason Rampe.",
+        credit: "Fisch, Gravner and Griffeath, 1991. In MCell's list as \"Cubism\", credited to Jason Rampe.",
         note: "The threshold is too high to keep going: the world freezes.",
     },
 ];
