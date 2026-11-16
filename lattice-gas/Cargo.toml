@@ -1,0 +1,8 @@
+[package]
+name = "lattice-gas"
+version = "0.1.0"
+edition = "2024"
+description = "Particles hop and collide on a hexagonal lattice; averaged over many, they flow like water around an obstacle."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
