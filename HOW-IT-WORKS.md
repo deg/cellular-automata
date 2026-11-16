@@ -181,6 +181,14 @@ its orbit drifts away. Shallow views keep the plain loop, unchanged; a deep pixe
 about 1.7 times as much a step. The tests check deep pictures against the plain loop run
 entirely in double-double, pixel by pixel.
 
+Points inside the set never escape, so left alone each would run to the stop limit, and
+near the set's edge that is most of the work. Instead each pixel saves its z at steps 1, 2,
+4, 8, ... and stops once a later z comes back within a hundredth of a pixel of it: it has
+settled into a cycle (on a view all inside, at x8,103 and 5,000 steps, 13 s became 0.04 s
+natively). Deep pixels can only do this when the reference orbit cycles too, comparing
+their small differences where they line up with it. The tests run every stopped pixel on,
+in the plain loop, to many times the limit, and check that none escapes.
+
 ## Explanations inside the app
 
 Each demo's `README.md` is compiled into the program with `include_str!` and rendered by
