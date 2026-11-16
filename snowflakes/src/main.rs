@@ -3,16 +3,16 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Layout, Pace, Playback, eframe, generations_per_frame};
+use ca_core::{
+    About, Advance, GridView, Layout, NAVY, Pace, Playback, eframe, generations_per_frame, grouped,
+};
 use sim::{Crystal, PRESETS, Params};
 
 fn main() {
     ca_core::run("Snowflakes", SnowflakeApp::new);
 }
 
-/// No water: the project's navy.
-const DRY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
-/// Vapour just short of freezing; water in between shades from `DRY` towards it.
+/// Vapour just short of freezing; water in between shades from `NAVY` (none) towards it.
 const VAPOUR: Color32 = Color32::from_rgb(0x6c, 0x8c, 0xc4);
 /// Ice just frozen, at the crystal's growing edge.
 const NEW_ICE: Color32 = Color32::from_rgb(0xf4, 0xf1, 0xde);
@@ -67,8 +67,8 @@ impl eframe::App for SnowflakeApp {
                     self.crystal.freeze(x, y);
                     self.dirty = true;
                 }
-                // Shown in the controls rather than as a tooltip: egui anchors a widget's
-                // tooltip to the widget's rectangle, here the whole panel, not the pointer.
+                // The project's demos show the cell under the pointer as the last row of
+                // the readout, not as a tooltip on the grid.
                 let pointer = shown.hovered.filter(|&(x, y)| self.crystal.is_inside(x, y));
                 if pointer != self.pointer {
                     self.pointer = pointer;
@@ -88,7 +88,9 @@ impl SnowflakeApp {
         let radius = RADII[1];
         let mut view = GridView::new("snowflake");
         view.set_layout(Layout::Hex);
-        let mut playback = Playback::new(1_000, 5_000, "steps / second");
+        // About 540 steps a second fit the default field at 60 frames a second.
+        let mut playback = Playback::new(500, 5_000, "steps / second");
+        // A crystal is best seen growing, from the first step.
         playback.running = true;
         Self {
             crystal: Crystal::new(radius, params),
@@ -116,7 +118,8 @@ impl SnowflakeApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("On the bigger fields the top speeds are out of reach: each frame does at most about a million cell updates.");
+        ca_core::speed_cap_note(ui, "field");
+        ui.small("Restart grows a new crystal from a single seed, with the β below.");
         ui.small("Drag on the field to freeze extra cells.");
         ui.separator();
 
@@ -124,11 +127,7 @@ impl SnowflakeApp {
         ui.horizontal_wrapped(|ui| {
             for preset in PRESETS {
                 let chosen = self.params == preset.params;
-                if ui
-                    .selectable_label(chosen, preset.name)
-                    .on_hover_text(preset.note)
-                    .clicked()
-                {
+                if ui.selectable_label(chosen, preset.name).clicked() {
                     self.params = preset.params;
                     self.restart();
                 }
@@ -173,33 +172,22 @@ impl SnowflakeApp {
         });
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("step");
-            ui.label(self.crystal.generation.to_string());
-            ui.end_row();
-            ui.label("ice cells");
-            ui.label(self.crystal.ice_cells().to_string());
-            ui.end_row();
-            ui.label("reach");
-            ui.label(format!(
-                "{:.0} of {}",
-                self.crystal.reach(),
-                self.crystal.radius()
-            ));
-            ui.end_row();
-            ui.label("under the pointer");
-            ui.label(match self.pointer {
-                Some((x, y)) => {
-                    let w = self.crystal.water().get(x, y);
-                    let state = if w >= 1.0 { "ice" } else { "vapour" };
-                    format!("water {w:.4} ({state})")
-                }
-                None => "-".to_string(),
-            });
-            ui.end_row();
+        let crystal = &self.crystal;
+        ca_core::readout(ui, |r| {
+            r.row("step", grouped(crystal.generation));
+            r.row("ice cells", grouped(crystal.ice_cells() as u64));
+            r.row(
+                "reach",
+                format!("{:.0} of {}", crystal.reach(), crystal.radius()),
+            );
+            r.pointer(self.pointer.map(|(x, y)| {
+                let w = crystal.water().get(x, y);
+                let state = if w >= 1.0 { "ice" } else { "vapour" };
+                format!("water {w:.4} ({state})")
+            }));
         });
         if self.crystal.finished() {
-            ui.label(
+            ui.small(
                 "Fully grown: the ice has reached the edge of its field. Restart to grow another.",
             );
         }
@@ -232,7 +220,7 @@ impl SnowflakeApp {
 /// frozen, turning icy blue where it has gathered the most water.
 fn colour(w: f64, most: f64) -> Color32 {
     if w < 1.0 {
-        mix(DRY, VAPOUR, w.max(0.0))
+        mix(NAVY, VAPOUR, w.max(0.0))
     } else {
         let t = if most > 1.0 {
             (w - 1.0) / (most - 1.0)
@@ -388,6 +376,6 @@ mod tests {
         for w in [1.0, 2.0, 5.0] {
             assert!(lum(colour(w, 5.0)) > lum(wettest) + 100, "water {w}");
         }
-        assert_eq!(colour(0.0, 5.0), DRY);
+        assert_eq!(colour(0.0, 5.0), NAVY);
     }
 }
