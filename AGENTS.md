@@ -148,6 +148,10 @@ make siblings               # before/after a Rust update: build+test David's oth
   own picture gets a generic one). The script also renders `HOW-IT-WORKS.md` into
   `dist/how-it-works.html` with `tools/mdpage` and copies `site/style.css` and
   `site/thumbs.js`. The site's look follows the demos' palette; see `site/style.css`.
+  GitHub Pages lets browsers cache every file for 10 minutes, so the pages load those two
+  by fingerprinted URLs (`?v=<cksum>`), and every demo page gets `site/stale-page.html`
+  inserted after `<meta charset>`: it reloads once if the page's own `.js`/`.wasm` are gone
+  (a page cached from before a deploy). The build fails if either step is missed.
 - A new command worth repeating gets a Makefile target with a `## description`, so
   `make help` lists it.
 - Use `--release` for anything but small grids: debug builds simulate far slower,

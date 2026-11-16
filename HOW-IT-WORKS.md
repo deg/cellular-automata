@@ -191,6 +191,13 @@ side panel and the one on GitHub are the same file, and can't drift apart.
   files to keep up to date.
 - This page is `HOW-IT-WORKS.md`, turned into HTML at build time by `tools/mdpage`, a
   small Rust program using the `pulldown-cmark` Markdown parser.
+- GitHub Pages lets browsers keep any file for 10 minutes, so a deploy must not depend on
+  browsers fetching everything afresh. Each demo's code files already have names that
+  change with their contents (trunk adds a hash). The shared `style.css` and `thumbs.js`
+  are loaded by addresses carrying a fingerprint of their contents, so a new page can't be
+  paired with an old cached copy. And every demo page starts with a small script
+  (`site/stale-page.html`) that reloads the page once if its code files are missing: what
+  happens to a page cached from before a deploy, which deleted them.
 - `make serve` builds the site and serves it locally at <http://localhost:8080/>.
 - On every push to `main`, a GitHub Actions workflow (`.github/workflows/pages.yml`)
   runs the same `site/build.sh` and publishes `dist/` to GitHub Pages, served at
