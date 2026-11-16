@@ -1,0 +1,8 @@
+[package]
+name = "mdpage"
+version = "0.1.0"
+edition = "2024"
+description = "Renders a Markdown file into an HTML page template, for the site's How-it-works page."
+
+[dependencies]
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }

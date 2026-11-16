@@ -75,7 +75,11 @@ make siblings               # before/after a Rust update: build+test David's oth
 - `make site` (`site/build.sh`) builds every demo into `dist/<demo>/` and writes
   `dist/index.html` from `site/index.html`. A demo is any top-level directory with both
   `Cargo.toml` and `index.html`. Its link text is its page `<title>`, and its blurb is
-  its Cargo `description`, so a new demo needs no edit to the site or the Makefile.
+  its Cargo `description`, so a new demo needs no edit to the site or the Makefile. Its
+  card picture is drawn by `site/thumbs.js`, keyed by directory name (a demo without its
+  own picture gets a generic one). The script also renders `HOW-IT-WORKS.md` into
+  `dist/how-it-works.html` with `tools/mdpage` and copies `site/style.css` and
+  `site/thumbs.js`. The site's look follows the demos' palette; see `site/style.css`.
 - A new command worth repeating gets a Makefile target with a `## description`, so
   `make help` lists it.
 - Use `--release` for anything but small grids: debug builds simulate far slower,

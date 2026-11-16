@@ -1,0 +1,167 @@
+/* Shared by the index page and the How-it-works page. The palette is the demos' own:
+   navy for empty cells, teal, gold and coral for live ones. */
+
+:root {
+  --paper: #eef1f6;
+  --ink: #141830;
+  --muted: #4a5170;
+  --rule: rgba(20, 24, 48, 0.12);
+  --grid: rgba(20, 24, 48, 0.045);
+  --accent: #1f7f74;
+  --screen: #141830;
+  --code-bg: #141830;
+  --code-ink: #e8ebf4;
+  --focus: #e76f51;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1222;
+    --ink: #e8ebf4;
+    --muted: #a3aac4;
+    --rule: rgba(232, 235, 244, 0.12);
+    --grid: rgba(232, 235, 244, 0.035);
+    --accent: #5cc3b5;
+    --screen: #141830;
+    --code-bg: #1a1f3b;
+    --code-ink: #e8ebf4;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1222;
+  --ink: #e8ebf4;
+  --muted: #a3aac4;
+  --rule: rgba(232, 235, 244, 0.12);
+  --grid: rgba(232, 235, 244, 0.035);
+  --accent: #5cc3b5;
+  --screen: #141830;
+  --code-bg: #1a1f3b;
+  --code-ink: #e8ebf4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background-color: var(--paper);
+  /* Graph paper: the cell grid every automaton lives on. */
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  font: 17px/1.6 "IBM Plex Sans", system-ui, sans-serif;
+}
+
+a { color: var(--accent); text-underline-offset: 0.18em; }
+a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 2px; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+/* Header */
+/* Vertical padding only: .wrap supplies the sides, and a `padding` shorthand here would
+   override them (same specificity, later rule), pulling the header out of line. */
+.masthead { padding-block: 56px 8px; }
+.masthead h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 3.8rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.lede { margin: 14px 0 22px; max-width: 34em; color: var(--muted); font-size: 1.12rem; }
+.button {
+  display: inline-block;
+  padding: 9px 16px;
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--paper);
+}
+.button:hover { background: var(--ink); color: var(--paper); }
+
+/* The hero band: Rule 30 drawn by thumbs.js. */
+.band {
+  display: block;
+  width: 100%;
+  height: clamp(90px, 16vw, 160px);
+  margin: 36px 0 44px;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  background: var(--screen);
+}
+
+/* Demo cards */
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 28px 24px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  color: var(--ink);
+  text-decoration: none;
+}
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--screen);
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.card:hover .thumb { transform: translateY(-2px); border-color: var(--accent); }
+.card-title { margin-top: 6px; font-size: 1.15rem; font-weight: 600; }
+.card:hover .card-title { color: var(--accent); }
+.card-text { color: var(--muted); font-size: 0.96rem; line-height: 1.5; }
+
+/* Footer */
+.footer {
+  margin-top: 72px;
+  padding-block: 22px 40px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.footer p { margin: 0 0 4px; }
+
+/* The How-it-works page */
+.doc-nav { padding-top: 28px; font-weight: 600; }
+.doc { padding-bottom: 8px; }
+/* Prose keeps a readable measure; code blocks (the wide diagram) may use the full width. */
+.doc > * { max-width: 72ch; }
+.doc > pre { max-width: 100%; }
+.doc h1 { font-size: clamp(2rem, 5vw, 2.8rem); line-height: 1.1; letter-spacing: -0.02em; margin: 28px 0 12px; }
+.doc h2 { font-size: 1.45rem; line-height: 1.25; margin: 2.2em 0 0.5em; }
+.doc li { margin: 0.3em 0; }
+.doc code {
+  font: 0.88em/1.4 "IBM Plex Mono", ui-monospace, monospace;
+  background: var(--rule);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+.doc pre {
+  overflow-x: auto;
+  padding: 16px 18px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--code-ink);
+}
+.doc pre code { background: none; padding: 0; font-size: 0.85rem; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb { transition: none; }
+  .card:hover .thumb { transform: none; }
+}

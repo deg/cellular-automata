@@ -174,9 +174,14 @@ side panel and the one on GitHub are the same file, and can't drift apart.
 
 - `make site` runs `site/build.sh`. For each top-level directory holding a `Cargo.toml`
   and an `index.html`, it runs trunk with relative paths (`--public-url ./`) into
-  `dist/<demo>/`. It then writes `dist/index.html`, taking each link's text from the
-  demo's page title and its description from its `Cargo.toml`. A new demo appears without
-  touching the script.
+  `dist/<demo>/`. It then writes `dist/index.html`, one card per demo, taking the title
+  from the demo's page title and the text from its `Cargo.toml`. A new demo appears
+  without touching the script.
+- Each card's picture is drawn when the page loads, by a few lines of JavaScript in
+  `site/thumbs.js`: a tiny run of that automaton in its own colours. The header band is
+  Rule 30. There are no image files to keep up to date.
+- This page is `HOW-IT-WORKS.md`, turned into HTML at build time by `tools/mdpage`, a
+  small Rust program using the `pulldown-cmark` Markdown parser.
 - `make serve` builds the site and serves it locally at <http://localhost:8080/>.
 - On every push to `main`, a GitHub Actions workflow (`.github/workflows/pages.yml`)
   runs the same `site/build.sh` and publishes `dist/` to GitHub Pages, served at
@@ -235,5 +240,7 @@ edge) uses the plain method, which gives the same answer, just slower.
    and `About`. Copy an existing demo, such as `brians-brain/src/main.rs`, as a start.
 4. Copy another demo's `index.html` and change its title and `data-bin`.
 5. Write `README.md`: the rule, its history (with checked sources), things to try.
-6. `make check`, then `make serve`. It appears on the index page by itself, and on the
+6. Optionally, add a function to `site/thumbs.js` that draws its card's picture; otherwise
+   it gets a generic one.
+7. `make check`, then `make serve`. It appears on the index page by itself, and on the
    live site after the next push.
