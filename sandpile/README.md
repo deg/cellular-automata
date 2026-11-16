@@ -66,6 +66,25 @@ them all at once.
   fill the gaps between circles, smaller and smaller without end (*Apollonian structure in the Abelian sandpile*, Geometric and
   Functional Analysis 26, 2016; [arXiv:1208.4839](https://arxiv.org/abs/1208.4839)).
 
+## Variants
+
+The rule works with any set of neighbours, as long as a cell topples when it holds one
+grain for each of them, so toppling never creates or loses a grain. The abelian property
+holds for every such choice.
+
+- **8 neighbours.** Choose *8* under *Neighbours*, which starts a fresh pile. Diagonal cells now count as
+  neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
+  the eight directions. The colours spread over the eight heights. Drop 100,000 grains
+  and compare the shape with the four-neighbour pile.
+- **Hex grid.** Choose *6 (hex grid)*. Each cell is a hexagon with six neighbours, and
+  topples at 6. The cells are drawn as offset bricks, each row shifted half a cell from
+  the one above, which gives every cell exactly six neighbours touching it. A pile dropped
+  on one cell has six-fold symmetry: turn it by 60 degrees and it looks the same (the
+  demo's tests check this). Hex grids stop growing at 1,365 cells across, so that the
+  picture still fits in a browser. A hex grid is really a slanted parallelogram of cells;
+  the demo shows only its central hexagon, widening the view if grains spread into the
+  corners.
+
 ## Things to try
 
 - **Watch avalanches.** Restart, keep *Drip* on with 1 grain per drip, set the speed low,
@@ -91,28 +110,9 @@ them all at once.
 
 ## Further reading
 
-- Lionel Levine and James Propp, *What is a sandpile?*, Notices of the American
-  Mathematical Society 57 (2010), pages 976-979: a short introduction
-  ([free PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf)).
 - The Wikipedia article
   [Abelian sandpile model](https://en.wikipedia.org/wiki/Abelian_sandpile_model).
+- Lionel Levine and James Propp, *What is a sandpile?*, Notices of the American
+  Mathematical Society 57, 976–979 (2010): a short introduction
+  ([free PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf)).
 - Per Bak, *How Nature Works: The Science of Self-Organized Criticality* (1996).
-
-## Variants
-
-The rule works with any set of neighbours, as long as a cell topples when it holds one
-grain for each of them, so toppling never creates or loses a grain. The abelian property
-holds for every such choice.
-
-- **8 neighbours.** Choose *8* under *Neighbours*, which starts a fresh pile. Diagonal cells now count as
-  neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
-  the eight directions. The colours spread over the eight heights. Drop 100,000 grains
-  and compare the shape with the four-neighbour pile.
-- **Hex grid.** Choose *6 (hex grid)*. Each cell is a hexagon with six neighbours, and
-  topples at 6. The cells are drawn as offset bricks, each row shifted half a cell from
-  the one above, which gives every cell exactly six neighbours touching it. A pile dropped
-  on one cell has six-fold symmetry: turn it by 60 degrees and it looks the same (the
-  demo's tests check this). Hex grids stop growing at 1,365 cells across, so that the
-  picture still fits in a browser. A hex grid is really a slanted parallelogram of cells;
-  the demo shows only its central hexagon, widening the view if grains spread into the
-  corners.
