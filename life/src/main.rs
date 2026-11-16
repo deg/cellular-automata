@@ -85,7 +85,9 @@ impl eframe::App for LifeApp {
                 self.dirty = true;
             }
             if let Some((x, y)) = shown.hovered {
-                shown.response.on_hover_text(format!("({x}, {y})"));
+                shown
+                    .response
+                    .on_hover_text_at_pointer(format!("({x}, {y})"));
             }
         });
 

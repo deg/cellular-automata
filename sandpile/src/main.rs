@@ -89,9 +89,10 @@ impl eframe::App for SandpileApp {
             }
             self.mark_drip_points(ui, &shown);
             if let Some((x, y)) = shown.hovered {
-                shown
-                    .response
-                    .on_hover_text(format!("({x}, {y}): {}", self.pile.grid().get(x, y)));
+                shown.response.on_hover_text_at_pointer(format!(
+                    "({x}, {y}): {}",
+                    self.pile.grid().get(x, y)
+                ));
             }
         });
 

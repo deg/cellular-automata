@@ -74,7 +74,7 @@ impl eframe::App for AntApp {
                 let colour = self.world.grid().get(x, y);
                 shown
                     .response
-                    .on_hover_text(format!("({x}, {y}): colour {colour}"));
+                    .on_hover_text_at_pointer(format!("({x}, {y}): colour {colour}"));
             }
         });
 
