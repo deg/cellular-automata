@@ -205,7 +205,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `About` opens by default only on windows at least 1,400 points wide.
   - `PaintStroke`: turns `GridResponse::pressed` into solid lines of cells to paint.
 - One directory per demo (`sandpile`, `life`, `elementary`, `langtons-ant`,
-  `brians-brain`, `wireworld`, and `mandelbrot`, which is a fractal, not an automaton),
+  `brians-brain`, `wireworld`, `cyclic`, `snowflakes`, `langtons-loops`, `lattice-gas`,
+  and `mandelbrot`, which is a fractal, not an automaton),
   each a binary crate with an `index.html` for trunk:
   - `main.rs` holds the UI.
   - `sim.rs` holds the rule, kept free of UI code so it can be tested natively.

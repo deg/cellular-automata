@@ -1,6 +1,6 @@
 # Simple rules, strange worlds
 
-**Cellular automata and fractals.** Demos of famous simple rules, written in Rust: six
+**Cellular automata and fractals.** Demos of famous simple rules, written in Rust: ten
 cellular automata and the Mandelbrot set. Each runs in a native window or in the browser,
 and explains itself: the rule, its history, and things to try.
 
@@ -14,6 +14,10 @@ and explains itself: the rule, its history, and things to try.
 | [Langton's ant](langtons-ant/) | An ant follows two rules, wanders for about 10,000 steps, then builds a highway. |
 | [Brian's Brain](brians-brain/) | Cells fire, rest and recover like neurons; almost every pattern sets off moving. |
 | [Wireworld](wireworld/) | Draw wires and watch electrons run through them: diodes, clocks and logic gates. |
+| [Cyclic cellular automaton](cyclic/) | Each colour can only advance to the next one round a colour wheel; random noise organises itself into turning spirals. |
+| [Snowflakes](snowflakes/) | Water freezes where the vapour reaches it first, and a seed grows into a snow crystal: plates, stars and branching dendrites. |
+| [Langton's loops](langtons-loops/) | A loop of signals builds a copy of itself, and the copies go on copying into a growing colony. |
+| [Lattice gas](lattice-gas/) | Particles hop and collide on a hexagonal lattice; averaged over many, they flow like a fluid around an obstacle. |
 | [The Mandelbrot set](mandelbrot/) | Not a cellular automaton but a fractal: repeat z → z² + c and see which points stay near 0, step by step, zooming in. |
 
 Each demo's own `README.md` holds its explanation and history; the app shows the same

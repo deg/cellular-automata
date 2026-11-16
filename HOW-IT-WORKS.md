@@ -1,6 +1,6 @@
 # How it works
 
-The seven demos are separate programs built on one shared library, all written in Rust.
+The eleven demos are separate programs built on one shared library, all written in Rust.
 Each runs in two places from the same source code: as a native desktop window
 (`make run DEMO=life`), and in a web page, compiled to WebAssembly
 (`make web DEMO=life`, or the live site at <https://automata.degel.com/>). This page
@@ -9,7 +9,7 @@ explains how that fits together, and why it is built this way.
 ## The big picture
 
 ```
-  one demo (e.g. life/)                          ca_core/  (shared by all seven)
+  one demo (e.g. life/)                          ca_core/  (shared by all eleven)
   ---------------------                          ---------------------------------
   src/sim.rs   the automaton itself:            GridView   draws a grid, maps clicks
                cells, rules, one step.           Playback   Run / Pause / Step / Restart
