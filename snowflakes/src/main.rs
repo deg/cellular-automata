@@ -3,9 +3,7 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{
-    About, Advance, GridView, Layout, Pace, PaintStroke, Playback, eframe, generations_per_frame,
-};
+use ca_core::{About, Advance, GridView, Layout, Pace, Playback, eframe, generations_per_frame};
 use sim::{Crystal, PRESETS, Params};
 
 fn main() {
@@ -34,7 +32,9 @@ struct SnowflakeApp {
     /// The parameters for the next Restart; alpha and gamma also apply at once.
     params: Params,
     radius: usize,
-    stroke: PaintStroke,
+    stroke: HexStroke,
+    /// The cell under the pointer, as of the last frame, shown in the controls.
+    pointer: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -67,14 +67,12 @@ impl eframe::App for SnowflakeApp {
                     self.crystal.freeze(x, y);
                     self.dirty = true;
                 }
-                if let Some((x, y)) = shown.hovered
-                    && self.crystal.is_inside(x, y)
-                {
-                    let w = self.crystal.water().get(x, y);
-                    let state = if w >= 1.0 { "ice" } else { "vapour" };
-                    shown
-                        .response
-                        .on_hover_text(format!("water {w:.4} ({state})"));
+                // Shown in the controls rather than as a tooltip: egui anchors a widget's
+                // tooltip to the widget's rectangle, here the whole panel, not the pointer.
+                let pointer = shown.hovered.filter(|&(x, y)| self.crystal.is_inside(x, y));
+                if pointer != self.pointer {
+                    self.pointer = pointer;
+                    ui.ctx().request_repaint(); // the controls were drawn before this
                 }
             });
 
@@ -100,7 +98,8 @@ impl SnowflakeApp {
             pace: Pace::default(),
             params,
             radius,
-            stroke: PaintStroke::default(),
+            stroke: HexStroke::default(),
+            pointer: None,
             dirty: true,
         }
     }
@@ -174,6 +173,16 @@ impl SnowflakeApp {
         });
         ui.separator();
 
+        match self.pointer {
+            Some((x, y)) => {
+                let w = self.crystal.water().get(x, y);
+                let state = if w >= 1.0 { "ice" } else { "vapour" };
+                ui.label(format!("Under the pointer: water {w:.4} ({state})"));
+            }
+            None => {
+                ui.label("Point at the field to see a cell's water.");
+            }
+        }
         egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
             ui.label("step");
             ui.label(self.crystal.generation.to_string());
@@ -239,6 +248,66 @@ fn mix(a: Color32, b: Color32, t: f64) -> Color32 {
     Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
+/// Turns a held pointer into the cells to freeze each frame, like `ca_core::PaintStroke`
+/// but drawing each frame's segment as a line of hex cells (see [`hex_line`]): a square-grid
+/// line in axial coordinates steps diagonally between cells that don't touch, leaving gaps.
+#[derive(Default)]
+struct HexStroke {
+    last: Option<(usize, usize)>,
+}
+
+impl HexStroke {
+    fn cells(&mut self, pressed: Option<(usize, usize)>) -> Vec<(usize, usize)> {
+        let Some(cell) = pressed else {
+            self.last = None;
+            return Vec::new();
+        };
+        let cells = hex_line(self.last.unwrap_or(cell), cell);
+        self.last = Some(cell);
+        cells
+    }
+}
+
+/// The cells of a straight line between two hex cells in axial coordinates, each a
+/// neighbour of the one before. The method of Red Blob Games' "Hexagonal Grids"
+/// (<https://www.redblobgames.com/grids/hexagons/#line-drawing>): sample the segment at
+/// N + 1 evenly spaced points, N the hex distance, and round each to the nearest hex in cube
+/// coordinates (q, r, s = -q - r). The start is nudged by a tiny fixed amount, as that page
+/// suggests, so that points exactly between two hexes always round the same way.
+fn hex_line(a: (usize, usize), b: (usize, usize)) -> Vec<(usize, usize)> {
+    let (aq, ar) = (a.0 as f64 + 1e-6, a.1 as f64 + 2e-6);
+    let (dq, dr) = (b.0 as f64 - a.0 as f64, b.1 as f64 - a.1 as f64);
+    let n = hex_distance(a, b);
+    (0..=n)
+        .map(|i| {
+            let t = if n == 0 { 0.0 } else { i as f64 / n as f64 };
+            let (q, r) = cube_round(aq + dq * t, ar + dr * t);
+            (q as usize, r as usize)
+        })
+        .collect()
+}
+
+/// The hex distance between two cells in axial coordinates.
+fn hex_distance(a: (usize, usize), b: (usize, usize)) -> usize {
+    let dq = a.0 as isize - b.0 as isize;
+    let dr = a.1 as isize - b.1 as isize;
+    (dq.abs() + dr.abs() + (dq + dr).abs()) as usize / 2
+}
+
+/// The hex containing fractional axial point (q, r): round all three cube coordinates, then
+/// recompute the one that moved most from the other two, so they still sum to 0.
+fn cube_round(q: f64, r: f64) -> (i64, i64) {
+    let s = -q - r;
+    let (mut rq, mut rr, rs) = (q.round(), r.round(), s.round());
+    let (eq, er, es) = ((rq - q).abs(), (rr - r).abs(), (rs - s).abs());
+    if eq > er && eq > es {
+        rq = -rr - rs;
+    } else if er > es {
+        rr = -rq - rs;
+    }
+    (rq as i64, rr as i64)
+}
+
 /// A number in plain decimals with no trailing zeros (0.0001, not 1e-4 or 0.000100), so
 /// the presets' small gammas can be told apart.
 fn plain(v: f64) -> String {
@@ -257,6 +326,48 @@ fn plain(v: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A dragged stroke must be solid: from any cell to any other, every cell of the line
+    /// touches the one before, it starts and ends where asked, and it takes the fewest cells
+    /// possible (hex distance + 1). Checked from a centre cell to every cell within 12, which
+    /// covers all directions, including the six where a square-grid line left gaps.
+    #[test]
+    fn hex_lines_are_gap_free() {
+        let a = (20, 20);
+        for y in 8..=32 {
+            for x in 8..=32 {
+                let b = (x, y);
+                let line = hex_line(a, b);
+                assert_eq!(
+                    (line[0], *line.last().unwrap()),
+                    (a, b),
+                    "ends of {a:?} to {b:?}"
+                );
+                assert_eq!(
+                    line.len(),
+                    hex_distance(a, b) + 1,
+                    "length of {a:?} to {b:?}"
+                );
+                for pair in line.windows(2) {
+                    assert_eq!(
+                        hex_distance(pair[0], pair[1]),
+                        1,
+                        "{a:?} to {b:?}: {pair:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// A stroke continues from where the last frame's segment ended, and a release ends it.
+    #[test]
+    fn a_stroke_joins_frames_and_ends_on_release() {
+        let mut s = HexStroke::default();
+        assert_eq!(s.cells(Some((5, 5))), vec![(5, 5)]);
+        assert_eq!(s.cells(Some((7, 5))), vec![(5, 5), (6, 5), (7, 5)]);
+        assert!(s.cells(None).is_empty());
+        assert_eq!(s.cells(Some((1, 1))), vec![(1, 1)]);
+    }
 
     /// The gamma slider must tell the paper's values apart: 0.0001, 0.001, 0.01, 0.05 and 1.
     #[test]
