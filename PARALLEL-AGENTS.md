@@ -36,15 +36,19 @@ minutes, not a rebuild.
 
 | Time | Event |
 |---|---|
-| 16:10 | Another session found committing on `main`. Rule from David: don't disturb it; don't touch `main` or its checkout. |
-| 16:20 | Five worktrees, build cache cloned into each, beads filed, plan reviewed. |
+| about 16:10 | Another session found committing on `main`. Rule from David: don't disturb it; don't touch `main` or its checkout. |
+| 16:10-16:27 | Five worktrees, build cache cloned into each, beads filed, plan reviewed. |
 | 16:27 | Four builders launched in one message. |
 | 18:11-18:27 | All four builders finish (104-120 minutes each, 99-143 tool calls). Each gets a reviewer as soon as it finishes. |
-| 18:20 | First three branches merged onto `integration`, before their reviews, to find conflicts early. |
-| 18:30-19:00 | Reviews come back (12-14 minutes each); fixes relayed to the builders; fixes merged. |
-| 19:20 | Shared code moved into `ca_core`. |
-| 19:50 | Last fixes (lattice gas) merged; `main`'s one new commit merged in; `make check`, `make slow` and `make site` run on `integration`. Reported as done. |
-| 20:00 | David: "'Choices' is not an excuse for bugs or inconsistencies." A second round begins (below). |
+| 18:19 | First three branches merged onto `integration`, before their reviews, to find conflicts early. |
+| 18:26-18:49 | Reviews come back (12-14 minutes each); fixes relayed to the builders and merged as they arrive. |
+| 18:38 | Shared code moved into `ca_core`. |
+| 18:49-18:55 | `main`'s one new commit merged in; `make check`, `make slow` and `make site` pass; reported as done. |
+| after 18:55 | David: "'Choices' is not an excuse for bugs or inconsistencies." A second round (below). |
+| 19:34-19:47 | Second-round fixes merged, plus a tooltip fix for three older demos and `main`'s two newer commits; all checks pass again. |
+
+Times are from the merge commits on `integration`, except the first rows, which are
+approximate.
 
 The building took about two hours of wall-clock time for all four. One after another it
 would have taken roughly eight, though that is an estimate: nobody built them in sequence

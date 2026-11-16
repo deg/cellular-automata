@@ -173,16 +173,6 @@ impl SnowflakeApp {
         });
         ui.separator();
 
-        match self.pointer {
-            Some((x, y)) => {
-                let w = self.crystal.water().get(x, y);
-                let state = if w >= 1.0 { "ice" } else { "vapour" };
-                ui.label(format!("Under the pointer: water {w:.4} ({state})"));
-            }
-            None => {
-                ui.label("Point at the field to see a cell's water.");
-            }
-        }
         egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
             ui.label("step");
             ui.label(self.crystal.generation.to_string());
@@ -196,6 +186,16 @@ impl SnowflakeApp {
                 self.crystal.reach(),
                 self.crystal.radius()
             ));
+            ui.end_row();
+            ui.label("under the pointer");
+            ui.label(match self.pointer {
+                Some((x, y)) => {
+                    let w = self.crystal.water().get(x, y);
+                    let state = if w >= 1.0 { "ice" } else { "vapour" };
+                    format!("water {w:.4} ({state})")
+                }
+                None => "-".to_string(),
+            });
             ui.end_row();
         });
         if self.crystal.finished() {
