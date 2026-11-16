@@ -91,9 +91,9 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 
 ## Things to try
 
-- **The presets** are Reiter's own examples: his Figure 4's thin dendrite, thick dendrite,
-  stellar and sector forms; a plate; and *Many levels*, his Figure 5's α = 2.003, "a
-  pretty growth pattern with many levels of dendrites". Each starts again from a seed.
+- **The presets** are Reiter's own examples: *Thin dendrite*, *Thick dendrite*, *Stellar*
+  and *Sector* are his Figure 4's forms, *Plate* grows a plate, and *Many levels* is his
+  Figure 5's α = 2.003, "a pretty growth pattern with many levels of dendrites". Each starts again from a seed.
 - **Change conditions as it grows.** A real crystal falls through air of changing
   temperature and humidity. γ and α take effect at once, so you can do the same. Reiter's
   Figure 7 grew a plate with β = 0.4 and γ = 0.5, then lowered γ to 0.001 to grow
