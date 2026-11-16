@@ -17,6 +17,9 @@ the browser, and explains itself: the rule, its history, and things to try.
 Each demo's own `README.md` holds its explanation and history; the app shows the same
 text in a side panel.
 
+For how it all fits together (the shared library, the frame loop, WebAssembly, and why
+Rust), see [HOW-IT-WORKS.md](HOW-IT-WORKS.md).
+
 ## Running
 
 You need Rust (stable) and, for the browser, the `wasm32-unknown-unknown` target and
@@ -31,6 +34,8 @@ make check                   # formatting, lint and tests
 ```
 
 ## Layout
+
+In brief; [HOW-IT-WORKS.md](HOW-IT-WORKS.md) has the full picture.
 
 - `ca_core/`: shared code: the grid, drawing it, the controls, and the native/web entry point.
 - One directory per demo. In each, `src/sim.rs` is the automaton, tested natively, and
