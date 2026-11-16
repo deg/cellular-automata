@@ -32,7 +32,7 @@ impl Palette {
     /// The colour of points that have not escaped.
     pub fn inside(self) -> Color32 {
         match self {
-            Self::Site => Color32::from_rgb(0x14, 0x18, 0x30),
+            Self::Site => ca_core::NAVY,
             Self::Fire | Self::Grey => Color32::BLACK,
             Self::Ice => Color32::from_rgb(0x02, 0x08, 0x16),
         }
