@@ -33,13 +33,15 @@ entries=""
 for dir in "${demos[@]}"; do
   echo "== building $dir"
   (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
-  # The script that reloads a page cached from before a deploy (see the file), first in
-  # <head>, so it is listening before trunk's script asks for the demo's code.
+  # The script that reloads a page cached from before a deploy (see the file), straight
+  # after <meta charset>, so it is listening before trunk's script asks for the demo's code.
+  # Not before the charset: a browser looks for that only in a page's first 1,024 bytes,
+  # which the script would fill.
   page="$dist/$dir/index.html"
-  sed "/<head>/r $root/site/stale-page.html" "$page" > "$page.new"
+  sed "/<meta charset/r $root/site/stale-page.html" "$page" > "$page.new"
   mv "$page.new" "$page"
   if ! grep -q 'stale-page-reloaded' "$page"; then
-    echo "$page: no <head> line to put the stale-page script after" >&2
+    echo "$page: no <meta charset> line to put the stale-page script after" >&2
     exit 1
   fi
   title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$dir/index.html" | head -1)"

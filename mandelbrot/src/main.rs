@@ -348,7 +348,11 @@ impl MandelbrotApp {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
             }
         }
-        if !self.julia.picture().is_done() || !self.map.picture().is_done() {
+        // Only for insets on screen: a hidden one is never worked on, so waiting for it
+        // would repaint for ever.
+        let inset_busy = self.show_julia && !self.julia_full && !self.julia.picture().is_done();
+        let map_busy = self.show_map && !self.map.picture().is_done();
+        if inset_busy || map_busy {
             ui.ctx().request_repaint();
         }
     }
@@ -450,8 +454,14 @@ impl MandelbrotApp {
         self.julia_full = full;
         self.pinned |= full;
         self.julia.go_home();
+        let limit = self.mandelbrot.picture().limit();
         if full {
-            self.julia.raise_limit(self.mandelbrot.picture().limit());
+            self.julia.raise_limit(limit);
+        } else {
+            // Back in the inset, its cap applies again. Limits only ever rise, so without
+            // starting afresh it would keep the full view's (perhaps 50,000), and never
+            // finish while the pointer moves.
+            self.julia.restart_at(limit.min(INSET_MOST_STEPS));
         }
     }
 
@@ -623,6 +633,7 @@ impl MandelbrotApp {
     fn recolour(&mut self) {
         self.mandelbrot.recolour();
         self.julia.recolour();
+        self.map.recolour();
     }
 
     /// Let both pictures go on to `limit` steps, the inset only as far as it can keep up.

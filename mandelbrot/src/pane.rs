@@ -119,7 +119,12 @@ impl Pane {
 
     /// Back to step 0, in the same view.
     pub fn restart(&mut self) {
-        self.picture = Picture::new(self.picture.family(), *self.picture.view(), 0);
+        self.restart_at(0);
+    }
+
+    /// Start again in the same view at `limit`, which may be lower than the current one.
+    pub fn restart_at(&mut self, limit: u32) {
+        self.picture = Picture::new(self.picture.family(), *self.picture.view(), limit);
         self.view.drop_backdrop();
         self.redraw = true;
     }
