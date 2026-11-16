@@ -477,7 +477,7 @@ impl MandelbrotApp {
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("The Mandelbrot set");
-        ui.label("Each point c of the plane is a number. Start at z = 0 and repeat z → z² + c. If z ever gets further than 2 from 0, it flies off for ever, and c is outside the set, coloured by the step at which it escaped. The points that never escape are the set.");
+        ui.label("Each point c of the plane is a number. Start at z = 0 and repeat z → z² + c. If z ever gets further than 2 from 0, it flies off forever, and c is outside the set, coloured by the step at which it escaped. The points that never escape are the set.");
         self.about.toggle_button(ui);
         ui.separator();
 

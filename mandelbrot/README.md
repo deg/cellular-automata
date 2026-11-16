@@ -5,7 +5,7 @@ Pick a point c of the plane, and treat it as a number (a *complex* number: the p
 
 > z → z² + c
 
-Either z stays close to 0 for ever, or at some step it gets further than 2 from 0, after
+Either z stays close to 0 forever, or at some step it gets further than 2 from 0, after
 which it races off to infinity. **The Mandelbrot set is the points c whose z stays close to
 0.** In the demo they are the dark shape in the middle. Every other point is coloured by the
 step at which its z escaped.
@@ -20,7 +20,7 @@ Complex numbers multiply in a way that is easy to picture. Every point has a dis
 0 and an angle (measured anticlockwise from the positive horizontal axis). Squaring a
 point **squares its distance and doubles its angle**. Adding c then shifts the result by c.
 So each step spins and stretches z, then nudges it. Points near 0 shrink when squared, and
-points beyond 1 grow, and the set is where the shrinking and the nudging balance for ever.
+points beyond 1 grow, and the set is where the shrinking and the nudging balance forever.
 
 ## Why 2?
 
@@ -40,14 +40,14 @@ a limit you choose, and draws everything that hasn't escaped by then as the set.
 
 ## Not a cellular automaton
 
-The other demos on this site are cellular automata: a grid of cells, each changing
-according to its neighbours. The Mandelbrot set is not one. Each point follows its own
-rule, and no point ever looks at another.
+The other demos on this site are cellular automata, or close to one, like Langton's ant:
+a grid of cells, each changing according to its neighbours. The Mandelbrot set is not
+one. Each point follows its own rule, and no point ever looks at another.
 
 It is here because it is the same kind of surprise. One rule a child could follow, repeated,
 makes a shape of endless complexity that nobody would guess from the rule. The demo also
 runs it like the automata: each pixel is a cell with a state (its z), and each step every
-cell takes one more turn of z → z² + c. Run shows the set emerging step by step. (The
+cell takes one more turn of z → z² + c. *Run* shows the set emerging step by step. (The
 sandpile demo makes a fractal too, from a rule that is a true cellular automaton.)
 
 ## Julia sets
@@ -55,7 +55,7 @@ sandpile demo makes a fractal too, from a rule that is a true cellular automaton
 Turn the question round. Fix c, and ask which *starting points* z₀ stay near 0 when you
 repeat z → z² + c. Those points make the (filled) **Julia set** of c, and every c has its
 own. The inset in the corner shows the Julia set of the c under the pointer. Click the
-picture to pin c, and click the inset (or Enlarge) to see the Julia set full size, where
+picture to pin c, and click the inset (or *Enlarge*) to see the Julia set full size, where
 you can zoom and follow orbits too.
 
 The Mandelbrot set is a map of all the Julia sets. Fatou and Julia proved that the Julia
@@ -83,8 +83,8 @@ inset shatter.
   proceedings (the chapter is dated 1980, the volume 1981).
 - **1979–1980: Mandelbrot.** Benoit Mandelbrot, a mathematician at IBM's research centre
   in Yorktown Heights, used its computers to draw the set in late 1979 or early 1980
-  (sources disagree on the date), and published pictures in "Fractal aspects of the
-  iteration of z ↦ λz(1−z) for complex λ and z" (Annals of the New York Academy of
+  (sources disagree on the date), and published pictures in *Fractal aspects of the
+  iteration of z ↦ λz(1−z) for complex λ and z* (Annals of the New York Academy of
   Sciences, 1980). His printouts showed small islands apparently separate from the main
   body, which he at first took for specks of dirt, and he thought the set was in several
   pieces. Others drew pictures of it about the same time, and who saw it first was later
@@ -92,7 +92,7 @@ inset shatter.
 - **1982: Douady and Hubbard.** Adrien Douady and John H. Hubbard proved that the set is
   **connected**, all in one piece: the islands are joined to the main body by filaments too
   fine for the computer to find (Comptes Rendus, January 1982). They named it after
-  Mandelbrot, for his observations of it, and their lecture notes from Orsay (1984–85)
+  Mandelbrot, for his observations of it, and their lecture notes from Orsay (1984–1985)
   worked out much of its structure.
 - **1985: fame.** A. K. Dewdney's *Computer Recreations* column in Scientific American,
   August 1985, called it "the most complex object in mathematics" and brought it to a wide
@@ -153,7 +153,7 @@ inset shatter.
   the map to jump the view there, at the same zoom.
 - **Raise the stop limit as you zoom.** Deep in, the edge is made of points that take
   hundreds or thousands of steps to escape. With too low a limit they all look inside, and
-  the picture goes blobby. "Go there now" jumps straight to the limit.
+  the picture goes blobby. *Go there now* jumps straight to the limit.
 - **Look for small copies of the whole set**, along the spike to the left and in the
   tendrils round the edge. They are connected to the main set by threads too thin to see.
 - **Zoom as far as it goes.** Ordinary 64-bit numbers can't tell neighbouring pixels
@@ -167,15 +167,16 @@ inset shatter.
 
 ## Further reading
 
-- [Mandelbrot set](https://en.wikipedia.org/wiki/Mandelbrot_set), Wikipedia.
+- The Wikipedia article [Mandelbrot set](https://en.wikipedia.org/wiki/Mandelbrot_set).
 - [The Mandelbrot Set](https://www.youtube.com/watch?v=NGMRB4O922I), Numberphile, with
   Holly Krieger: why the rule makes the shape.
-- A. K. Dewdney, [A computer microscope zooms in for a look at the most complex object in
-  mathematics](https://www.scientificamerican.com/article/computer-recreations-1985-08/),
+- A. K. Dewdney,
+  [A computer microscope zooms in for a look at the most complex object in mathematics](https://www.scientificamerican.com/article/computer-recreations-1985-08/),
   Scientific American, August 1985.
 - John Horgan, [Mandelbrot Set-To](https://www.scientificamerican.com/article/mandelbrot-set-1990-horgan/),
   Scientific American, April 1990: who discovered it.
-- A. Douady and J. H. Hubbard, [Exploring the Mandelbrot set: the Orsay
-  notes](https://pi.math.cornell.edu/~hubbard/OrsayEnglish.pdf), for the mathematics.
+- A. Douady and J. H. Hubbard,
+  [Exploring the Mandelbrot set: the Orsay notes](https://pi.math.cornell.edu/~hubbard/OrsayEnglish.pdf),
+  for the mathematics.
 - Robert Munafo's [Mu-Ency](https://mrob.com/pub/muency.html), an encyclopedia of the
   set's places and lore.
