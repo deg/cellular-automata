@@ -52,7 +52,7 @@ flip it and watch the rule number change.
   the "signals" Cook's proof uses.
 - **Rule 184**: a model of traffic on a one-lane road, the basis of many more detailed
   traffic models. Each 1 is a car that moves one step right whenever the cell ahead is
-  empty. Start from a random row. A queue of stopped cars clears from the front, so a jam
+  empty. Start from a *random row*. A queue of stopped cars clears from the front, so a jam
   moves *backwards* while every car in it moves forwards, as in real stop-and-go traffic. Cars are never created or
   destroyed, so on a ring the count of cells on never changes.
 - **Rule 150**: each cell becomes the XOR of all three cells, giving another nested,

@@ -39,11 +39,11 @@ termites".
 
 ## Things to try
 
-- **The highway.** Press Run, or press *Jump ahead 10,000 steps* to skip the chaos and
+- **The highway.** Press *Run*, or press *Jump ahead 10,000 steps* to skip the chaos and
   watch the highway being built.
 - **Collisions.** The grid wraps around, so the highway eventually runs back into the
   ant's own earlier mess. What happens then?
-- **Two ants.** Restart, click to add a second ant near the first, and Run. Their paths
+- **Two ants.** *Restart*, click to add a second ant near the first, and *Run*. Their paths
   interfere: does a highway still come?
 - **Other rules.** Try the presets, or type any string of L and R (2 to 12 letters). Some
   make chaos, some grow in regular shapes, some build highways of their own.

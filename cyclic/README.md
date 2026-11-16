@@ -84,7 +84,7 @@ each rule in this notation, and who published it or added it to MCell's list.
   droplets of waves eat it, then spirals appear and grow. Leave it running: the
   *changed last generation* count climbs until every cell changes every generation.
 - **More colours.** Fisch, Gravner and Griffeath found that with 20 colours the droplets
-  become distinct and "drop-like". Set *colours* to 20 with the CCA rule, on the largest
+  become distinct and "drop-like". Set *colours* to 20 with the *CCA* rule, on the largest
   world. They expected a 256 x 256 world to fixate once there are more than about 20
   colours, because droplets that survive get too rare to appear: on the middle-sized
   world, some random starts already freeze with 20.

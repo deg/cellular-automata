@@ -34,7 +34,7 @@ crawl across the grid, and patterns that build other patterns.
 
 - **Glider**: the smallest spaceship, one cell diagonally every 4 generations.
 - **Lightweight spaceship**: travels sideways.
-- **Gosper glider gun**: the prize-winner. Press Run and watch it fire.
+- **Gosper glider gun**: the prize-winner. Press *Run* and watch it fire.
 - **Pulsar**: a large oscillator that repeats every 3 generations.
 - **R-pentomino, Acorn, Diehard**: *methuselahs*, tiny patterns that take a very long
   time to settle. On an unbounded grid the R-pentomino (5 cells) settles after 1,103
@@ -57,14 +57,14 @@ is B3/S23. Try:
 
 ## Things to try
 
-- **The gun.** It starts placed: press Run. Turn *Wrap around the edges* off, so gliders
+- **The gun.** It starts placed: press *Run*. Turn *Wrap around the edges* off, so gliders
   die at the border. With wrap on, they come back round, and on the default world they
   wreck the gun at generation 6,390.
-- **Draw.** Clear, drag on the grid to draw live cells, shift-drag to erase, then Run.
+- **Draw.** *Clear*, drag on the grid to draw live cells, shift-drag to erase, then *Run*.
   What do your scribbles settle into?
-- **Random soup.** *Random fill* at density 0.3 on the largest world, then Run at a high
-  speed. Watch how the soup evolves, and whether gliders escape from it.
-- **A methuselah.** Clear, place the R-pentomino, and Run. Watch how much five cells
+- **Random soup.** *Random fill* at a *fill density* of 0.3 on the largest world, then
+  *Run* at a high speed. Watch how the soup evolves, and whether gliders escape from it.
+- **A methuselah.** *Clear*, place the *R-pentomino*, and *Run*. Watch how much five cells
   make.
 - **Paste a pattern.** LifeWiki lists thousands, each with its RLE text. Paste one into
   *Paste an RLE pattern*.

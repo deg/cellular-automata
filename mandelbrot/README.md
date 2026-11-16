@@ -132,14 +132,14 @@ inset shatter.
   scale where all of it fits however far you zoom. For c in the main cardioid it spirals
   in to a single point. In the disc to its left it ends up hopping between two points
   (gold). Each bulb round the edge has its own cycle length. For c outside the set, the
-  path flies off. Enlarge the Julia set, and the path follows the pointer's z₀ instead.
+  path flies off. Press *Enlarge*, and the path follows the pointer's z₀ instead.
 - **Period doubling.** Move left along the real axis: z settles on a single point at
   −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (zoom in to
   reach those, and raise the stop limit for the longer cycles). The doublings come faster
   and faster, and pile up at the *Feigenbaum point*, −1.401155. Beyond it lies the spike.
 - **Cross the edge with the Julia inset showing.** Inside the set, the Julia set is one
   piece; step outside and it breaks into dust. Pin c in the bulb above the main cardioid,
-  enlarge the Julia set, and hover inside it: its orbits settle into the same cycle of
+  press *Enlarge*, and hover inside it: its orbits settle into the same cycle of
   three points.
 - **Zoom into the edge.** Scroll the mouse wheel or pinch to zoom in on the pointer; drag
   or swipe to move. Places with names:
