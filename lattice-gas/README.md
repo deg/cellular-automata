@@ -32,8 +32,11 @@ The demo also runs the older **HPP** model on a square lattice, for comparison: 
 directions, and one collision, a head-on pair leaving at 90°.
 
 **The wind** comes in at the left edge: every step, the first few columns are refilled with
-fresh gas moving right. The world wraps around, so the same columns also swallow the gas
-leaving at the right edge: a wind tunnel.
+fresh gas moving right. The world wraps around, so the gas leaving at the right edge runs
+into those same columns, and the westward-moving particles in them flow back in at the
+right edge, keeping the density there steady: a wind tunnel. d'Humières and Lallemand fed
+their outlet the same way, injecting fresh particles there too "in order to keep the
+density almost constant".
 
 ## Why the averages flow
 
@@ -93,9 +96,16 @@ lattice is symmetric enough. That is where the hexagon matters.
   (Frisch et al. §8), so at half the speed of sound an obstacle 100 nodes wide reaches a
   Reynolds number of about 20. That is enough for a pair of eddies behind a plate, but
   not for the alternating vortices that d'Humières and Lallemand saw shed from their
-  plate, at a Reynolds number of about 300, with a richer rule set (FHP-III, which adds
+  plate, at Reynolds numbers of a few hundred, with a richer rule set (FHP-III, which adds
   a resting particle and many more collisions, and reaches Reynolds numbers about six
   times higher than FHP-I's) on a lattice of almost three million nodes.
+- **Not quite incompressible.** The default wind is 0.42 of the speed of sound, and it
+  speeds up round the plate's ends to about two thirds of it, so the gas's density varies
+  by about 15% across the flow, where a real liquid's would hardly change. A slower wind would
+  compress it less, but would give a lower Reynolds number and weaker eddies: with FHP-I
+  that is the trade-off. The flow is also a row of plates, not one: the world wraps
+  around top to bottom, so each plate has copies of itself a world's height above and
+  below it, and fills a quarter of the gap.
 - **Not quite Galilean.** The lattice gas's flow carries itself along more slowly than a
   real fluid's would, by a density-dependent factor (`g` in the papers); time is rescaled
   to compare with real flows. The Reynolds number shown allows for it.

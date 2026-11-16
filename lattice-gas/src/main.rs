@@ -80,7 +80,7 @@ impl Preset {
     fn obstacle_width(self, kind: Kind, h: usize) -> Option<f64> {
         let side = h as f64 * kind.row_height();
         match self {
-            Self::Plate => Some(side / 3.0),
+            Self::Plate => Some(side / 4.0),
             Self::Cylinder => Some(side / 4.0),
             Self::Channel | Self::Pulse => None,
         }
@@ -244,6 +244,8 @@ impl GasApp {
         ui.label("Average over blocks of (nodes across)");
         if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
             self.blocks = blocks(self.kind, self.size, self.block);
+            // Sample the gas as it is, so the flow views aren't blank until the next step.
+            self.blocks.add(&self.lattice);
             self.field = Field::new(&self.blocks);
             self.dirty = true;
         }
@@ -376,41 +378,7 @@ impl GasApp {
 
     /// The picture for the current view: one colour per node.
     fn image(&self) -> egui::ColorImage {
-        let l = &self.lattice;
-        let (w, h, cells) = (l.width(), l.height(), l.cells());
-        let f = &self.field;
-        let wind = self.speed.max(0.05);
-        let mean = self.density * l.kind().directions() as f64;
-        // Per block, the value to draw, interpolated between blocks for each node.
-        let values: Vec<f64> = (0..f.ny)
-            .flat_map(|by| (0..f.nx).map(move |bx| (bx, by)))
-            .map(|(bx, by)| {
-                let a = f.get(bx, by);
-                match self.show {
-                    Show::Particles => 0.0,
-                    Show::Speed => a.ux.hypot(a.uy) / (1.5 * wind),
-                    // Shear across an eddy about 30 nodes wide gives about wind / 15.
-                    Show::Vorticity => f.vorticity(bx, by) / (wind / 15.0),
-                    Show::Density => (a.density / mean - 1.0) / 0.25,
-                }
-            })
-            .collect();
-        let value = |bx: usize, by: usize| values[by * f.nx + bx];
-        view::image(l.kind(), w, h, |x, y| {
-            let c = cells[y * w + x];
-            if c & WALL != 0 {
-                return STONE;
-            }
-            if self.show == Show::Particles {
-                return BY_COUNT[(c & PARTICLES).count_ones() as usize];
-            }
-            let (px, py) = l.position(x, y);
-            let v = f.at(px, py, value);
-            match self.show {
-                Show::Speed => ramp(&SPEED_RAMP, v),
-                _ => diverging(v),
-            }
-        })
+        picture(&self.lattice, &self.field, self.show, self.speed)
     }
 
     /// An arrow per block (or per few blocks, if blocks are small on screen), showing the
@@ -514,6 +482,56 @@ impl GasApp {
     }
 }
 
+/// The picture of `l` for the view `show`: one colour per node, from the particles or from
+/// the averaged `field`. `wind` sets the colour scale for speed and swirl; density is drawn
+/// relative to the field's own mean, so it stays centred whatever the density slider says.
+fn picture(l: &Lattice, f: &Field, show: Show, wind: f64) -> egui::ColorImage {
+    let (w, h, cells) = (l.width(), l.height(), l.cells());
+    let wind = wind.max(0.05);
+    let mean = f.mean_density();
+    // Per block, the value to draw, interpolated between blocks for each node.
+    let values: Vec<f64> = (0..f.ny)
+        .flat_map(|by| (0..f.nx).map(move |bx| (bx, by)))
+        .map(|(bx, by)| {
+            let a = f.get(bx, by);
+            match show {
+                Show::Particles => 0.0,
+                Show::Speed => a.ux.hypot(a.uy) / (1.5 * wind),
+                // Shear across an eddy about 30 nodes wide gives about wind / 15.
+                Show::Vorticity => f.vorticity(bx, by) / (wind / 15.0),
+                Show::Density => (a.density / mean - 1.0) / 0.25,
+            }
+        })
+        .collect();
+    let nodes = match show {
+        Show::Particles => Vec::new(),
+        _ => f.resample(w, h, &values),
+    };
+    // Colours for values from -1 to 1 (0 to 1 for speed), in 512 steps.
+    let (lo, steps) = (if show == Show::Speed { 0.0 } else { -1.0 }, 511.0);
+    let span = 1.0 - lo;
+    let colours: Vec<Color32> = (0..=steps as usize)
+        .map(|k| {
+            let v = lo + span * k as f64 / steps;
+            match show {
+                Show::Speed => ramp(&SPEED_RAMP, v),
+                _ => diverging(v),
+            }
+        })
+        .collect();
+    view::image(l.kind(), w, h, |x, y| {
+        let c = cells[y * w + x];
+        if c & WALL != 0 {
+            STONE
+        } else if show == Show::Particles {
+            BY_COUNT[(c & PARTICLES).count_ones() as usize]
+        } else {
+            let t = ((nodes[y * w + x] - lo) / span).clamp(0.0, 1.0);
+            colours[(t * steps).round() as usize]
+        }
+    })
+}
+
 /// Averaging blocks `block` nodes across and about as tall (on the hex lattice, an even
 /// number of rows, so each block holds as many odd rows as even).
 fn blocks(kind: Kind, size: (usize, usize), block: usize) -> Blocks {
@@ -543,4 +561,32 @@ fn diverging(t: f64) -> Color32 {
 fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     let m = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
     Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The cost of drawing a frame's picture on the biggest world, natively
+    /// (`--ignored --nocapture`).
+    #[test]
+    #[ignore]
+    fn timing_picture() {
+        let size = SIZES[2];
+        let mut l = Lattice::new(Kind::Hex, size.0, size.1, 1);
+        l.fill(0.2, 0.3);
+        let mut b = blocks(Kind::Hex, size, 16);
+        b.add(&l);
+        let mut f = Field::new(&b);
+        f.blend(&b, 100.0);
+        for show in [Show::Particles, Show::Speed, Show::Vorticity] {
+            let runs = 10;
+            let t = std::time::Instant::now();
+            for _ in 0..runs {
+                std::hint::black_box(picture(&l, &f, show, 0.3));
+            }
+            let ms = t.elapsed().as_secs_f64() * 1000.0 / runs as f64;
+            println!("{}: {ms:.1} ms", show.label());
+        }
+    }
 }

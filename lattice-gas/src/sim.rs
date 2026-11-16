@@ -451,6 +451,15 @@ impl Lattice {
         self.momentum_of(0..self.cells.len())
     }
 
+    /// The particles in columns `xs`.
+    #[cfg(test)]
+    pub fn particles_in_columns(&self, xs: std::ops::Range<usize>) -> u64 {
+        (0..self.height)
+            .flat_map(|y| xs.clone().map(move |x| (x, y)))
+            .map(|(x, y)| u64::from(COUNT[self.get(x, y) as usize]))
+            .sum()
+    }
+
     /// The momentum of the nodes at the given indices.
     #[cfg(test)]
     pub fn momentum_of(&self, nodes: impl Iterator<Item = usize>) -> (i64, i64) {
@@ -880,6 +889,40 @@ mod tests {
             let share = count / total;
             assert!((share - 1.0 / 6.0).abs() < 0.01, "direction {i}: {share}");
         }
+    }
+
+    /// One step of an empty lattice with a wind: only the band is refilled, at density d
+    /// per direction and mean velocity u, and a wall inside the band stays empty.
+    #[test]
+    fn the_inflow_band_refills_at_its_density_and_speed() {
+        let (w, h, band) = (20, 4000, 4);
+        let mut l = Lattice::new(Kind::Hex, w, h, 6);
+        l.set_wall(1, 7, true);
+        l.inflow = Some(Inflow {
+            width: band,
+            density: 0.2,
+            speed: 0.25,
+        });
+        l.step();
+        assert_eq!(l.get(1, 7) & PARTICLES, 0, "the wall in the band");
+        assert_eq!(
+            l.particles(),
+            l.particles_in_columns(0..band),
+            "nothing outside"
+        );
+        let nodes = (band * h - 1) as f64; // less the wall
+        let n = l.particles() as f64;
+        let (px, py) = l.momentum();
+        let (ux, uy) = (px as f64 / 2.0 / n, py as f64 * 3f64.sqrt() / 4.0 / n);
+        assert!(
+            (n / nodes / 6.0 - 0.2).abs() < 0.005,
+            "density {}",
+            n / nodes / 6.0
+        );
+        assert!(
+            (ux - 0.25).abs() < 0.02 && uy.abs() < 0.02,
+            "u = ({ux}, {uy})"
+        );
     }
 
     /// Filling (and the inflow band, which refills the same way) draws from the

@@ -207,6 +207,16 @@ impl Field {
         }
     }
 
+    /// The mean density (particles per open node) over the blocks holding any gas.
+    pub fn mean_density(&self) -> f64 {
+        let (sum, n) = self
+            .cells
+            .iter()
+            .filter(|a| a.density > 0.0)
+            .fold((0.0, 0), |(s, n), a| (s + a.density, n + 1));
+        if n == 0 { 1.0 } else { sum / n as f64 }
+    }
+
     pub fn get(&self, bx: usize, by: usize) -> Average {
         self.cells[by * self.nx + bx]
     }
@@ -253,6 +263,41 @@ impl Field {
         let bottom = value(x0, y1) * (1.0 - tx) + value(x1, y1) * tx;
         top * (1.0 - ty) + bottom * ty
     }
+
+    /// `values` (one per block, row by row) at every node of a `w` x `h` lattice, exactly
+    /// as [`Field::at`] interpolates them, but far faster: each row blends its two block
+    /// rows once, and each column's two blocks and weight are found once per row parity.
+    pub fn resample(&self, w: usize, h: usize, values: &[f64]) -> Vec<f64> {
+        let (dx, dy) = self.spacing();
+        let (cx, cy) = block_centre(self.kind, self.bw, self.bh, 0, 0);
+        let weights = |p: f64, c: f64, d: f64, n: usize| {
+            let f = ((p - c) / d).clamp(0.0, (n - 1) as f64);
+            let i = f as usize;
+            (i, (i + 1).min(n - 1), f - i as f64)
+        };
+        // Columns, for even rows and for odd rows (which the hex lattice shifts).
+        let columns: [Vec<(usize, usize, f64)>; 2] = [0, 1].map(|parity| {
+            (0..w)
+                .map(|x| weights(self.kind.position(x, parity).0, cx, dx, self.nx))
+                .collect()
+        });
+        let mut out = vec![0.0; w * h];
+        let mut blended = vec![0.0; self.nx];
+        for y in 0..h {
+            let (y0, y1, ty) = weights(self.kind.position(0, y).1, cy, dy, self.ny);
+            let (top, bottom) = (
+                &values[y0 * self.nx..][..self.nx],
+                &values[y1 * self.nx..][..self.nx],
+            );
+            for ((b, &t), &u) in blended.iter_mut().zip(top).zip(bottom) {
+                *b = t * (1.0 - ty) + u * ty;
+            }
+            for (o, &(x0, x1, tx)) in out[y * w..][..w].iter_mut().zip(&columns[y % 2]) {
+                *o = blended[x0] * (1.0 - tx) + blended[x1] * tx;
+            }
+        }
+        out
+    }
 }
 
 #[cfg(test)]
@@ -287,6 +332,30 @@ mod tests {
                     }
                 );
             }
+        }
+    }
+
+    /// The vertical unit too: a particle moving north-east in every node averages to
+    /// exactly (cos 60°, sin 60°); one moving north on the square lattice, to (0, 1).
+    #[test]
+    fn diagonal_and_northward_streams_average_exactly() {
+        for (kind, bit, (ux, uy)) in [
+            (Kind::Hex, 1 << 1, (0.5, 3f64.sqrt() / 2.0)),
+            (Kind::Square, 1 << 1, (0.0, 1.0)),
+        ] {
+            let mut l = Lattice::new(kind, 16, 12, 1);
+            for y in 0..12 {
+                for x in 0..16 {
+                    l.set_particles(x, y, bit);
+                }
+            }
+            let mut b = Blocks::new(kind, 16, 12, 8, 6);
+            b.add(&l);
+            let a = b.average(1, 1);
+            assert!(
+                (a.ux - ux).abs() < 1e-12 && (a.uy - uy).abs() < 1e-12,
+                "{kind:?} {a:?}"
+            );
         }
     }
 
@@ -519,6 +588,30 @@ mod tests {
                 (speed - SOUND_SPEED).abs() < 0.02 * SOUND_SPEED,
                 "along x {along_x}: speed {speed}"
             );
+        }
+    }
+
+    /// The fast whole-lattice interpolation must give what `at` gives at every node, on
+    /// both lattices, including the edges where it clamps.
+    #[test]
+    fn resample_matches_at_everywhere() {
+        for kind in [Kind::Hex, Kind::Square] {
+            let (w, h) = (50, 30);
+            let blocks = Blocks::new(kind, w, h, 8, 6);
+            let field = Field::new(&blocks);
+            let mut rng = ca_core::Rng::new(9);
+            let values: Vec<f64> = (0..field.nx * field.ny).map(|_| rng.next_f64()).collect();
+            let fast = field.resample(w, h, &values);
+            for y in 0..h {
+                for x in 0..w {
+                    let (px, py) = kind.position(x, y);
+                    let slow = field.at(px, py, |bx, by| values[by * field.nx + bx]);
+                    assert!(
+                        (fast[y * w + x] - slow).abs() < 1e-12,
+                        "{kind:?} ({x}, {y})"
+                    );
+                }
+            }
         }
     }
 
