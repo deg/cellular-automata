@@ -212,13 +212,22 @@ impl MandelbrotApp {
             && let Some(hover) = &self.hover
         {
             let active = self.active();
-            draw_orbit(&painter, &hover.orbit, |p| active.to_screen(p, rect));
+            draw_orbit(&painter, &hover.orbit, 1.0, |p| active.to_screen(p, rect));
         }
         if let Some(inset) = inset {
             self.julia.fit(inset, scale);
             self.julia.update(&ctx, &self.colours, INSET_ITERATIONS);
             painter.rect_filled(inset, 0.0, self.colours.palette().inside());
-            self.julia.paint(&painter.with_clip_rect(inset), inset);
+            let inset_painter = painter.with_clip_rect(inset);
+            self.julia.paint(&inset_painter, inset);
+            if self.show_orbit {
+                // The orbit of 0 belongs to the Julia set's plane, where the whole of a bounded
+                // orbit is always in view, however far the main picture is zoomed.
+                let steps = self.mandelbrot.picture().limit().min(ORBIT_STEPS);
+                let path = orbit([0.0, 0.0], self.julia_c, steps);
+                let julia = &self.julia;
+                draw_orbit(&inset_painter, &path, 0.6, |p| julia.to_screen(p, inset));
+            }
             let edge = Stroke::new(
                 1.5,
                 Color32::from_white_alpha(if over_inset { 230 } else { 140 }),
@@ -514,8 +523,14 @@ fn gestures(ui: &egui::Ui, response: &egui::Response, rect: Rect) -> (Vec2, f32)
 }
 
 /// Draw an orbit's path over the picture: a line through its points, a dot at each, a ring
-/// round z₀, and gold dots on the cycle it settles into, if it does.
-fn draw_orbit(painter: &egui::Painter, orbit: &Orbit, to_screen: impl Fn([f64; 2]) -> egui::Pos2) {
+/// round z₀, and gold dots on the cycle it settles into, if it does. `size` scales the marks
+/// (1 for the main picture).
+fn draw_orbit(
+    painter: &egui::Painter,
+    orbit: &Orbit,
+    size: f32,
+    to_screen: impl Fn([f64; 2]) -> egui::Pos2,
+) {
     let points: Vec<egui::Pos2> = orbit
         .points
         .iter()
@@ -524,18 +539,24 @@ fn draw_orbit(painter: &egui::Painter, orbit: &Orbit, to_screen: impl Fn([f64; 2
         .collect();
     let shadow = Color32::from_black_alpha(150);
     let ink = Color32::from_white_alpha(220);
-    painter.add(egui::Shape::line(points.clone(), Stroke::new(3.0, shadow)));
-    painter.add(egui::Shape::line(points.clone(), Stroke::new(1.25, ink)));
+    painter.add(egui::Shape::line(
+        points.clone(),
+        Stroke::new(3.0 * size, shadow),
+    ));
+    painter.add(egui::Shape::line(
+        points.clone(),
+        Stroke::new(1.25 * size, ink),
+    ));
     for &p in &points {
-        painter.circle_filled(p, 2.5, ink);
+        painter.circle_filled(p, 2.5 * size, ink);
     }
-    painter.circle_stroke(points[0], 6.0, Stroke::new(3.0, shadow));
-    painter.circle_stroke(points[0], 6.0, Stroke::new(1.5, ink));
+    painter.circle_stroke(points[0], 6.0 * size, Stroke::new(3.0 * size, shadow));
+    painter.circle_stroke(points[0], 6.0 * size, Stroke::new(1.5 * size, ink));
     if let Fate::Cycle(p) = orbit.fate {
         for &z in orbit.points.iter().rev().take(p as usize) {
             let at = to_screen(z);
-            painter.circle_filled(at, 5.0, shadow);
-            painter.circle_filled(at, 4.0, GOLD);
+            painter.circle_filled(at, 5.0 * size, shadow);
+            painter.circle_filled(at, 4.0 * size, GOLD);
         }
     }
 }

@@ -126,7 +126,9 @@ inset shatter.
   the pointer: z₀ = 0 (ringed), z₁ = c (at the pointer), z₂, and so on. In the main
   cardioid it spirals in to a single point. In the disc to its left it ends up hopping
   between two points (gold). Each bulb round the edge has its own cycle length. Outside
-  the set, the path flies off.
+  the set, the path flies off. The Julia inset draws the same orbit at a scale where all
+  of it fits, however far you have zoomed in. That is its real home: c is a point of the
+  Mandelbrot picture, but z₀, z₁, z₂, ... are points of the Julia set's plane.
 - **Period doubling.** Move left along the real axis: z settles on a single point at
   −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (zoom in to
   reach those, and raise the stop limit for the longer cycles). The doublings come faster
