@@ -47,8 +47,8 @@ minutes, not a rebuild.
 | after 18:55 | David: "'Choices' is not an excuse for bugs or inconsistencies." A second round (below). |
 | 19:34-19:47 | Second-round fixes merged, plus a tooltip fix for three older demos and `main`'s two newer commits; all checks pass again. |
 
-Times are from the merge commits on `integration`, except the first rows, which are
-approximate.
+Times are from the merge commits of `integration` as it was first built, before it was
+made linear (see "Merging"), except the first rows, which are approximate.
 
 The building took about two hours of wall-clock time for all four. One after another it
 would have taken roughly eight, though that is an estimate: nobody built them in sequence
@@ -196,16 +196,36 @@ verifying is not the same as doubting.)
 
 ### Merging
 
-`integration` merged each demo with `--no-ff`, one merge commit per branch, and merged
-review fixes the same way. The first three merged before their reviews were done, to find
-the conflicts early; the fixes came in as later merges.
+While the work was under way, `integration` merged each demo with `--no-ff`, merged each
+round of review fixes the same way, and merged `main` in twice. The first three demos
+merged before their reviews were done, to find the conflicts early.
 
-- `Cargo.toml` and `site/thumbs.js` conflicted on every merge: every branch changed the
+That made a history Magit draws as a tangle of crossing lines. David's rule, now in
+`~/CLAUDE.md` for every project, is a *semi-linear* history: rebase a branch onto the tip
+of `main`, then merge it with `--no-ff`, so each branch is one short second track beside
+`main` and appears to start after the previous one finished; never merge `main` into a
+branch. So `integration` was rebuilt at the end:
+
+1. Backups first: `backup/before-linear/<branch>` for `integration` and each demo branch.
+2. A fresh worktree on a new branch at `main`'s tip.
+3. For each demo, in the order they first merged: rebase its branch, in its own worktree,
+   onto the new branch's tip (`rebase-demo.sh` below), running `cargo check` on every
+   rebased commit so the history can be bisected; then `git merge --no-ff` it.
+4. The coordinator's own commits (shared docs, `ca_core`, write-up) cherry-picked on top,
+   each checked to build.
+5. Proof: the rebuilt tree differs from the old `integration` only by `main`'s newer
+   commit, and `make check` passes.
+6. The commit hashes quoted in beads were updated to the new commits.
+
+Rebasing also meant resolving the same conflicts once per commit rather than once per
+merge, which the script does by file type:
+
+- `Cargo.toml` and `site/thumbs.js` conflicted for every branch: every branch changed the
   same `members` line and inserted its picture at the same place. Both are pure additions.
   A small script (`union.py` below) resolves a conflict by keeping both sides **only when
-  the common base is empty**, and refuses otherwise. The `members` line was written by
-  hand.
-- `Cargo.lock` merged cleanly three times, then conflicted on the fourth.
+  the common base is empty**, and refuses otherwise. The `members` line is rebuilt in a
+  fixed order.
+- `Cargo.lock`: take the new base's side and let cargo add the new path crate back.
 
 ## What went wrong
 
@@ -279,7 +299,8 @@ the conflicts early; the fixes came in as later merges.
 9. A cross-demo consistency review as a planned step, after the per-demo reviews: a fresh
    agent that reads every demo against the conventions, with the coordinator fixing or
    dispatching what it finds.
-10. Merge early, merge often, with a script that refuses to commit markers or a failing build.
+10. Merge early, merge often, with a script that refuses to commit markers or a failing build;
+    rebase each branch onto the tip first, so the history stays semi-linear.
 11. One full build and one rendered check of the whole site at the end.
 
 ## Cost
@@ -614,6 +635,73 @@ if git rev-parse -q --verify MERGE_HEAD >/dev/null; then   # a merge left for us
   git -c core.hooksPath=/dev/null commit -q --no-edit
 fi
 git log --oneline -1
+```
+
+</details>
+
+<details>
+<summary>rebase-demo.sh: rebase a demo branch onto the integration tip, checking every commit</summary>
+
+```bash
+#!/bin/bash
+# Rebase demo/<demo> (in its own worktree) onto <onto>, so it can then be merged with
+# --no-ff as a clean second track. Resolves the three known kinds of conflict:
+#   Cargo.toml  the workspace members line: rebuilt in a fixed order
+#   Cargo.lock  take the new base's side; cargo re-adds the path crate
+#   site/thumbs.js  both sides only added an entry: keep both (union.py refuses otherwise)
+# Anything else stops for a human. Every rebased commit must pass `cargo check`, so the
+# result can be bisected.
+# Usage: rebase-demo.sh <demo> <onto-commit> [<old-base>]
+set -euo pipefail
+demo=$1; onto=$2; old_base=${3:-71a2d46}
+S=<scratchpad>
+W=/Users/deg/Documents/degel/cellular-automata-wt/$demo
+cd "$W"
+[ "$(git branch --show-current)" = "demo/$demo" ] || { echo "not on demo/$demo"; exit 1; }
+[ -z "$(git status --porcelain)" ] || { echo "worktree not clean"; exit 1; }
+export GIT_EDITOR=true
+G() { git -c core.hooksPath=/dev/null "$@"; }
+
+members() {   # the members line, with the new demos in a fixed order
+  python3 - <<'EOF'
+import re
+s = open("Cargo.toml").read()
+names = set(re.findall(r'"([^"]+)"', "".join(re.findall(r"members = \[[^\]]*\]", s))))
+order = ["ca_core", "sandpile", "life", "elementary", "langtons-ant", "brians-brain",
+         "wireworld", "mandelbrot", "cyclic", "snowflakes", "langtons-loops", "lattice-gas",
+         "tools/mdpage"]
+assert names <= set(order), names - set(order)
+line = "members = [" + ", ".join(f'"{n}"' for n in order if n in names) + "]\n"
+s = re.sub(r"<<<<<<< .*?\n.*?>>>>>>> [^\n]*\n", line, s, flags=re.S)
+open("Cargo.toml", "w").write(s)
+EOF
+}
+
+resolve() {
+  for f in $(git diff --name-only --diff-filter=U); do
+    case "$f" in
+      Cargo.toml) members ;;
+      Cargo.lock) git checkout --ours Cargo.lock ;;
+      site/thumbs.js) python3 "$S/union.py" "$f" ;;
+      *) echo "conflict in $f: resolve by hand"; exit 1 ;;
+    esac
+    git add "$f"
+  done
+  cargo metadata -q --format-version 1 >/dev/null   # lets cargo re-add a path crate to the lock
+  git add Cargo.lock
+}
+
+if ! G rebase --onto "$onto" "$old_base" --exec 'cargo check --workspace -q'; then
+  while [ -d "$(git rev-parse --git-path rebase-merge)" ]; do
+    if [ -z "$(git diff --name-only --diff-filter=U)" ]; then
+      echo "rebase stopped with no conflict: a commit failed cargo check"; exit 1
+    fi
+    resolve
+    if git grep -q -E '^(<<<<<<<|>>>>>>>) ' -- . ':!dist' ':!target'; then echo "markers left"; exit 1; fi
+    G rebase --continue || true
+  done
+fi
+git log --oneline "$onto..HEAD"
 ```
 
 </details>
