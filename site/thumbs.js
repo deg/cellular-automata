@@ -165,6 +165,122 @@
         n < 3 ? NAVY : n < 5 ? DUSK : [BLUE, TEAL, GOLD, CORAL][n % 4]);
     },
 
+    "lattice-gas"(canvas) {
+      // FHP-I particles blowing past a plate, then averaged over blocks and steps: each
+      // pixel is the swirl (vorticity) of the mean flow, coral one way and blue the other.
+      const STONE = [0xb8, 0xbc, 0xc8];
+      const w = 64, h = 40, random = rng(1986);
+      const wind = 0.3, density = 0.2, plateX = 16, plateRows = 5;
+      // A node is a byte. Bits 0-5: particles moving at 0°, 60°, ... 300° (y up); bit 6 a
+      // wall; bit 7 the random bit choosing which way a head-on pair turns.
+      const rot = (n, k) => ((n << k) | (n >> (6 - k))) & 63;
+      const table = new Uint8Array(256);
+      // Per byte: particles, and momentum in units of (cos / 2, sin * sqrt 3 / 4). Walls 0.
+      const count = new Uint8Array(256), momX = new Int8Array(256), momY = new Int8Array(256);
+      const units = [[2, 0], [1, 2], [-1, 2], [-2, 0], [-1, -2], [1, -2]];
+      for (let s = 0; s < 256; s++) {
+        const n = s & 63, wall = s & 64;
+        let out = n;
+        if (wall) out = rot(n, 3);
+        else if (n === 21 || n === 42) out = rot(n, 1);
+        else if (n === 9 || n === 18 || n === 36) out = rot(n, s & 128 ? 5 : 1);
+        table[s] = ((s & 192) ^ (out !== n && !wall ? 128 : 0)) | out;
+        for (let k = 0; k < 6 && !wall; k++) {
+          if (n >> k & 1) { count[s]++; momX[s] += units[k][0]; momY[s] += units[k][1]; }
+        }
+      }
+      // Fresh gas at the equilibrium of the wind (d'Humières and Lallemand's (2.5)).
+      const chance = [0, 1, 2, 3, 4, 5].map((i) => density * (1 + 2 * wind * Math.cos(i * Math.PI / 3)));
+      const fresh = () => {
+        let b = 0;
+        for (let i = 0; i < 6; i++) if (random() < chance[i]) b |= 1 << i;
+        return b;
+      };
+      let cells = new Uint8Array(w * h), next = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const wall = Math.abs(x + (y & 1) / 2 - plateX) < 1 && Math.abs(y - h / 2) < plateRows;
+        cells[y * w + x] = (random() < 0.5 ? 128 : 0) | (wall ? 64 : fresh());
+      }
+      // Blocks of 8 nodes by 8 rows, summed over every third step from step 45.
+      const bw = 8, bh = 8, nx = w / bw, ny = Math.floor(h / bh);
+      const n = new Float64Array(nx * ny), jx = new Float64Array(nx * ny), jy = new Float64Array(nx * ny);
+      // One step: collide at every node, then stream every particle to its neighbour.
+      // Bit i arrives from the neighbour in direction i + 3. Odd rows sit half a node right,
+      // so a row's diagonal neighbours above and below are at x + p - 1 and x + p.
+      const gather = (row, up, dn, x, l, r, a, b) => (cells[row + x] & 192) |
+        (cells[row + l] & 1) | (cells[row + r] & 8) | (cells[dn + a] & 2) |
+        (cells[dn + b] & 4) | (cells[up + b] & 16) | (cells[up + a] & 32);
+      function step() {
+        for (let i = 0; i < w * h; i++) cells[i] = table[cells[i]];
+        for (let y = 0; y < h; y++) {
+          const p = y & 1, row = y * w, up = (y + h - 1) % h * w, dn = (y + 1) % h * w;
+          const da = dn - 1 + p, ua = up - 1 + p; // the lower-left and upper-left neighbours
+          for (let x = 1; x < w - 1; x++) {
+            next[row + x] = (cells[row + x] & 192) | (cells[row + x - 1] & 1) |
+              (cells[row + x + 1] & 8) | (cells[da + x] & 2) | (cells[da + x + 1] & 4) |
+              (cells[ua + x + 1] & 16) | (cells[ua + x] & 32);
+          }
+          next[row] = gather(row, up, dn, 0, w - 1, 1, p ? 0 : w - 1, p);
+          next[row + w - 1] = gather(row, up, dn, w - 1, w - 2, 0, w - 2 + p, p ? 0 : w - 1);
+        }
+        const swap = cells;
+        cells = next;
+        next = swap;
+        // The wind: the two left-hand columns refilled with fresh gas.
+        for (let y = 0; y < h; y++) for (let i = y * w; i < y * w + 2; i++) {
+          if (!(cells[i] & 64)) cells[i] = (cells[i] & 128) | fresh();
+        }
+      }
+      function accumulate() {
+        for (let by = 0; by < ny; by++) for (let y = by * bh; y < (by + 1) * bh; y++) {
+          for (let bx = 0; bx < nx; bx++) {
+            let sn = 0, sx = 0, sy = 0;
+            for (let i = y * w + bx * bw, end = i + bw; i < end; i++) {
+              const c = cells[i];
+              sn += count[c]; sx += momX[c]; sy += momY[c];
+            }
+            const k = by * nx + bx;
+            n[k] += sn; jx[k] += sx; jy[k] += sy;
+          }
+        }
+      }
+      for (let t = 0; t < 120; t++) {
+        step();
+        if (t >= 45 && t % 3 === 0) accumulate();
+      }
+      // Mean velocity per block, then its curl, du_y/dx - du_x/dy (y up; rows run down),
+      // across blocks bw nodes wide and bh rows of sqrt(3)/2 tall.
+      const ux = jx.map((v, k) => v / 2 / Math.max(1, n[k]));
+      const uy = jy.map((v, k) => v * Math.sqrt(3) / 4 / Math.max(1, n[k]));
+      const at = (a, x, y) => a[Math.min(ny - 1, Math.max(0, y)) * nx + Math.min(nx - 1, Math.max(0, x))];
+      const dy = bh * Math.sqrt(3) / 2;
+      const curl = new Float64Array(nx * ny);
+      for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+        curl[y * nx + x] = (at(uy, x + 1, y) - at(uy, x - 1, y)) / (2 * bw) +
+          (at(ux, x, y + 1) - at(ux, x, y - 1)) / (2 * dy);
+      }
+      // Interpolated between block centres, one value per pixel.
+      const swirl = new Float64Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const gx = (x + 0.5) * nx / W - 0.5, gy = (y + 0.5) * ny / H - 0.5;
+        const x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+        swirl[y * W + x] = (at(curl, x0, y0) * (1 - fx) + at(curl, x0 + 1, y0) * fx) * (1 - fy) +
+          (at(curl, x0, y0 + 1) * (1 - fx) + at(curl, x0 + 1, y0 + 1) * fx) * fy;
+      }
+      // The demo's scale: shear across an eddy about 30 nodes wide. Colours in 32 steps
+      // each way, blue for clockwise and coral for counter-clockwise.
+      const scale = 1 / (wind / 15);
+      const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+      const shades = [BLUE, CORAL].map((c) => Array.from({ length: 33 }, (_, k) => mix(NAVY, c, k / 32)));
+      const plate = [plateX * W / w, plateRows * H / h];
+      paint(canvas, W, H, swirl, (v, i) => {
+        const x = i % W, y = (i / W) | 0;
+        if (Math.abs(x + 0.5 - plate[0]) < 0.8 && Math.abs(y + 0.5 - H / 2) < plate[1]) return STONE;
+        const t = Math.max(-1, Math.min(1, v * scale));
+        return shades[t < 0 ? 0 : 1][Math.round(Math.abs(t) * 32)];
+      });
+    },
+
     wireworld(canvas) {
       // The demo's OR gate: two clocks feeding one output through diodes.
       const rows = [
