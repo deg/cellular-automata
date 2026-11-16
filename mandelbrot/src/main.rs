@@ -6,10 +6,12 @@ mod colour;
 mod sim;
 mod view;
 
-use ca_core::egui::{self, Event, MouseWheelSource, MouseWheelUnit, RichText, Sense, Vec2};
+use ca_core::egui::{
+    self, Color32, Event, MouseWheelSource, MouseWheelUnit, RichText, Sense, Stroke, Vec2,
+};
 use ca_core::{About, Advance, Pace, Playback, eframe};
 use colour::{Colours, Palette};
-use sim::{Picture, Pixel, Viewport};
+use sim::{Fate, Orbit, Picture, Pixel, Viewport, orbit};
 use view::PlaneView;
 
 fn main() {
@@ -29,6 +31,13 @@ const ITERATIONS_PER_FRAME: u64 = 2_500_000;
 
 /// The highest limit offered.
 const MOST_STEPS: u32 = 1_000_000;
+
+/// The most steps of the pointer's orbit followed (looking for a cycle), and drawn.
+const ORBIT_STEPS: u32 = 20_000;
+const ORBIT_DRAWN: usize = 1_000;
+
+/// The dots on the cycle an orbit settles into: the site's gold.
+const CYCLE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
 struct MandelbrotApp {
     picture: Picture,
@@ -50,8 +59,10 @@ struct MandelbrotApp {
     home_step: f64,
     /// Fractions of a pixel dragged but not yet moved: the picture moves by whole pixels.
     pan_carry: Vec2,
-    /// The plane point under the pointer, and what its pixel knows.
-    hover: Option<([f64; 2], Pixel)>,
+    /// The plane point under the pointer, what its pixel knows, and its orbit.
+    hover: Option<([f64; 2], Pixel, Orbit)>,
+    /// Draw the orbit of the point under the pointer.
+    show_orbit: bool,
     /// The picture must be uploaded again.
     redraw: bool,
 }
@@ -90,9 +101,21 @@ impl eframe::App for MandelbrotApp {
                 let at = (pos - rect.min) * self.scale;
                 let v = self.picture.view();
                 let (x, y) = (at.x.floor() as usize, at.y.floor() as usize);
-                (at.x >= 0.0 && at.y >= 0.0 && x < v.width && y < v.height)
-                    .then(|| (v.point(x, y), self.picture.pixel(x, y)))
+                (at.x >= 0.0 && at.y >= 0.0 && x < v.width && y < v.height).then(|| {
+                    let c = v.point(x, y);
+                    let steps = self.picture.limit().min(ORBIT_STEPS);
+                    (c, self.picture.pixel(x, y), orbit(c, steps))
+                })
             });
+            if self.show_orbit
+                && let Some((_, _, orbit)) = &self.hover
+            {
+                let to_screen = |p: [f64; 2]| {
+                    let [x, y] = self.picture.view().pixel_of(p);
+                    rect.min + egui::vec2(x as f32, y as f32) / self.scale
+                };
+                draw_orbit(&ui.painter().with_clip_rect(rect), orbit, to_screen);
+            }
         });
 
         if self.playback.running || !self.picture.is_done() {
@@ -120,6 +143,7 @@ impl MandelbrotApp {
             home_step: placeholder.step(),
             pan_carry: Vec2::ZERO,
             hover: None,
+            show_orbit: true,
             redraw: true,
         }
     }
@@ -177,6 +201,8 @@ impl MandelbrotApp {
         }
         ui.checkbox(&mut self.sharp, "Sharp: a point for every screen pixel")
             .on_hover_text("On a high-density screen, four times the work for a crisper picture.");
+        ui.checkbox(&mut self.show_orbit, "Show the orbit of the point under the pointer")
+            .on_hover_text("The path of z from 0, one dot per step: z₀ = 0 (ringed), z₁ = c (the pointer), z₂, ...");
         ui.separator();
 
         ui.label(RichText::new("Colours").strong());
@@ -206,16 +232,27 @@ impl MandelbrotApp {
             .changed();
         ui.separator();
 
-        match self.hover {
-            Some((c, pixel)) => {
+        match &self.hover {
+            Some((c, pixel, orbit)) => {
                 let digits = (-(self.picture.view().step().log10())).ceil().max(2.0) as usize + 1;
-                ui.label(format!("Pointer at c = {}", complex(c, digits)));
-                ui.label(match pixel {
+                ui.label(format!("Pointer at c = {}", complex(*c, digits)));
+                ui.label(match *pixel {
                     Pixel::Fresh => "not computed yet".to_string(),
-                    Pixel::Inside => "in the main cardioid or the disc left of it: inside the set, without iterating".to_string(),
+                    Pixel::Inside => "in the main cardioid or the disc left of it: known to be inside, without iterating".to_string(),
                     Pixel::Running(n) => format!("still within 2 of 0 after {n} steps"),
                     Pixel::Escaped { step, .. } => format!("escapes at step {step}"),
                 });
+                let cycle = match orbit.fate {
+                    Fate::Cycle(1) => Some("z settles on a single point".to_string()),
+                    Fate::Cycle(p) => Some(format!("z settles into a cycle of {p} points")),
+                    Fate::Undecided(n) if n > 0 && !matches!(pixel, Pixel::Escaped { .. }) => {
+                        Some(format!("no cycle found in {n} steps"))
+                    }
+                    _ => None,
+                };
+                if let Some(cycle) = cycle {
+                    ui.label(cycle);
+                }
             }
             None => {
                 ui.label("Point at the picture to see a point's number and fate.");
@@ -331,6 +368,33 @@ impl MandelbrotApp {
                     self.picture.raise_limit(target);
                 }
             }
+        }
+    }
+}
+
+/// Draw an orbit's path over the picture: a line through its points, a dot at each, a ring
+/// round z₀ = 0, and gold dots on the cycle it settles into, if it does.
+fn draw_orbit(painter: &egui::Painter, orbit: &Orbit, to_screen: impl Fn([f64; 2]) -> egui::Pos2) {
+    let points: Vec<egui::Pos2> = orbit
+        .points
+        .iter()
+        .take(ORBIT_DRAWN)
+        .map(|&p| to_screen(p))
+        .collect();
+    let shadow = Color32::from_black_alpha(150);
+    let ink = Color32::from_white_alpha(220);
+    painter.add(egui::Shape::line(points.clone(), Stroke::new(3.0, shadow)));
+    painter.add(egui::Shape::line(points.clone(), Stroke::new(1.25, ink)));
+    for &p in &points {
+        painter.circle_filled(p, 2.5, ink);
+    }
+    painter.circle_stroke(points[0], 6.0, Stroke::new(3.0, shadow));
+    painter.circle_stroke(points[0], 6.0, Stroke::new(1.5, ink));
+    if let Fate::Cycle(p) = orbit.fate {
+        for &z in orbit.points.iter().rev().take(p as usize) {
+            let at = to_screen(z);
+            painter.circle_filled(at, 5.0, shadow);
+            painter.circle_filled(at, 4.0, CYCLE);
         }
     }
 }

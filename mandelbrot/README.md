@@ -108,6 +108,15 @@ sandpile demo makes a fractal too, from a rule that is a true cellular automaton
 - **Restart, then Step.** Hover over a point to see its number and the step at which it
   escapes. Points in the big heart shape (the *main cardioid*) and the disc to its left are
   known to be inside without iterating, and the demo says so.
+- **Follow an orbit.** The white path over the picture is the orbit of the point under
+  the pointer: z₀ = 0 (ringed), z₁ = c (at the pointer), z₂, and so on. In the main
+  cardioid it spirals in to a single point. In the disc to its left it ends up hopping
+  between two points (gold). Each bulb round the edge has its own cycle length. Outside
+  the set, the path flies off.
+- **Period doubling.** Move left along the real axis: z settles on a single point at
+  −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (raise the stop
+  limit for the longer ones). The doublings come faster and faster, and pile up at the
+  *Feigenbaum point*, −1.401155. Beyond it lies the spike.
 - **Zoom into the edge.** Scroll the mouse wheel or pinch to zoom in on the pointer; drag
   or swipe to move. Places with names:
   - **Seahorse Valley**, the pinched waist between the main cardioid and the disc to its

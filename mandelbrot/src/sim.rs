@@ -376,6 +376,57 @@ pub fn known_inside(c: [f64; 2]) -> bool {
 /// counted in iterations: measured at about 8 (36 ns against 4.6 ns an iteration, natively).
 const PIXEL_COST: u64 = 8;
 
+/// The path of 0 under z -> z² + c, for showing a reader why a point escapes or stays.
+pub struct Orbit {
+    /// z₀ = 0, z₁ = c, z₂, ...: up to the first point past 2, or `steps` steps.
+    pub points: Vec<[f64; 2]>,
+    pub fate: Fate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Fate {
+    /// |z| first passed 2 at this step.
+    Escapes(u32),
+    /// z has settled into a cycle of this many points (1: a single fixed point).
+    Cycle(u32),
+    /// Neither, after this many steps: still settling, or wandering for ever.
+    Undecided(u32),
+}
+
+/// The longest cycle looked for.
+const LONGEST_CYCLE: usize = 64;
+
+/// Follow 0 under z -> z² + c for at most `steps` steps, and say what became of it.
+///
+/// A point inside the set usually settles into a cycle: in the main cardioid onto a single
+/// point, in the disc to its left onto two, in other bulbs onto more. The cycle is found by
+/// looking back from the last point for the same point repeated, twice over, to within a
+/// tiny distance. Points near the edge settle slowly, and may not show a cycle in time.
+pub fn orbit(c: [f64; 2], steps: u32) -> Orbit {
+    let mut points = vec![[0.0f64, 0.0]];
+    let mut z = [0.0f64, 0.0];
+    for n in 1..=steps {
+        z = [z[0] * z[0] - z[1] * z[1] + c[0], 2.0 * z[0] * z[1] + c[1]];
+        points.push(z);
+        if z[0] * z[0] + z[1] * z[1] > 4.0 {
+            return Orbit {
+                points,
+                fate: Fate::Escapes(n),
+            };
+        }
+    }
+    let close = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-9;
+    let last = points.len() - 1;
+    let fate = (1..=LONGEST_CYCLE)
+        .find(|&p| {
+            last >= 2 * p
+                && close(points[last], points[last - p])
+                && close(points[last - p], points[last - 2 * p])
+        })
+        .map_or(Fate::Undecided(steps), |p| Fate::Cycle(p as u32));
+    Orbit { points, fate }
+}
+
 /// The escape radius for smoothing: far enough that z has settled into squaring.
 const SMOOTH_RADIUS_SQUARED: f64 = 4_294_967_296.0; // 65,536²
 
@@ -607,6 +658,38 @@ mod tests {
             jumps > 3,
             "the whole-number count should change along this line"
         );
+    }
+
+    /// Orbits with known fates. c = 1 escapes at step 3 (0, 1, 2, 5). c = 0 stays at 0; c = -2
+    /// lands on 2 and stays (0, -2, 2, 2, ...). c = -1 and c = i fall into cycles of two
+    /// points (0, -1 and -1 + i, -i). The real period-3 bulb's centre, -1.7549, and the
+    /// "rabbit", -0.1226 + 0.7449i, cycle through three points. Along the real axis the
+    /// cycles double on the way to the Feigenbaum point: 1 at -0.5, 2 at -1, 4 at -1.3.
+    #[test]
+    fn orbit_fates() {
+        let o = orbit([1.0, 0.0], 100);
+        assert_eq!(o.fate, Fate::Escapes(3));
+        assert_eq!(
+            o.points,
+            vec![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [5.0, 0.0]]
+        );
+        let fate = |c| orbit(c, 5_000).fate;
+        assert_eq!(fate([0.0, 0.0]), Fate::Cycle(1));
+        assert_eq!(fate([-2.0, 0.0]), Fate::Cycle(1));
+        assert_eq!(fate([-1.0, 0.0]), Fate::Cycle(2));
+        assert_eq!(fate([0.0, 1.0]), Fate::Cycle(2));
+        assert_eq!(fate([-1.7549, 0.0]), Fate::Cycle(3));
+        assert_eq!(fate([-0.1226, 0.7449]), Fate::Cycle(3));
+        assert_eq!(fate([-0.5, 0.0]), Fate::Cycle(1));
+        assert_eq!(fate([-1.3, 0.0]), Fate::Cycle(4));
+        assert_eq!(orbit([0.0, 0.0], 0).fate, Fate::Undecided(0));
+        // The picture and the orbit must agree on when a point escapes.
+        for c in [[0.5, 0.5], [-0.75, 0.1], [0.26, 0.0]] {
+            let Fate::Escapes(n) = fate(c) else {
+                panic!("{c:?} should escape")
+            };
+            assert_eq!(escape_step(c, 5_000), Some(n));
+        }
     }
 
     /// The view's two mappings must undo each other, zooming must keep the point under the
