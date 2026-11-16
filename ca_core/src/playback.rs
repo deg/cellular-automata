@@ -29,7 +29,7 @@ impl Playback {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let label = if self.running { "Pause" } else { "Run" };
             if ui.button(label).clicked() {
                 self.running = !self.running;
@@ -44,11 +44,10 @@ impl Playback {
                 self.restart_requested = true;
             }
         });
-        ui.add(
-            egui::Slider::new(&mut self.speed, 1..=self.max_speed)
-                .logarithmic(true)
-                .text(self.unit),
-        );
+        // The unit goes on its own line: beside the slider it made the row wider than the
+        // fixed-width controls panel.
+        ui.label(format!("Speed, in {}", self.unit));
+        ui.add(egui::Slider::new(&mut self.speed, 1..=self.max_speed).logarithmic(true));
     }
 
     /// Whether Restart was clicked since the last call. Running or paused stays as it was.

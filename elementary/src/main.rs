@@ -104,7 +104,7 @@ impl ElementaryApp {
         ui.separator();
 
         ui.label(RichText::new("Rule").strong());
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Rule number");
             ui.add(egui::DragValue::new(&mut self.automaton.rule).range(0..=255));
         });
@@ -122,7 +122,7 @@ impl ElementaryApp {
         ui.separator();
 
         ui.label(RichText::new("Start").strong());
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.radio(!self.random_start, "single cell").clicked() {
                 self.random_start = false;
                 self.restart();
@@ -135,7 +135,7 @@ impl ElementaryApp {
         });
         ui.checkbox(&mut self.automaton.wrap, "Wrap the row's ends together")
             .on_hover_text("On: the row is a ring. Off: beyond each end is always 0.");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Width:");
             for &w in WIDTHS {
                 if ui

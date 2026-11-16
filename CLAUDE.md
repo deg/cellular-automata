@@ -124,7 +124,10 @@ make siblings               # before/after a Rust update: build+test David's oth
     down rather than freeze.
   - `Rng`: a small seeded generator for random fills.
   - `About`: the side panel rendering the demo's `README.md`.
-  - `controls_panel`: the scrolling left panel each demo puts its controls in.
+  - `controls_panel`: the scrolling left panel each demo puts its controls in. It is a
+    fixed 290 points wide, so rows must fit or wrap: use `horizontal_wrapped`, and put
+    sliders on their own line (a slider doesn't wrap and would run past the edge).
+  - `About` opens by default only on windows at least 1,400 points wide.
   - `PaintStroke`: turns `GridResponse::pressed` into solid lines of cells to paint.
 - One directory per automaton (`sandpile`, `life`, `elementary`, `langtons-ant`,
   `brians-brain`, `wireworld`), each a binary crate with an `index.html` for trunk:

@@ -124,7 +124,7 @@ impl BrainApp {
         ui.separator();
 
         ui.checkbox(&mut self.brain.wrap, "Wrap around the edges");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("World:");
             for &size in SIZES {
                 let label = format!("{} x {}", size.0, size.1);
@@ -141,10 +141,10 @@ impl BrainApp {
             ui.label("generation");
             ui.label(self.brain.generation.to_string());
             ui.end_row();
-            ui.colored_label(FIRING, "firing");
+            ui.label("firing");
             ui.label(self.brain.count(Cell::Firing).to_string());
             ui.end_row();
-            ui.colored_label(REFRACTORY, "recovering");
+            ui.label("recovering");
             ui.label(self.brain.count(Cell::Refractory).to_string());
             ui.end_row();
         });

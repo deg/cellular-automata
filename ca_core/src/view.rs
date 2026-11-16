@@ -246,8 +246,8 @@ impl GridView {
         let [w, h] = texture.size().map(|s| s as f32);
         let aspect = self.layout.texel_aspect();
         let mut scale = (area.width() / w).min(area.height() / (h * aspect));
-        if scale >= 1.0 && self.layout == Layout::Square {
-            scale = scale.floor(); // whole pixels per cell keep a square grid crisp
+        if self.layout == Layout::Square {
+            scale = crisp_scale(scale, ui.ctx().pixels_per_point());
         }
         let texel = vec2(scale, scale * aspect);
         let image_rect = Rect::from_center_size(area.center(), vec2(w * texel.x, h * texel.y));
@@ -290,6 +290,18 @@ impl GridView {
             layout,
             crop_left,
         }
+    }
+}
+
+/// Round a cell size (in points) down to a whole number of *physical* pixels, so every cell
+/// is drawn the same size and the grid stays crisp. Whole points would waste space on a
+/// high-density screen: there a 2.9-point fit becomes 2.5 points, not 2.
+fn crisp_scale(scale: f32, pixels_per_point: f32) -> f32 {
+    let pixels = (scale * pixels_per_point).floor();
+    if pixels >= 1.0 {
+        pixels / pixels_per_point
+    } else {
+        scale // smaller than a pixel: the grid is shrunk to fit regardless
     }
 }
 
@@ -389,5 +401,15 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Cells must land on whole physical pixels, but on a high-density screen that allows
+    /// half points: a 2.9-point fit becomes 2.5 there (2 on an ordinary screen), so the grid
+    /// fills more of the window. A grid too big to fit at one pixel a cell is left alone.
+    #[test]
+    fn crisp_scale_rounds_to_physical_pixels() {
+        assert_eq!(crisp_scale(2.9, 1.0), 2.0);
+        assert_eq!(crisp_scale(2.9, 2.0), 2.5);
+        assert_eq!(crisp_scale(0.4, 1.0), 0.4);
     }
 }

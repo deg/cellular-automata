@@ -142,15 +142,17 @@ impl LifeApp {
                 }
             });
         ui.small(rle::PATTERNS[self.pattern].note);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button("Place at centre").clicked() {
                 self.place(PatternSource::BuiltIn);
             }
             if ui.button("Random fill").clicked() {
                 self.random_fill();
             }
-            ui.add(egui::Slider::new(&mut self.density, 0.05..=0.8).text("density"));
         });
+        // On its own line: a slider doesn't wrap like a button, so beside the buttons it ran
+        // past the fixed-width panel's edge.
+        ui.add(egui::Slider::new(&mut self.density, 0.05..=0.8).text("fill density"));
         ui.collapsing("Paste an RLE pattern", |ui| {
             ui.small("From LifeWiki or Golly, e.g. bob$2bo$3o! for a glider.");
             ui.add(
@@ -176,7 +178,7 @@ impl LifeApp {
                 }
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let edit = ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(120.0));
             if edit.changed() {
                 self.apply_rule();
@@ -191,7 +193,7 @@ impl LifeApp {
 
         ui.checkbox(&mut self.life.wrap, "Wrap around the edges")
             .on_hover_text("On: the world is a torus, and a glider leaving one side returns on the other. Off: everything past the edge is dead.");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("World:");
             for &size in SIZES {
                 let label = format!("{} x {}", size.0, size.1);

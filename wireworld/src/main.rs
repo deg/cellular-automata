@@ -102,7 +102,7 @@ impl WireworldApp {
         ui.separator();
 
         ui.label(RichText::new("Draw").strong());
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             for (cell, name) in [
                 (Cell::Conductor, "wire"),
                 (Cell::Head, "head"),
@@ -135,7 +135,7 @@ impl WireworldApp {
         }
         ui.separator();
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Board:");
             for &size in SIZES {
                 let label = format!("{} x {}", size.0, size.1);

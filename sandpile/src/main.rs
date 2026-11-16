@@ -142,7 +142,7 @@ impl SandpileApp {
                 .logarithmic(true)
                 .text("grains per drip"),
         );
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let n = self.drip_points.len();
             ui.label(format!("{n} drip point{}", if n == 1 { "" } else { "s" }));
             if ui.button("Centre only").clicked() {
@@ -177,7 +177,7 @@ impl SandpileApp {
         );
         ui.separator();
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let fits = self.pile.can_add(self.drop_amount);
             let drop = ui
                 .add_enabled(fits, egui::Button::new("Drop"))
@@ -203,12 +203,12 @@ impl SandpileApp {
         );
         ui.separator();
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Edge:");
             ui.radio_value(&mut self.boundary, Boundary::Grow, "grow the grid");
             ui.radio_value(&mut self.boundary, Boundary::Sink, "grains fall off");
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Neighbours:");
             let before = self.neighbours.layout();
             let mut changed = false;

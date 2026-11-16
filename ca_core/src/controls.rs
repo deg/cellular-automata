@@ -1,13 +1,18 @@
 use crate::egui;
 use crate::line;
 
+/// The controls panel's width, in points. Fixed: a non-resizable egui panel otherwise grows
+/// to fit its widest row, and on a laptop the controls took a third of the window. Rows
+/// that might be wider must wrap (`horizontal_wrapped`), not widen it.
+const CONTROLS_WIDTH: f32 = 290.0;
+
 /// The left-hand controls panel every demo uses: a fixed width, scrolling when its contents
 /// are taller than the window (a short browser window would otherwise cut off the bottom).
 /// Call it before the central panel, so the grid gets only the space left over.
 pub fn controls_panel(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui)) {
     egui::Panel::left("controls")
         .resizable(false)
-        .default_size(300.0)
+        .exact_size(CONTROLS_WIDTH)
         .show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, add_contents);
         });

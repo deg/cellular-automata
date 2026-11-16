@@ -128,7 +128,7 @@ impl AntApp {
                 }
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(140.0));
             if ui.button("Use").clicked() {
                 self.restart();
@@ -139,7 +139,7 @@ impl AntApp {
         }
         ui.separator();
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Grid:");
             for &side in SIDES {
                 if ui
