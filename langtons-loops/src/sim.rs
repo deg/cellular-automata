@@ -10,17 +10,22 @@
 //! - The 219 transitions are Table I of C. G. Langton, "Self-reproduction in cellular
 //!   automata", Physica D 10 (1984) 135-144, doi:10.1016/0167-2789(84)90256-2, p. 140,
 //!   written `CTRBL->I` (centre, top, right, bottom, left, then the next state).
-//! - They were checked entry for entry against the machine-readable transcription in Golly,
-//!   `Rules/Langtons-Loops.rule` (format `CNESWC'`, `symmetries:rotate4`), at Golly's
-//!   SourceForge git commit 53bdb74e48cd0792f87a2e3e6a5bb0c5d7d5af0e
-//!   (<https://sourceforge.net/p/golly/code/ci/master/tree/Rules/Langtons-Loops.rule>), and
-//!   both list exactly the same 219 entries. Golly took them from Eli Bachmutsky's Java applet
-//!   `loops.java` (1999), which has the same list.
+//! - The list below was taken from Golly's machine-readable transcription,
+//!   `Rules/Langtons-Loops.rule` (format `CNESWC'`, `symmetries:rotate4`), at Golly's git
+//!   commit 53bdb74e48cd0792f87a2e3e6a5bb0c5d7d5af0e:
+//!   <https://sourceforge.net/p/golly/code/ci/53bdb74e48cd0792f87a2e3e6a5bb0c5d7d5af0e/tree/Rules/Langtons-Loops.rule?format=raw>.
+//!   It was then checked against the paper's Table I: the two list exactly the same 219
+//!   entries. Golly took them from Eli Bachmutsky's Java applet `loops.java` (1999),
+//!   <https://web.archive.org/web/20010521213854/necsi.org/postdocs/sayama/sdsr/java/loops.java>,
+//!   which has the same list.
+//! - Golly's rule file also holds a rule tree, the complete transition function it computes
+//!   from the table. Expanding the table as described below gives the same next state for
+//!   all 8^5 neighbourhoods (checked once, by a script, outside this repository).
 //! - The starting loop is the paper's fig. 6, the same as Golly's
-//!   `Patterns/Loops/Langtons-Loops.rle` and the applet's.
+//!   `Patterns/Loops/Langtons-Loops.rle` at the same commit, and the applet's.
 //!
-//! The table is a list of published facts (the paper's), transcribed here, not code copied
-//! from Golly: Golly's own files (GPL) are used only to check the transcription.
+//! The table is a list of published facts, the paper's. Golly (GPL) and the applet are
+//! sources for checking it; no code or other content of theirs is used here.
 //!
 //! # Rotations
 //!

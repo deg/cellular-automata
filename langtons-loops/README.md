@@ -79,9 +79,19 @@ is also his.
 
 This demo's tests check the paper's central claims: the first copy is complete at
 generation 151 and is exactly the starting loop, its own copy follows 151 generations
-later, and the Adam loop has four offspring and then dies. The table is Table I of the
-paper. It was typed in from there and checked entry by entry against the transcription in
-Golly, a free cellular-automaton program.
+later, and the Adam loop has four offspring and then dies.
+
+**Sources.** The table is Table I of Langton's paper (page 140), and the starting loop is
+its fig. 6. The demo's copy of the table was taken from the machine-readable transcription
+in Golly, a free cellular-automaton program: `Rules/Langtons-Loops.rule` and
+`Patterns/Loops/Langtons-Loops.rle` at its git commit
+[53bdb74e](https://sourceforge.net/p/golly/code/ci/53bdb74e48cd0792f87a2e3e6a5bb0c5d7d5af0e/tree/).
+It matches the paper's Table I entry for entry, and also the list in Eli Bachmutsky's Java
+applet
+[`loops.java`](https://web.archive.org/web/20010521213854/necsi.org/postdocs/sayama/sdsr/java/loops.java)
+(1999), which Golly's file credits. The paper doesn't say what happens to a neighbourhood
+missing from the table; Golly and the applet both leave the cell unchanged, and so does
+this demo.
 
 ## Things to try
 
@@ -96,8 +106,9 @@ Golly, a free cellular-automaton program.
 - **Interfere.** Pause, pick a state under *Draw*, and paint over part of a loop: erase a
   piece of sheath, add a signal to the genome, or change a gold 7 into a coral 4. Then run
   and see whether it still reproduces, and what its offspring look like.
-- **The edge.** On the smallest world the colony soon reaches the edge, where loops have
-  nowhere to build.
+- **The edge.** On the smallest world the colony reaches the edge after about 2,000
+  generations. Loops there have nowhere to build, and the fringe stalls one loop after
+  another until, around generation 4,100, nothing in the world moves at all.
 
 ## Further reading
 
