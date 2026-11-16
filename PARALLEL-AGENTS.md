@@ -42,7 +42,8 @@ minutes, not a rebuild.
 | 18:11-18:27 | All four builders finish (104-120 minutes each, 99-143 tool calls). Each gets a reviewer as soon as it finishes. |
 | 18:20 | First three branches merged onto `integration`, before their reviews, to find conflicts early. |
 | 18:30-19:00 | Reviews come back (12-14 minutes each); fixes relayed to the builders; fixes merged. |
-| 19:20 | Shared code moved into `ca_core`; `make check` and `make site` pass on `integration`. |
+| 19:20 | Shared code moved into `ca_core`. |
+| 19:50 | Last fixes (lattice gas) merged; `main`'s one new commit merged in; `make check`, `make slow` and `make site` run on `integration`. |
 
 The building took about two hours of wall-clock time for all four, instead of roughly eight
 hours one after another.
@@ -183,7 +184,9 @@ could not catch a plausible bug.
 
 **Reviewers can be wrong too.** One claimed a paper "cites itself" as 1989; the builder
 checked, found that reference pointed to a different paper, and fixed the date on other
-evidence. The builders were told to verify each finding before applying it.
+evidence. The builders were told to verify each finding before applying it. (The
+lattice-gas builder checked all twelve of its findings and found every one held up, so
+verifying is not the same as doubting.)
 
 ### Merging
 
