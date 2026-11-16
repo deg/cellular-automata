@@ -5,7 +5,8 @@ mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
 use ca_core::{
-    About, Advance, Grid, GridView, Pace, PaintStroke, Playback, eframe, generations_per_frame,
+    About, Advance, Grid, GridView, NAVY, Pace, PaintStroke, Playback, eframe,
+    generations_per_frame, grouped, readout, speed_cap_note,
 };
 use framing::Frame;
 use sim::{LANGTON_LOOP, Loops, Rule, STATES, pattern};
@@ -19,7 +20,7 @@ fn main() {
 /// loop's body, are muted; the two genome signals are the brightest; the messengers that
 /// manage the copying, and the marker, get colours of their own.
 const COLOURS: [Color32; STATES] = [
-    Color32::from_rgb(0x14, 0x18, 0x30), // 0 empty: navy
+    NAVY,                                // 0 empty: the background
     Color32::from_rgb(0x2a, 0x9d, 0x8f), // 1 core: teal
     Color32::from_rgb(0x4a, 0x4f, 0x80), // 2 sheath: muted indigo
     Color32::from_rgb(0x5a, 0xb4, 0xff), // 3 marker: sky blue
@@ -90,7 +91,12 @@ impl eframe::App for LoopsApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
             let frame = self.frame;
-            self.hovered = shown.hovered.map(|c| frame.to_world(c));
+            let hovered = shown.hovered.map(|c| frame.to_world(c));
+            if hovered != self.hovered {
+                // Redraw the "under the pointer" row now, not at the next event.
+                ui.ctx().request_repaint();
+            }
+            self.hovered = hovered;
             // Once the stroke ends, let the frame catch up with what was painted.
             self.dirty |= self.painting && shown.pressed.is_none();
             self.painting = shown.pressed.is_some();
@@ -178,29 +184,10 @@ impl LoopsApp {
         ui.separator();
 
         self.playback.ui(ui);
+        speed_cap_note(ui, "world");
         ui.small(
             "The first copy is complete at generation 151. Restart brings back the single loop.",
         );
-        ui.separator();
-
-        if ui
-            .checkbox(&mut self.follow, "Follow the colony")
-            .on_hover_text("Show just the colony, zooming out as it grows. Off: the whole world.")
-            .changed()
-        {
-            self.reframe();
-        }
-        ui.horizontal_wrapped(|ui| {
-            ui.label("World:");
-            for &size in SIZES {
-                let label = format!("{} x {}", size.0, size.1);
-                if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
-                    self.size = size;
-                    self.restart();
-                }
-            }
-        });
-        ui.small("The colony grows until it reaches the edge of the world. Beyond the edge every cell is empty.");
         ui.separator();
 
         ui.label(RichText::new("Draw").strong());
@@ -224,28 +211,46 @@ impl LoopsApp {
                 }
             }
         });
-        ui.small("Drag on the grid to paint the chosen state; shift-drag erases. A loop with a broken sheath or genome goes wrong in its own way.");
+        ui.small("A loop with a broken sheath or genome goes wrong in its own way. Drag on the grid to paint the chosen state; shift-drag to erase.");
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("generation");
-            ui.label(self.loops.generation.to_string());
-            ui.end_row();
-            ui.label("colony");
-            ui.label(match self.loops.bounds() {
-                Some(b) => format!("{} x {} cells", b.width(), b.height()),
-                None => "empty".to_string(),
-            });
-            ui.end_row();
-            ui.label("under the pointer");
-            ui.label(match self.hovered {
-                Some((x, y)) => {
-                    let s = self.loops.grid().get(x, y);
-                    format!("{s} {}", NAMES[s as usize])
+        if ui
+            .checkbox(&mut self.follow, "Follow the colony")
+            .on_hover_text("Show just the colony, zooming out as it grows. Off: the whole world.")
+            .changed()
+        {
+            self.reframe();
+        }
+        ui.horizontal_wrapped(|ui| {
+            ui.label("World:");
+            for &size in SIZES {
+                let label = format!("{} x {}", grouped(size.0 as u64), grouped(size.1 as u64));
+                if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
+                    self.size = size;
+                    self.restart();
                 }
-                None => "-".to_string(),
-            });
-            ui.end_row();
+            }
+        });
+        ui.small("The colony grows until it reaches the edge of the world. Beyond the edge every cell is empty.");
+        ui.separator();
+
+        readout(ui, |r| {
+            r.row("generation", grouped(self.loops.generation));
+            r.row(
+                "colony",
+                match self.loops.bounds() {
+                    Some(b) => format!(
+                        "{} x {} cells",
+                        grouped(b.width() as u64),
+                        grouped(b.height() as u64)
+                    ),
+                    None => "empty".to_string(),
+                },
+            );
+            r.pointer(self.hovered.map(|(x, y)| {
+                let s = self.loops.grid().get(x, y);
+                format!("{s} {}", NAMES[s as usize])
+            }));
         });
     }
 
