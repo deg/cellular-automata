@@ -13,13 +13,15 @@
 //! Measured against a worklist of unstable cells, sweeping was 2 to 3 times faster in a
 //! native release build (100,000 grains: 1.1 s against 2.2 s; 1,000,000: 102 s against 307 s).
 //!
-//! A pile whose every grain went to the centre is much faster still: it has the square's
-//! 8-fold symmetry, so in-place sweeps cover one eighth of it, and once every height is
-//! small the [`crate::jacobi`] stage sweeps a quarter of it, simultaneously, in 16 bits.
-//! 1,000,000 grains then take 3.3 s natively (from 102 s), 100,000 take 0.07 s. Tried and
-//! dropped, measured no better: skipping inactive tiles, and a branch-free in-place loop.
+//! Once every height is small, a [`crate::jacobi`] stage takes over, sweeping every cell
+//! simultaneously, in 16 bits, far faster: over a rectangle holding every grain (a
+//! [`Patch`]), or, for a pile whose every grain went to the centre, over one quarter of it
+//! (a [`Quarter`]). That pile has the square's 8-fold symmetry, so its in-place sweeps
+//! cover one eighth of it too. 1,000,000 grains on the centre take 3.3 s natively (from
+//! 102 s), 100,000 take 0.07 s. Tried and dropped, measured no better: skipping inactive
+//! tiles, and a branch-free in-place loop.
 
-use crate::jacobi::{self, Quarter};
+use crate::jacobi::{self, Patch, Quarter};
 use ca_core::Grid;
 
 /// The four orthogonal neighbours (von Neumann neighbourhood).
@@ -55,16 +57,20 @@ pub enum Boundary {
     Sink,
 }
 
-/// An inclusive rectangle of cells.
+/// An inclusive rectangle of cells, `x0..=x1` by `y0..=y1`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Bounds {
-    x0: usize,
-    y0: usize,
-    x1: usize,
-    y1: usize,
+pub(crate) struct Bounds {
+    pub(crate) x0: usize,
+    pub(crate) y0: usize,
+    pub(crate) x1: usize,
+    pub(crate) y1: usize,
 }
 
 impl Bounds {
+    pub(crate) fn area(self) -> usize {
+        (self.x1 + 1 - self.x0) * (self.y1 + 1 - self.y0)
+    }
+
     fn cell(x: usize, y: usize) -> Self {
         Self {
             x0: x,
@@ -114,13 +120,20 @@ pub struct Sandpile {
     /// eighth of it, the octant `0 <= j <= i` of offsets from the centre, and the rest of the
     /// grid is filled in by mirroring. See [`Sandpile::sweep_octant`].
     symmetric: bool,
-    /// In symmetric mode, whether cells outside the octant are out of date.
-    mirror_stale: bool,
+    /// Whether `grid` is out of date: outside the octant in symmetric mode, or anywhere while
+    /// a Jacobi stage holds the heights. [`Sandpile::sync_grid`] brings it up to date.
+    grid_stale: bool,
     /// In symmetric mode, once every height is small, the pile's quarter lives here and is
-    /// swept by the much faster Jacobi stage (see [`jacobi`]); `grid` is then a copy, made
-    /// up to date by [`Sandpile::sync_mirror`].
+    /// swept by the much faster Jacobi stage (see [`jacobi`]); `grid` is then a copy.
     quarter: Option<Quarter>,
-    /// Sweeps done by the Jacobi stage, so tests can tell it was used.
+    /// The same for any other pile, once every height is small: a rectangle of the grid
+    /// holding every grain.
+    patch: Option<Patch>,
+    /// The neighbour count, if a [`Patch`] can sweep this neighbourhood.
+    patch_kernel: Option<usize>,
+    /// False only in tests, to compare the fast paths against the plain sweep.
+    fast: bool,
+    /// Sweeps done by a Jacobi stage, so tests can tell it was used.
     jacobi_sweeps: u64,
 
     /// Grains currently on the grid.
@@ -165,8 +178,11 @@ impl Sandpile {
             occupied: None,
             settled: true,
             symmetric: boundary == Boundary::Grow && is_square_neighbourhood(offsets),
-            mirror_stale: false,
+            grid_stale: false,
             quarter: None,
+            patch: None,
+            patch_kernel: patch_kernel(offsets),
+            fast: true,
             jacobi_sweeps: 0,
             grains: 0,
             lost: 0,
@@ -193,10 +209,7 @@ impl Sandpile {
     }
 
     pub fn grid(&self) -> &Grid<u32> {
-        debug_assert!(
-            !self.mirror_stale,
-            "read a symmetric pile before mirroring it"
-        );
+        debug_assert!(!self.grid_stale, "read a pile before syncing its grid");
         &self.grid
     }
 
@@ -218,8 +231,11 @@ impl Sandpile {
     }
 
     /// Cells one sweep visits: the box that holds every grain, or one eighth of it while
-    /// the pile is symmetric.
+    /// the pile is symmetric; a Jacobi stage's cells count for less, being cheaper.
     pub fn sweep_area(&self) -> usize {
+        if let Some(p) = &self.patch {
+            return p.area() / JACOBI_CELLS_PER_CELL;
+        }
         self.occupied.map_or(0, |b| {
             let b = self.clamp_inside_frame(b);
             if let Some(q) = &self.quarter {
@@ -249,7 +265,10 @@ impl Sandpile {
         if !self.can_add(n) {
             return false;
         }
-        // The Jacobi stage holds the heights while it runs; put them back first.
+        if self.add_to_jacobi(x, y, n) {
+            return true;
+        }
+        // A Jacobi stage holds the heights while it runs; put them back first.
         self.leave_jacobi();
         if (x, y) != self.center() {
             self.break_symmetry();
@@ -319,14 +338,22 @@ impl Sandpile {
     #[cfg(test)]
     pub fn sweep(&mut self) -> bool {
         let toppled = self.sweep_once();
-        self.sync_mirror();
+        self.sync_grid();
         toppled
     }
 
-    /// One sweep, leaving a symmetric pile's mirror stale (see [`Sandpile::sync_mirror`]).
+    /// One sweep, possibly leaving `grid` stale (see [`Sandpile::sync_grid`]).
     fn sweep_once(&mut self) -> bool {
         if self.settled {
             return false;
+        }
+        if self.patch.as_ref().is_some_and(Patch::needs_room) {
+            // Grains are near the patch's edge: the plain sweep below grows the grid if it
+            // must, and the next sweep starts a bigger patch.
+            self.leave_jacobi();
+        }
+        if self.patch.is_some() {
+            return self.sweep_patch();
         }
         let Some(mut b) = self.occupied else {
             self.settled = true;
@@ -349,6 +376,10 @@ impl Sandpile {
                 return self.sweep_jacobi();
             }
             return self.sweep_octant(b);
+        }
+        self.try_enter_patch(b);
+        if self.patch.is_some() {
+            return self.sweep_patch();
         }
 
         let threshold = self.threshold;
@@ -403,7 +434,7 @@ impl Sandpile {
         while done < max_sweeps && self.sweep_once() {
             done += 1;
         }
-        self.sync_mirror();
+        self.sync_grid();
         done
     }
 
@@ -425,7 +456,7 @@ impl Sandpile {
             spent += cost;
             done += 1;
         }
-        self.sync_mirror();
+        self.sync_grid();
         done
     }
 
@@ -433,7 +464,7 @@ impl Sandpile {
     #[cfg(test)]
     pub fn relax_fully(&mut self) {
         while self.sweep_once() {}
-        self.sync_mirror();
+        self.sync_grid();
     }
 
     /// One sweep of a symmetric pile, over the octant `0 <= j <= i` of offsets from the
@@ -461,7 +492,7 @@ impl Sandpile {
         };
         self.topples += topples;
         self.sweeps += 1;
-        self.mirror_stale = true;
+        self.grid_stale = true;
         if !any {
             self.settled = true;
             return false;
@@ -491,8 +522,98 @@ impl Sandpile {
         if tallest >= jacobi::LIMIT {
             return;
         }
-        self.sync_mirror(); // the quarter includes cells below the diagonal
+        self.sync_grid(); // the quarter includes cells below the diagonal
         self.quarter = Some(Quarter::from_grid(&self.grid, n, self.offsets.len()));
+    }
+
+    /// Start a [`Patch`] if this neighbourhood has one, every height is below
+    /// [`jacobi::LIMIT`], and no grain is about to need more room than it would give.
+    /// `b` is the box holding every grain, inside the frame.
+    fn try_enter_patch(&mut self, b: Bounds) {
+        let Some(neighbours) = self.patch_kernel.filter(|_| self.fast) else {
+            return;
+        };
+        // No cell can hold more than the whole pile, so a small pile needs no scan.
+        if self.grains >= u64::from(jacobi::LIMIT) && self.tallest(b) >= jacobi::LIMIT {
+            return;
+        }
+        // A margin in proportion to the pile, so a spreading pile changes patch only a few
+        // times; each change costs a copy out and back in.
+        let side = self.grid.width();
+        let margin = ((b.x1 - b.x0).max(b.y1 - b.y0) / 2).max(16);
+        let at = Bounds {
+            x0: b.x0.saturating_sub(margin),
+            y0: b.y0.saturating_sub(margin),
+            x1: (b.x1 + margin).min(side - 1),
+            y1: (b.y1 + margin).min(side - 1),
+        };
+        // The patch's ring can lie on the grid's frame. Grains sent there are lost, which is
+        // right only while the pile drains; otherwise the grid must grow first.
+        let draining = self.boundary == Boundary::Sink || side >= self.max_side;
+        let edge = |at_edge: bool| draining && at_edge;
+        let sinks = [
+            edge(at.x0 == 0),
+            edge(at.x1 == side - 1),
+            edge(at.y0 == 0),
+            edge(at.y1 == side - 1),
+        ];
+        let patch = Patch::from_grid(&self.grid, at, b, neighbours, sinks);
+        if !patch.needs_room() {
+            self.patch = Some(patch);
+        }
+    }
+
+    /// The tallest cell in the box `b`.
+    fn tallest(&self, b: Bounds) -> u32 {
+        (b.y0..=b.y1)
+            .filter_map(|y| {
+                let row = self.grid.index_of(b.x0, y)..=self.grid.index_of(b.x1, y);
+                self.grid.cells()[row].iter().copied().max()
+            })
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// One sweep of the patch.
+    fn sweep_patch(&mut self) -> bool {
+        let p = self.patch.as_mut().expect("in the patch stage");
+        let toppled = p.sweep();
+        self.topples += toppled;
+        self.sweeps += 1;
+        self.jacobi_sweeps += 1;
+        self.grid_stale = true;
+        if toppled == 0 {
+            self.settled = true;
+            return false;
+        }
+        true
+    }
+
+    /// Add grains straight into a running Jacobi stage, if the cell lies in it and stays
+    /// below [`jacobi::LIMIT`]; otherwise do nothing and return false. Leaving the stage
+    /// and starting it again for every drip would copy the whole pile out and back each time.
+    fn add_to_jacobi(&mut self, x: usize, y: usize, n: u32) -> bool {
+        let centre = self.center();
+        let height = if let Some(p) = &mut self.patch {
+            p.add(x, y, n)
+        } else if let Some(q) = &mut self.quarter {
+            ((x, y) == centre).then(|| q.add_to_centre(n)).flatten()
+        } else {
+            None
+        };
+        let Some(height) = height else {
+            return false;
+        };
+        // Keep an up-to-date grid up to date (the centre is its own mirror image).
+        if !self.grid_stale {
+            self.grid.set(x, y, height);
+        }
+        if let Some(b) = &mut self.occupied {
+            b.include(x, y);
+        }
+        self.grains += u64::from(n);
+        self.settled = false;
+        true
     }
 
     /// One Jacobi sweep. When grains come near the edge, hand back to the octant sweep,
@@ -504,7 +625,7 @@ impl Sandpile {
         self.topples += toppled;
         self.sweeps += 1;
         self.jacobi_sweeps += 1;
-        self.mirror_stale = true;
+        self.grid_stale = true;
         if toppled == 0 {
             self.settled = true;
             return false;
@@ -515,11 +636,12 @@ impl Sandpile {
         true
     }
 
-    /// End the Jacobi stage, if it is running, writing its heights back into the grid.
+    /// End a Jacobi stage, if one is running, writing its heights back into the grid.
     fn leave_jacobi(&mut self) {
-        if self.quarter.is_some() {
-            self.sync_mirror();
+        if self.quarter.is_some() || self.patch.is_some() {
+            self.sync_grid();
             self.quarter = None;
+            self.patch = None;
         }
     }
 
@@ -529,13 +651,24 @@ impl Sandpile {
         (b.x1 - c).max(c - b.x0).max(b.y1 - c).max(c - b.y0)
     }
 
-    /// In symmetric mode, bring the whole grid up to date so it can be read: from the
-    /// Jacobi stage's quarter while that runs, otherwise by mirroring the octant.
-    fn sync_mirror(&mut self) {
-        if !self.mirror_stale {
+    /// Bring the whole grid up to date so it can be read: from a Jacobi stage while one
+    /// runs, otherwise, in symmetric mode, by mirroring the octant.
+    fn sync_grid(&mut self) {
+        if !self.grid_stale {
             return;
         }
-        self.mirror_stale = false;
+        self.grid_stale = false;
+        if let Some(p) = &self.patch {
+            // Every grain is in the patch; any missing went over a sink edge.
+            let on_patch = p.write_back(&mut self.grid);
+            self.lost += self.grains - on_patch;
+            self.grains = on_patch;
+            let t = p.occupied();
+            let occupied = self.occupied.get_or_insert(t);
+            occupied.include(t.x0, t.y0);
+            occupied.include(t.x1, t.y1);
+            return;
+        }
         if let Some(q) = &self.quarter {
             q.write_back(&mut self.grid);
             let (c, edge) = (self.grid.width() / 2, q.extent() + self.reach);
@@ -560,14 +693,23 @@ impl Sandpile {
     /// grain lands off the centre, which would break the symmetry.
     fn break_symmetry(&mut self) {
         self.leave_jacobi();
-        self.sync_mirror();
+        self.sync_grid();
         self.symmetric = false;
     }
 
-    /// Test hook: never use symmetric mode, to compare it against the plain sweep.
+    /// Test hook: never use symmetric mode, so a centred pile takes the [`Patch`] path.
     #[cfg(test)]
     fn without_symmetry(mut self) -> Self {
         self.symmetric = false;
+        self
+    }
+
+    /// Test hook: use only the plain in-place sweep, the reference every fast path must
+    /// match exactly.
+    #[cfg(test)]
+    fn plain(mut self) -> Self {
+        self.symmetric = false;
+        self.fast = false;
         self
     }
 
@@ -621,6 +763,8 @@ impl Sandpile {
     /// Pad the grid on every side, keeping it odd-sized and no larger than its maximum side.
     /// Returns the margin added to every side, or `None` if the grid is at its largest.
     fn grow(&mut self) -> Option<usize> {
+        // A Jacobi stage's cells are placed by grid coordinates, which growing shifts.
+        self.leave_jacobi();
         let side = self.grid.width();
         let margin = (side / 2)
             .max(8)
@@ -677,8 +821,8 @@ impl Octant<'_> {
                     topples += 8;
                     continue;
                 }
-                let images = mirror_images(i, j);
-                for &(pi, pj) in &images {
+                let (images, count) = mirror_images(i, j);
+                for &(pi, pj) in &images[..count] {
                     for &(dx, dy) in self.offsets {
                         let (ti, tj) = (pi + dx, pj + dy);
                         if tj >= 0 && ti >= tj {
@@ -686,7 +830,7 @@ impl Octant<'_> {
                         }
                     }
                 }
-                topples += images.len() as u64;
+                topples += count as u64;
             }
         }
         (reached, topples, any)
@@ -709,18 +853,33 @@ fn is_square_neighbourhood(offsets: &[(isize, isize)]) -> bool {
         .any(|shape| shape.len() == set.len() && shape.iter().all(|o| set.contains(o)))
 }
 
-/// The distinct mirror images of offset `(i, j)` under the square's 8 symmetries.
-fn mirror_images(i: isize, j: isize) -> Vec<(isize, isize)> {
-    let mut images = Vec::with_capacity(8);
+/// The neighbour count, if `offsets` are exactly a neighbourhood a [`Patch`] can sweep:
+/// the 4 or 8 square neighbours, or the 6 hex ones.
+fn patch_kernel(offsets: &[(isize, isize)]) -> Option<usize> {
+    let set: std::collections::HashSet<_> = offsets.iter().copied().collect();
+    [&ORTHOGONAL[..], &MOORE[..], &HEX[..]]
+        .iter()
+        .find(|shape| shape.len() == set.len() && shape.iter().all(|o| set.contains(o)))
+        .map(|shape| shape.len())
+}
+
+/// The distinct mirror images of offset `(i, j)` under the square's 8 symmetries: the first
+/// `count` of `images`. A fixed array, not a `Vec`: the octant sweep asks for these for
+/// every toppling cell near the axes, and allocating each time made the first sweeps of a
+/// small pile several times slower than the rest.
+fn mirror_images(i: isize, j: isize) -> ([(isize, isize); 8], usize) {
+    let mut images = [(0, 0); 8];
+    let mut count = 0;
     for (a, b) in [(i, j), (j, i)] {
         for (sa, sb) in [(1, 1), (-1, 1), (1, -1), (-1, -1)] {
             let p = (sa * a, sb * b);
-            if !images.contains(&p) {
-                images.push(p);
+            if !images[..count].contains(&p) {
+                images[count] = p;
+                count += 1;
             }
         }
     }
-    images
+    (images, count)
 }
 
 #[cfg(test)]
@@ -878,16 +1037,23 @@ mod tests {
     }
 
     /// The per-frame work budget divides by `sweep_area`, so it must be 0 for an empty pile
-    /// and grow to cover the cells the pile spreads into.
+    /// and grow to cover the cells the pile spreads into; a Jacobi stage's cells, being
+    /// cheaper, must count for less.
     #[test]
     fn sweep_area_tracks_the_occupied_box() {
-        let mut pile = Sandpile::new(21, &ORTHOGONAL, Boundary::Sink);
-        assert_eq!(pile.sweep_area(), 0);
-        let (cx, cy) = pile.center();
-        pile.add(cx, cy, 4);
-        assert_eq!(pile.sweep_area(), 1);
-        pile.relax_fully();
-        assert_eq!(pile.sweep_area(), 9, "one toppling reaches a 3 x 3 box");
+        let mut plain = Sandpile::new(21, &ORTHOGONAL, Boundary::Sink).plain();
+        let mut fast = Sandpile::new(21, &ORTHOGONAL, Boundary::Sink);
+        assert_eq!((plain.sweep_area(), fast.sweep_area()), (0, 0));
+        for pile in [&mut plain, &mut fast] {
+            let (cx, cy) = pile.center();
+            pile.add(cx, cy, 4);
+        }
+        assert_eq!(plain.sweep_area(), 1);
+        plain.relax_fully();
+        fast.relax_fully();
+        assert_eq!(plain.sweep_area(), 9, "one toppling reaches a 3 x 3 box");
+        assert!(fast.patch.is_some(), "a small pile should use the patch");
+        assert!((1..9).contains(&fast.sweep_area()), "{}", fast.sweep_area());
     }
 
     /// `sweep` skips all work once settled; a new grain must wake it, or drips and clicks
@@ -1060,7 +1226,7 @@ mod tests {
                 pile
             };
             let fast = run(Sandpile::new(3, offsets, Boundary::Grow));
-            let plain = run(Sandpile::new(3, offsets, Boundary::Grow).without_symmetry());
+            let plain = run(Sandpile::new(3, offsets, Boundary::Grow).plain());
             assert!(
                 fast.symmetric,
                 "the centred pile should have used the octant"
@@ -1086,7 +1252,7 @@ mod tests {
             pile
         };
         let fast = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
-        let plain = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry());
+        let plain = run(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain());
         assert!(!fast.symmetric);
         assert_eq!(fast.grid(), plain.grid());
     }
@@ -1113,7 +1279,7 @@ mod tests {
         let (cx, cy) = fast.center();
         fast.add(cx, cy, 3_000);
         fast.relax_fully();
-        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry();
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain();
         let (cx, cy) = plain.center();
         plain.add(cx, cy, 20_000);
         plain.relax_fully();
@@ -1134,7 +1300,7 @@ mod tests {
         let (dx, dy) = (5, -9);
         fast.add_relative(dx, dy, 2_000);
         fast.relax_fully();
-        let mut plain = Sandpile::new(3, &MOORE, Boundary::Grow).without_symmetry();
+        let mut plain = Sandpile::new(3, &MOORE, Boundary::Grow).plain();
         let (cx, cy) = plain.center();
         plain.add(cx, cy, 20_000);
         plain.relax_fully();
@@ -1154,7 +1320,7 @@ mod tests {
         let far = fast.grid().width() as isize + 50;
         fast.add_relative(far, 0, 500);
         fast.relax_fully();
-        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).without_symmetry();
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain();
         let (cx, cy) = plain.center();
         plain.add(cx, cy, 20_000);
         plain.relax_fully();
@@ -1177,7 +1343,7 @@ mod tests {
             pile
         };
         let fast = run(Sandpile::new(3, &MOORE, Boundary::Grow));
-        let plain = run(Sandpile::new(3, &MOORE, Boundary::Grow).without_symmetry());
+        let plain = run(Sandpile::new(3, &MOORE, Boundary::Grow).plain());
         assert_eq!(fast.grid(), plain.grid());
         assert_eq!((fast.lost, fast.grains), (plain.lost, plain.grains));
         assert_eq!(fast.lost + sum(&fast), 5_000);
@@ -1199,7 +1365,7 @@ mod tests {
         );
         let counts: Vec<_> = [(0, 0), (3, 0), (2, 2), (3, 1)]
             .iter()
-            .map(|&(i, j)| mirror_images(i, j).len())
+            .map(|&(i, j)| mirror_images(i, j).1)
             .collect();
         assert_eq!(counts, vec![1, 4, 4, 8]);
     }
@@ -1229,19 +1395,207 @@ mod tests {
         assert!(frames > 5, "settled in only {frames} frames");
     }
 
+    /// Whether two piles are the same: the same grains on and off the grid, and the same
+    /// height at every offset from the centre. Their grids may differ in size: a fast path
+    /// may grow the grid at another moment than the plain sweep, which changes nothing else
+    /// (growth loses no grain, and once at its largest side a grid stops growing).
+    fn assert_same_pile(fast: &Sandpile, plain: &Sandpile, what: &str) {
+        assert_eq!(
+            (fast.grains, fast.lost),
+            (plain.grains, plain.lost),
+            "{what}: grains, lost"
+        );
+        let (big, small) = if fast.grid().width() >= plain.grid().width() {
+            (fast, plain)
+        } else {
+            (plain, fast)
+        };
+        let (c, s) = (big.center().0 as isize, small.center().0 as isize);
+        let g = big.grid();
+        for y in 0..g.height() as isize {
+            for x in 0..g.width() as isize {
+                let (sx, sy) = (x - c + s, y - c + s);
+                let on_small = (0..=2 * s).contains(&sx) && (0..=2 * s).contains(&sy);
+                let other = if on_small {
+                    small.grid().get(sx as usize, sy as usize)
+                } else {
+                    0
+                };
+                let h = g.get(x as usize, y as usize);
+                assert_eq!(h, other, "{what}: offset ({}, {})", x - c, y - c);
+            }
+        }
+    }
+
+    /// Off the centre, on a hex grid, over a sink edge and at a grid's largest side, the
+    /// patch must run and give exactly the pile the plain sweep gives.
+    #[test]
+    fn patch_matches_the_plain_sweep() {
+        for offsets in [&ORTHOGONAL[..], &MOORE[..], &HEX[..]] {
+            for (boundary, side, max_side) in [
+                (Boundary::Grow, 3, MAX_SIDE),
+                (Boundary::Grow, 3, 41),
+                (Boundary::Sink, 61, 61),
+            ] {
+                let run = |pile: Sandpile| {
+                    let mut pile = pile.with_max_side(max_side);
+                    pile.add_relative(3, -2, 20_000);
+                    pile.relax_fully();
+                    pile
+                };
+                let fast = run(Sandpile::new(side, offsets, boundary));
+                let plain = run(Sandpile::new(side, offsets, boundary).plain());
+                let what = format!("{} neighbours, {boundary:?}, max {max_side}", offsets.len());
+                assert!(fast.jacobi_sweeps > 0, "{what}: the patch should have run");
+                assert_same_pile(&fast, &plain, &what);
+            }
+        }
+    }
+
+    /// Relax an off-centre pile until the patch is running, part way through.
+    fn mid_patch(pile: Sandpile) -> Sandpile {
+        let mut pile = pile;
+        pile.add_relative(4, 1, 20_000);
+        while pile.patch.is_none() || pile.jacobi_sweeps < 100 {
+            assert!(pile.relax(1) > 0, "settled before the patch got going");
+        }
+        pile
+    }
+
+    /// A drip into a running patch must go straight into it, without leaving the stage
+    /// (which would copy the whole pile out and back on every drip), and change nothing
+    /// else: the result matches a plain run of the same drops.
+    #[test]
+    fn a_drip_into_a_running_patch_stays_in_it() {
+        let mut fast = mid_patch(Sandpile::new(3, &HEX, Boundary::Grow));
+        let mut plain = Sandpile::new(3, &HEX, Boundary::Grow).plain();
+        plain.add_relative(4, 1, 20_000);
+        for pile in [&mut fast, &mut plain] {
+            pile.add_relative(0, 0, 7);
+            pile.add_relative(-6, 5, 300);
+        }
+        assert!(
+            fast.patch.is_some(),
+            "the drips should have gone into the patch"
+        );
+        fast.relax_fully();
+        plain.relax_fully();
+        assert_same_pile(&fast, &plain, "drips");
+    }
+
+    /// A drop just beyond the grid while the patch runs: the grid grows before the drop
+    /// lands, shifting every cell by the margin, which is half the old side. So the drop's
+    /// new position is, in the old coordinates, right beside the pile, inside the patch: a
+    /// patch kept across the growth would take the drop there, and go on sweeping a pile
+    /// shifted from the grid's. The result must match a plain run.
+    #[test]
+    fn a_drop_beyond_the_grid_during_the_patch_matches_the_plain_sweep() {
+        let mut fast = mid_patch(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
+        let beyond = -(fast.center().0 as isize + 1);
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain();
+        plain.add_relative(4, 1, 20_000);
+        for pile in [&mut fast, &mut plain] {
+            pile.add_relative(beyond, beyond, 500);
+            pile.relax_fully();
+        }
+        assert_same_pile(&fast, &plain, "drop beyond the edge");
+        assert_eq!((fast.grains, fast.lost), (20_500, 0));
+    }
+
+    /// Random piles, each built twice, with every fast path and with only the plain sweep:
+    /// any neighbourhood, edge and size, several drops anywhere (on, near and beyond the
+    /// grid), some in the middle of an avalanche and so of a Jacobi stage. Every pair must
+    /// end the same. This found nothing the tests above miss when written, and is here to
+    /// catch what a later change to the fast paths breaks.
+    #[test]
+    fn random_piles_match_the_plain_sweep() {
+        let mut rng = ca_core::Rng::new(20261116);
+        let mut below = |n: usize| (rng.next_u64() % n as u64) as usize;
+        let (mut used_jacobi, mut added_to_jacobi) = (0, 0);
+        for case in 0..150 {
+            let offsets = [&ORTHOGONAL[..], &MOORE[..], &HEX[..]][below(3)];
+            let side = 2 * below(20) + 3;
+            let (boundary, max_side) = match below(3) {
+                0 => (Boundary::Grow, MAX_SIDE),
+                1 => (Boundary::Grow, side + 2 * below(30)),
+                _ => (Boundary::Sink, side),
+            };
+            let symmetric = below(2) == 0;
+            // Centred piles can take the patch too, if symmetric mode is off.
+            let use_symmetry = below(2) == 0;
+            let drops: Vec<_> = (0..1 + below(4))
+                .map(|_| {
+                    let r = side as isize;
+                    let at = |rng: usize| if symmetric { 0 } else { rng as isize - r };
+                    let grains = [1 + below(10), 1 + below(3_000), 1 + below(20_000)][below(3)];
+                    let pause = below(60);
+                    (
+                        (at(below(2 * side + 1)), at(below(2 * side + 1))),
+                        grains,
+                        pause,
+                    )
+                })
+                .collect();
+            let mut run = |pile: Sandpile| {
+                let mut pile = pile.with_max_side(max_side);
+                for &((dx, dy), grains, pause) in &drops {
+                    added_to_jacobi += usize::from(pile.patch.is_some() || pile.quarter.is_some());
+                    pile.add_relative(dx, dy, grains as u32);
+                    pile.relax(pause);
+                }
+                pile.relax_fully();
+                pile
+            };
+            let fast = Sandpile::new(side, offsets, boundary);
+            let fast = run(if use_symmetry {
+                fast
+            } else {
+                fast.without_symmetry()
+            });
+            let plain = run(Sandpile::new(side, offsets, boundary).plain());
+            used_jacobi += usize::from(fast.jacobi_sweeps > 0);
+            let what = format!(
+                "case {case}: {} neighbours, {boundary:?}, side {side}, max {max_side}, {drops:?}",
+                offsets.len()
+            );
+            assert_same_pile(&fast, &plain, &what);
+        }
+        // Or the test would prove little about the fast paths.
+        eprintln!("Jacobi stage in {used_jacobi} of 150 piles; {added_to_jacobi} drops into one");
+        assert!(used_jacobi > 100 && added_to_jacobi > 30);
+    }
+
     /// Not a check: prints how long big piles take, to compare relaxation strategies.
     #[test]
     #[ignore = "timing: run with --release -- --ignored --nocapture"]
     fn timing() {
-        for n in [100_000, 1_000_000] {
-            let start = std::time::Instant::now();
-            let p = centred_pile(n, Boundary::Grow, 101);
-            eprintln!(
-                "{n} grains: {:?}, side {}, {} sweeps",
-                start.elapsed(),
-                p.grid().width(),
-                p.sweeps
-            );
+        // (what, neighbours, boundary, starting side, drop offset from the centre)
+        let cases = [
+            ("centred", &ORTHOGONAL[..], Boundary::Grow, 101, (0, 0)),
+            ("off-centre", &ORTHOGONAL[..], Boundary::Grow, 101, (1, 0)),
+            ("hex", &HEX[..], Boundary::Grow, 101, (0, 0)),
+            ("sink 501", &ORTHOGONAL[..], Boundary::Sink, 501, (0, 0)),
+        ];
+        let only = std::env::var("SANDPILE_TIMING").unwrap_or_default();
+        for (what, offsets, boundary, side, (dx, dy)) in cases {
+            if !only.is_empty() && !what.starts_with(only.as_str()) {
+                continue;
+            }
+            for n in [100_000, 1_000_000] {
+                let start = std::time::Instant::now();
+                let mut p = Sandpile::new(side, offsets, boundary);
+                if offsets == &HEX[..] {
+                    p = p.with_max_side(1365);
+                }
+                p.add_relative(dx, dy, n);
+                p.relax_fully();
+                eprintln!(
+                    "{what}, {n} grains: {:?}, side {}, {} sweeps",
+                    start.elapsed(),
+                    p.grid().width(),
+                    p.sweeps
+                );
+            }
         }
     }
 }

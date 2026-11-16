@@ -151,9 +151,11 @@ make siblings               # before/after a Rust update: build+test David's oth
 - Check facts and citations in a README before writing them; don't fill gaps from memory.
 - `.cargo/config.toml` turns on WebAssembly SIMD for the browser builds; the sandpile's
   16-bit Jacobi stage (`sandpile/src/jacobi.rs`) relies on it to be fast there.
-- The sandpile has three sweeps (plain, symmetric octant, 16-bit Jacobi on a quarter).
-  Any change to them must keep the `without_symmetry()` equivalence tests in
-  `sandpile/src/sim.rs` passing: they compare the fast paths with the plain sweep exactly.
+- The sandpile has four sweeps: plain, symmetric octant, and two 16-bit Jacobi stages
+  (on a quarter of a centred pile, and on a rectangle around any other pile). Any change
+  to them must keep the equivalence tests in `sandpile/src/sim.rs` passing, including
+  the randomized one. They compare each fast path with the plain sweep (`plain()`)
+  exactly.
 - Test a demo's simulation by behaviour with known answers where possible: famous
   patterns doing what they are known to do (the diehard dying at 130), hand traces of the
   first steps, or mathematical identities (Rule 90 against Pascal's triangle mod 2).

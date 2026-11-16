@@ -75,7 +75,9 @@ them all at once.
   first (one grain, unless you raise *grains per drip*); while an avalanche is running, each Step is one sweep across the pile.
 - **Grow the fractal.** Restart and Drop 100,000 grains (a second or two). Then try
   1,000,000 at a high speed setting: about 3 seconds natively, longer in the browser. The pattern keeps the same character, finer
-  and finer.
+  and finer. Anywhere but the centre, or on a hex grid, a million grains take longer,
+  10 to 25 seconds natively: only a pile fed at the centre has the symmetry that the
+  fastest method uses.
 - **Sink edge.** Choose *grains fall off* and Restart. Grains now escape at the edge of a
   small grid, which is the setting of the original 1987 paper and of the sandpile group.
 - **Several sources.** Shift-click the grid to add a drip point, marked with a pink ring;

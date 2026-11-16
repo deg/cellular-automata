@@ -227,9 +227,22 @@ or many at once. In order:
 
 Two ideas that sounded good were measured and dropped: skipping quiet regions (about half
 the pile topples on every sweep, so there is little to skip), and removing branches from
-the inner loop (slower). The fast paths only apply while every grain has gone to the centre of a growing grid
-with 4 or 8 neighbours. Anything else (a grain dropped elsewhere, a hex grid, a sink
-edge) uses the plain method, which gives the same answer, just slower.
+the inner loop (slower).
+
+Symmetry only helps while every grain has gone to the centre of a growing grid with 4 or 8
+neighbours. Any other pile (a grain dropped elsewhere, a hex grid, a sink edge) gets
+step 3 alone, over a rectangle holding every grain. On a hex grid each cell's share of
+grains is worked out once rather than once per neighbour, because dividing by 6, unlike
+by 4 or 8, costs a multiplication. A million grains, measured on one day on one machine:
+
+| Pile | Plain | Fast |
+|---|---|---|
+| Off the centre | 132 s | 25 s |
+| Hex grid | 65 s | 17 s |
+| Sink edge, 501 cells wide | 76 s | 12 s |
+
+The centred pile took 6.7 s that day, so this machine ran about twice as slow as for the
+3.3 seconds above.
 
 ## Adding a demo
 
