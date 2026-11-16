@@ -46,6 +46,11 @@ minutes, not a rebuild.
 | 18:49-18:55 | `main`'s one new commit merged in; `make check`, `make slow` and `make site` pass; reported as done. |
 | after 18:55 | David: "'Choices' is not an excuse for bugs or inconsistencies." A second round (below). |
 | 19:34-19:47 | Second-round fixes merged, plus a tooltip fix for three older demos and `main`'s two newer commits; all checks pass again. |
+| after 19:47 | David asks for a consistency review across all eleven demos; two read-only reviewers compare them; David settles four conventions. |
+| 20:32 | Shared readout, note, number format and colour added to `ca_core`; seven workers start. |
+| 20:38-20:53 | The seven workers' branches rebased and merged one by one, with conventions settled on the way. |
+| 20:54-22:32 | The README sweep; a pause when the session hit its usage limit. |
+| 22:53 | The last outliers from a final read-only check fixed; ready to land on `main`. |
 
 Times are from the merge commits of `integration` as it was first built, before it was
 made linear (see "Merging"), except the first rows, which are approximate.
