@@ -285,6 +285,33 @@
         ? mix(NAVY, VAPOUR, Math.max(v, 0))
         : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1)))));
     },
+
+    cyclic(canvas) {
+      // The basic cyclic automaton (range 1, 4 neighbours, threshold 1) with 8 colours,
+      // from random colours until spirals have formed: a cell takes the next colour when a
+      // neighbour has it. The edges wrap.
+      const n = 8, random = rng(14);
+      let cells = Uint8Array.from({ length: W * H }, () => Math.floor(random() * n));
+      for (let g = 0; g < 250; g++) {
+        cells = cells.map((v, i) => {
+          const x = i % W, y = (i - x) / W, next = (v + 1) % n;
+          const hit = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]
+            .some(([nx, ny]) => cells[((ny + H) % H) * W + (nx + W) % W] === next);
+          return hit ? next : v;
+        });
+      }
+      // n colours round the loop blue, teal, gold, coral and back, evenly by distance.
+      const loop = [BLUE, TEAL, GOLD, CORAL];
+      const len = loop.map((a, i) => Math.hypot(...a.map((c, j) => c - loop[(i + 1) % 4][j])));
+      const total = len.reduce((s, l) => s + l);
+      const colours = Array.from({ length: n }, (_, k) => {
+        let along = (k * total) / n, i = 0;
+        while (i < 3 && along > len[i]) along -= len[i++];
+        const f = along / len[i], a = loop[i], b = loop[(i + 1) % 4];
+        return a.map((c, j) => Math.round(c + (b[j] - c) * f));
+      });
+      paint(canvas, W, H, cells, (v) => colours[v]);
+    },
   };
 
   // Any other demo: Rule 110 from a random row.

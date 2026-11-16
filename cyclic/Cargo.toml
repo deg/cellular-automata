@@ -1,0 +1,8 @@
+[package]
+name = "cyclic"
+version = "0.1.0"
+edition = "2024"
+description = "Each colour can only advance to the next one round a colour wheel; random noise organises itself into turning spirals."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
