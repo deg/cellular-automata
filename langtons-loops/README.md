@@ -19,9 +19,10 @@ The states, with their colours in this demo:
 - **0**, navy: empty.
 - **1**, teal: the **core**, the inside of a path, along which signals travel.
 - **2**, indigo: the **sheath**, the walls on either side of the core.
-- **3**, sky blue: a temporary marker, used at several stages.
+- **3**, sky blue: appears briefly at several stages of the construction.
 - **4**, coral: with a 0 behind it, a "4 0" signal. Two of them turn the arm left.
-- **5**, pink: cuts a finished copy free, then starts the parent's next arm.
+- **5**, pink: travels back into the parent when a copy is finished, pulling the arm in
+  behind it, then starts the parent's next arm.
 - **6**, white: with a 0 behind it, starts the new loop's own arm.
 - **7**, gold: with a 0 behind it, a "7 0" signal, which extends the arm by one cell.
 
@@ -50,8 +51,9 @@ list leaves the cell as it is. Beyond the edge of the world every cell is empty.
   that can build any machine described on a tape, and copy the tape. Given its own
   description, it builds itself. It was completed and published after his death by Arthur
   Burks, as *Theory of Self-Reproducing Automata* (1966).
-- **1968: Codd.** For his doctoral research at the University of Michigan, Edgar F. Codd
-  found a universal constructor that needs only 8 states (*Cellular Automata*, 1968). His
+- **1965: Codd.** In his doctoral thesis at the University of Michigan (1965), published
+  as the book *Cellular Automata* (1968), Edgar F. Codd found a universal constructor that
+  needs only 8 states. His
   machines are built from **data paths**, a core of 1s between sheaths of 2s, along which
   signals travel. One of his components is the **periodic emitter**, a path that loops back
   on itself so that its signals circulate forever.
@@ -70,8 +72,8 @@ list leaves the cell as it is. Beyond the edge of the world every cell is empty.
 - **The colony.** Langton also described how a colony grows. Each loop builds its
   offspring on each of its sides in turn. A loop that finds a site taken retracts its arm
   and blocks its own core, and its signals are then erased one by one, leaving a dead,
-  empty loop. So the first, "Adam" loop reproduces four times, each of its offspring only
-  twice, and the colony grows at its edge for as long as there is room.
+  empty loop. So the first, "Adam" loop reproduces four times, each of its immediate offspring
+  only twice, and the colony grows at its edge for as long as there is room.
 
 Langton went on to coin the name "artificial life", and organised the first workshop on
 it, at Los Alamos National Laboratory in 1987. Langton's ant, another demo in this project,
@@ -106,7 +108,7 @@ this demo.
 - **Interfere.** Pause, pick a state under *Draw*, and paint over part of a loop: erase a
   piece of sheath, add a signal to the genome, or change a gold 7 into a coral 4. Then run
   and see whether it still reproduces, and what its offspring look like.
-- **The edge.** On the smallest world the colony reaches the edge after about 2,000
+- **The edge.** On the smallest world the colony reaches the edge after about 1,800
   generations. Loops there have nowhere to build, and the fringe stalls one loop after
   another until, around generation 4,100, nothing in the world moves at all.
 
@@ -129,7 +131,8 @@ this demo.
   Langton's self-reproducing loop*, Artificial Life VI (1998), adds a state that dissolves
   loops, and his *evoloops* (1999) evolve. H. Sayama and C. L. Nehaniv,
   *Self-reproduction and evolution in cellular automata: 25 years after evoloops*,
-  Artificial Life (2024), [arXiv:2402.03961](https://arxiv.org/abs/2402.03961), reviews
+  Artificial Life 31 (2025) 81-95,
+  [doi:10.1162/artl_a_00451](https://doi.org/10.1162/artl_a_00451), reviews
   what followed.
 - [Golly](https://golly.sourceforge.io/), which runs these and many other rules, and its
   [Rule Table Repository](https://github.com/GollyGang/ruletablerepository).

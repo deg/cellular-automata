@@ -45,6 +45,11 @@
 //! # Edges
 //!
 //! Beyond the edge of the world every cell is 0 (empty), always: the world does not wrap.
+//!
+//! Starting from one loop on a 300 x 260 world, no unlisted neighbourhood occurs until after
+//! the colony meets the edge: it reaches the edge at generation 1,803, and the first unlisted
+//! neighbourhood is met in the step to generation 1,814. From then on they do occur, so the
+//! frozen state that world ends in (by generation 4,092) depends on the convention above.
 
 use ca_core::Grid;
 
@@ -560,5 +565,44 @@ mod tests {
             seen_at.windows(2).all(|w| w[1] > w[0]),
             "loops seen by generation 250, 500, ..: {seen_at:?}"
         );
+    }
+
+    fn census(l: &Loops) -> [usize; STATES] {
+        let mut n = [0; STATES];
+        for &s in l.grid().cells() {
+            n[s as usize] += 1;
+        }
+        n
+    }
+
+    /// The whole transition function, all 8^5 next states in lookup order (`key`), hashed
+    /// (64-bit FNV-1a). The value was computed independently, by a script reading the rule
+    /// tree in Golly's `Rules/Langtons-Loops.rule` at commit 53bdb74 (the complete function
+    /// Golly derives from the table), not from this code. A typo in any entry, even one first
+    /// used late in a colony's growth, changes it.
+    #[test]
+    fn the_whole_rule_matches_golly() {
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for &next in &Rule::langton().next {
+            h = (h ^ u64::from(next)).wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        assert_eq!(h, 0x52f0_c742_e048_53ad);
+    }
+
+    /// Golden counts of each state, computed independently from Golly's Langtons-Loops rule
+    /// tree at commit 53bdb74 during review, 2026-11-16: one loop on a 400 x 400 world, its
+    /// top left corner at (200, 200). Generation 1,000 reaches entries of the table that the
+    /// first copies never use.
+    #[test]
+    fn state_counts_match_golly_at_151_and_1000() {
+        let mut l = langton(400, 400, 200, 200);
+        for _ in 0..151 {
+            l.step();
+        }
+        assert_eq!(census(&l), [159829, 31, 122, 0, 4, 0, 0, 14]);
+        for _ in 151..1000 {
+            l.step();
+        }
+        assert_eq!(census(&l), [155846, 980, 2891, 7, 67, 0, 0, 209]);
     }
 }

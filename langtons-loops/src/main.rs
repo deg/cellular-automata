@@ -24,7 +24,7 @@ const COLOURS: [Color32; STATES] = [
     Color32::from_rgb(0x4a, 0x4f, 0x80), // 2 sheath: muted indigo
     Color32::from_rgb(0x5a, 0xb4, 0xff), // 3 marker: sky blue
     Color32::from_rgb(0xe7, 0x6f, 0x51), // 4 turn signal: coral
-    Color32::from_rgb(0xd1, 0x6b, 0xa5), // 5 cut the cord: pink
+    Color32::from_rgb(0xd1, 0x6b, 0xa5), // 5 pull the arm back: pink
     Color32::from_rgb(0xf4, 0xf1, 0xde), // 6 new arm: spark white
     Color32::from_rgb(0xe9, 0xc4, 0x6a), // 7 extend signal: gold
 ];
@@ -35,7 +35,7 @@ const NAMES: [&str; STATES] = [
     "sheath",
     "marker",
     "turn left",
-    "cut the cord",
+    "pull back",
     "new arm",
     "extend",
 ];
@@ -85,15 +85,17 @@ impl eframe::App for LoopsApp {
             let frame = self.frame;
             let to_world = |(x, y): (usize, usize)| (x + frame.x, y + frame.y);
             self.hovered = shown.hovered.map(to_world);
-            let cells = self.stroke.cells(shown.pressed);
+            // The stroke is kept in world cells: the frame can move mid-stroke (painting
+            // near its margin, or the colony growing while it runs), and a stroke kept in
+            // view cells would then jump.
+            let cells = self.stroke.cells(shown.pressed.map(to_world));
             if !cells.is_empty() {
                 let state = if ui.input(|i| i.modifiers.shift) {
                     0
                 } else {
                     self.brush
                 };
-                for cell in cells {
-                    let (x, y) = to_world(cell);
+                for (x, y) in cells {
                     self.loops.set(x, y, state);
                 }
                 self.dirty = true;
