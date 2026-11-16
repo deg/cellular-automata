@@ -252,11 +252,15 @@ impl MandelbrotApp {
                 painter.circle_stroke(at, 7.0, Stroke::new(1.5, GOLD));
             }
         }
-        if self.show_orbit
+        // An orbit is drawn only where it belongs: in the Julia set's plane. Over the
+        // Mandelbrot set, it is drawn in the inset instead (see draw_julia_inset).
+        if self.julia_full
+            && self.show_orbit
             && let Some(hover) = &self.hover
         {
-            let active = self.active();
-            draw_orbit(&painter, &hover.orbit, 1.0, |p| active.to_screen(p, rect));
+            draw_orbit(&painter, &hover.orbit, 1.0, |p| {
+                self.julia.to_screen(p, rect)
+            });
         }
 
         for (overlay, inner) in self.overlays(rect) {
@@ -452,11 +456,6 @@ impl MandelbrotApp {
             .on_hover_text(
                 "The whole set, with the view marked on it in gold. Click it to move there.",
             );
-        ui.checkbox(
-            &mut self.show_orbit,
-            "Show the orbit of the point under the pointer",
-        )
-        .on_hover_text("The path of z, one dot per step, from z₀ (ringed).");
         ui.separator();
 
         ui.label(RichText::new("Julia set").strong());
@@ -465,6 +464,11 @@ impl MandelbrotApp {
                 "The Julia set of c = {}: the starting points z₀ whose orbit stays near 0.",
                 complex(self.julia_c, 4)
             ));
+            ui.checkbox(
+                &mut self.show_orbit,
+                "Show the orbit of the point under the pointer",
+            )
+            .on_hover_text("The path of z, one dot per step, from z₀ (ringed) at the pointer.");
             if ui.button("Back to the Mandelbrot set").clicked() {
                 self.enlarge_julia(false);
             }
@@ -484,6 +488,10 @@ impl MandelbrotApp {
                     self.enlarge_julia(true);
                 }
             });
+            if self.show_julia {
+                ui.checkbox(&mut self.show_orbit, "Show the orbit of 0 in the inset")
+                    .on_hover_text("The path of z under z → z² + c, one dot per step, from z₀ = 0 (ringed). Its points belong to the Julia set's plane, so this is where it is drawn.");
+            }
         }
         ui.separator();
 

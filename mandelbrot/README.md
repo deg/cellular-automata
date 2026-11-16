@@ -122,13 +122,13 @@ inset shatter.
 - **Restart, then Step.** Hover over a point to see its number and the step at which it
   escapes. Points in the big heart shape (the *main cardioid*) and the disc to its left are
   known to be inside without iterating, and the demo says so.
-- **Follow an orbit.** The white path over the picture is the orbit of the point under
-  the pointer: z₀ = 0 (ringed), z₁ = c (at the pointer), z₂, and so on. In the main
-  cardioid it spirals in to a single point. In the disc to its left it ends up hopping
-  between two points (gold). Each bulb round the edge has its own cycle length. Outside
-  the set, the path flies off. The Julia inset draws the same orbit at a scale where all
-  of it fits, however far you have zoomed in. That is its real home: c is a point of the
-  Mandelbrot picture, but z₀, z₁, z₂, ... are points of the Julia set's plane.
+- **Follow an orbit.** The white path in the Julia inset is the orbit of 0 under the
+  inset's c: z₀ = 0 (ringed), z₁ = c, z₂, and so on, one dot per step. Its points belong
+  to the Julia set's plane, not the Mandelbrot set's, which is why it is drawn there, at a
+  scale where all of it fits however far you zoom. For c in the main cardioid it spirals
+  in to a single point. In the disc to its left it ends up hopping between two points
+  (gold). Each bulb round the edge has its own cycle length. For c outside the set, the
+  path flies off. Enlarge the Julia set, and the path follows the pointer's z₀ instead.
 - **Period doubling.** Move left along the real axis: z settles on a single point at
   −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (zoom in to
   reach those, and raise the stop limit for the longer cycles). The doublings come faster
