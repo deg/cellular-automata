@@ -37,12 +37,8 @@ const MAIN_MS: f64 = 7.0;
 const INSET_MS: f64 = 2.0;
 const MAP_MS: f64 = 1.0;
 
-/// Running speeds up as the steps add up: each step's rate is at least the step count
-/// times this, per second, as well as at least the speed slider's. Later steps change the
-/// picture less and less, and at a constant 15 a second the first 500 took over half a
-/// minute. With this the count grows e-fold each second once past the slider's speed: 500
-/// in about 5 seconds.
-const SPEED_UP: f64 = 1.0;
+/// Running speeds up as the steps add up, from this step on: see [`run_rate`].
+const SPEED_UP_FROM: f64 = 15.0;
 
 /// The inset's limit stops here even when the main picture's goes higher: its set is
 /// recomputed every time the pointer moves, and needs to keep up.
@@ -472,7 +468,7 @@ impl MandelbrotApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("Each step lets every point take one more turn of z → z² + c. Running speeds up as it goes, since later steps change less. Restart goes back to step 0.");
+        ui.small("Each step lets every point take one more turn of z → z² + c. Running speeds up as it goes, since later steps change less; set a low speed to watch it slowly. Restart goes back to step 0.");
         let limit = self.active().picture().limit();
         ui.label(format!("Steps so far: {limit}"));
         ui.horizontal_wrapped(|ui| {
@@ -664,7 +660,7 @@ impl MandelbrotApp {
                 } else if self.active().picture().is_done() {
                     // Only once the last step is drawn: a slow picture holds the limit back
                     // rather than falling ever further behind it.
-                    let rate = (per_second as f64).max(limit as f64 * SPEED_UP);
+                    let rate = run_rate(per_second as f64, limit);
                     let steps = self.pace.steps(rate, dt, MOST_STEPS as usize);
                     let target = limit.saturating_add(steps as u32).min(self.stop_at);
                     self.raise_limits(target);
@@ -672,6 +668,16 @@ impl MandelbrotApp {
             }
         }
     }
+}
+
+/// Steps a second while running, at `slider` steps a second on the speed slider, with `limit`
+/// steps taken. Later steps change the picture less and less, and at a constant 15 a second
+/// the first 500 took over half a minute, so past [`SPEED_UP_FROM`] steps the rate grows in
+/// proportion to the count: at the default 15, the count grows e-fold each second, and 500
+/// comes in about 5 seconds. The slider scales the whole thing, so a slow setting still
+/// gives a slow reveal (to watch the bands appear) and a fast one goes faster.
+fn run_rate(slider: f64, limit: u32) -> f64 {
+    slider * (limit as f64 / SPEED_UP_FROM).max(1.0)
 }
 
 /// The inset's place: a square in the bottom-right corner of the picture.
@@ -846,6 +852,26 @@ mod tests {
             "back up to the fast rate: {} of {expected}",
             b.for_ms(MAIN_MS)
         );
+    }
+
+    /// The speed-up must not override the slider: a low setting must stay slow (it once
+    /// did nothing past step 15), the default must still reach 500 quickly, and a high
+    /// setting must go faster still.
+    #[test]
+    fn running_speeds_up_in_proportion_to_the_slider() {
+        assert_eq!(
+            run_rate(15.0, 0),
+            15.0,
+            "the slider's own speed at the start"
+        );
+        assert_eq!(
+            run_rate(15.0, 300),
+            300.0,
+            "the default: the count again each second"
+        );
+        assert_eq!(run_rate(2.0, 300), 40.0, "a slow slider stays slow");
+        assert_eq!(run_rate(100.0, 300), 2000.0, "a fast one goes faster");
+        assert!(run_rate(2.0, 300) < run_rate(15.0, 300));
     }
 
     #[test]
