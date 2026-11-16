@@ -20,21 +20,21 @@ flip it and watch the rule number change.
 ## History
 
 - **1983: a systematic study.** The physicist Stephen Wolfram analysed these one-row,
-  two-state automata in *Statistical mechanics of cellular automata* (Reviews of Modern
-  Physics 55, 601-644, 1983). He used them as simple mathematical models for studying
-  self-organization, the way order arises by itself.
-- **1984: four classes.** In *Universality and complexity in cellular automata* (Physica
-  10D, 1-35, 1984) he argued that one-dimensional automata fall into four classes:
+  two-state automata in *Statistical mechanics of cellular automata*, Reviews of Modern
+  Physics 55, 601–644 (1983). He used them as simple mathematical models for studying
+  self-organisation, the way order arises by itself. The name comes from this paper: its
+  abstract calls these automata "elementary", in quotation marks.
+- **1984: four classes.** In *Universality and complexity in cellular automata*, Physica
+  D 10, 1–35 (1984), he argued that one-dimensional automata fall into four classes, and
+  suggested that the fourth was probably capable of universal computation:
   1. those that settle to a uniform state;
   2. those that settle into stable or repeating structures;
   3. those that stay chaotic;
   4. those that build complex, localised structures that interact.
-
-  He suggested the fourth class was probably capable of universal computation.
 - **2004: Rule 110 is universal.** Wolfram conjectured in 1985 that Rule 110 could carry
   out any computation. Matthew Cook proved it, in *Universality in elementary cellular
-  automata* (Complex Systems 15, 2004). Cook showed that Rule 110 can emulate *cyclic tag
-  systems*, a simple model of computation known to be universal. Publication was held up
+  automata*, Complex Systems 15, 1–40 (2004). Cook showed that Rule 110 can emulate
+  *cyclic tag systems*, a simple model of computation known to be universal. Publication was held up
   for several years by a legal dispute with Wolfram Research over a non-disclosure
   agreement.
 
@@ -60,18 +60,19 @@ flip it and watch the rule number change.
 
 ## Things to try
 
-- Edit a rule by clicking its table. Small changes can turn chaos into order.
-- Switch between *single cell* and *random row*. Many rules show their character only
-  from a random start.
-- Change the rule while it runs: the history keeps the old rule's rows above the new
+- **Edit a rule.** Click an output square in its table. Small changes can turn chaos into
+  order.
+- **Change the start.** Switch between *single cell* and *random row*. Many rules show
+  their character only from a random start.
+- **Change the rule mid-run.** The history keeps the old rule's rows above the new
   ones.
 
 ## Further reading
 
-- The Wikipedia articles [Elementary cellular
-  automaton](https://en.wikipedia.org/wiki/Elementary_cellular_automaton),
+- The Wikipedia articles
+  [Elementary cellular automaton](https://en.wikipedia.org/wiki/Elementary_cellular_automaton),
   [Rule 30](https://en.wikipedia.org/wiki/Rule_30),
   [Rule 110](https://en.wikipedia.org/wiki/Rule_110) and
   [Rule 184](https://en.wikipedia.org/wiki/Rule_184).
-- David Eppstein's notes on [Wolfram's
-  classification](https://ics.uci.edu/~eppstein/ca/wolfram.html).
+- David Eppstein's notes on
+  [Wolfram's classification](https://ics.uci.edu/~eppstein/ca/wolfram.html).

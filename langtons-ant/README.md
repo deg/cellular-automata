@@ -6,20 +6,23 @@ An ant stands on a grid of blank cells. Each step it follows two rules:
 - On a **coloured** cell, it turns **left**, clears the cell, and steps forward.
 
 That's all. For about 10,000 steps the ant leaves an irregular, growing blob. Then it
-suddenly starts building a **highway**: a strip it extends diagonally across the grid, repeating the same 104-step
-cycle forever.
+suddenly starts building a **highway**: a strip it extends diagonally across the grid,
+repeating the same 104-step cycle forever.
 
 Nothing in the two rules mentions highways, diagonals or the number 104. The highway is
 *emergent*: it isn't written into the rule, it arises from it. That's why Langton's ant is
 a favourite example of simple rules producing complex and surprising behaviour.
 
-Unlike the other demos, this isn't quite a cellular automaton, where every cell updates at
-once. Only the cell under the ant changes. Automata like this, with a moving head that
-reads and writes cells, are called **turmites**, short for "Turing machine termites".
+Unlike most of the other demos, this isn't quite a cellular automaton, where every cell
+updates at once. Only the cell under the ant changes. Automata like this, with a moving
+head that reads and writes cells, are called **turmites**, short for "Turing machine
+termites".
 
 ## History
 
-- **1986.** Chris Langton invented the ant.
+- **1986.** Christopher Langton invented the ant. Two years earlier he had designed
+  Langton's loops, another demo in this project: a loop of signals that builds copies of
+  itself.
 - **The highway.** Starting from a blank grid, the ant settles into highway-building
   after about 10,000 steps. Each 104-step cycle moves it two cells diagonally. (This
   demo's tests measure the onset and the cycle.)

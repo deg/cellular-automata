@@ -11,7 +11,7 @@ fn main() {
 }
 
 /// Colour 0 (the blank grid) and the colours cells cycle through after it.
-const BLANK: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
+const BLANK: Color32 = ca_core::NAVY;
 const RAMP: [Color32; 5] = [
     Color32::from_rgb(0x2a, 0x9d, 0x8f),
     Color32::from_rgb(0xe9, 0xc4, 0x6a),
@@ -47,6 +47,8 @@ struct AntApp {
     rule_text: String,
     rule_error: Option<String>,
     palette: Vec<Color32>,
+    /// The cell under the pointer, for the readout.
+    hovered: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -70,11 +72,11 @@ impl eframe::App for AntApp {
                 self.world.ants.push(Ant::new(x, y));
             }
             self.mark_ants(ui, &shown);
-            if let Some((x, y)) = shown.hovered {
-                let colour = self.world.grid().get(x, y);
-                shown
-                    .response
-                    .on_hover_text_at_pointer(format!("({x}, {y}): colour {colour}"));
+            // The readout was drawn before the grid this frame: draw again, or the pointer
+            // row lags a cell behind while paused.
+            if shown.hovered != self.hovered {
+                self.hovered = shown.hovered;
+                ui.ctx().request_repaint();
             }
         });
 
@@ -98,6 +100,7 @@ impl AntApp {
             pace: Pace::default(),
             side,
             rule_error: None,
+            hovered: None,
             dirty: true,
         }
     }
@@ -120,14 +123,18 @@ impl AntApp {
 
         ui.label(RichText::new("Rule").strong());
         ui.small("One letter per colour: on that colour, turn Left or Right. Cells cycle through the colours in order.");
+        let current = self.world.rule().to_string();
         ui.horizontal_wrapped(|ui| {
-            for &(rule, note) in PRESETS {
-                if ui.button(rule).on_hover_text(note).clicked() {
+            for &(rule, _) in PRESETS {
+                if ui.selectable_label(current == rule, rule).clicked() {
                     self.rule_text = rule.to_string();
                     self.restart();
                 }
             }
         });
+        if let Some((_, note)) = PRESETS.iter().find(|(rule, _)| current == *rule) {
+            ui.small(*note);
+        }
         ui.horizontal_wrapped(|ui| {
             ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(140.0));
             if ui.button("Use").clicked() {
@@ -140,7 +147,7 @@ impl AntApp {
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
-            ui.label("Grid:");
+            ui.label("World:");
             for &side in SIDES {
                 if ui
                     .selectable_label(self.side == side, format!("{side} x {side}"))
@@ -155,16 +162,18 @@ impl AntApp {
         ui.small("The edges wrap around: an ant walking off one side comes back on the other.");
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("rule");
-            ui.label(self.world.rule().to_string());
-            ui.end_row();
-            ui.label("steps");
-            ui.label(self.world.steps.to_string());
-            ui.end_row();
-            ui.label("ants");
-            ui.label(self.world.ants.len().to_string());
-            ui.end_row();
+        let grid = self.world.grid();
+        let under = (self.hovered)
+            .filter(|&(x, y)| x < grid.width() && y < grid.height())
+            .map(|(x, y)| match grid.get(x, y) {
+                0 => format!("({x}, {y}): blank"),
+                colour => format!("({x}, {y}): colour {colour}"),
+            });
+        ca_core::readout(ui, |r| {
+            r.row("rule", current);
+            r.row("step", ca_core::grouped(self.world.steps));
+            r.row("ants", ca_core::grouped(self.world.ants.len() as u64));
+            r.pointer(under);
         });
     }
 

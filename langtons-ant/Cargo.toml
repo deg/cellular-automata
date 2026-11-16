@@ -2,7 +2,7 @@
 name = "langtons-ant"
 version = "0.1.0"
 edition = "2024"
-description = "An ant follows two rules, wanders in chaos for 10,000 steps, then builds a highway."
+description = "An ant follows two rules, wanders for about 10,000 steps, then builds a highway."
 
 [dependencies]
 ca_core = { path = "../ca_core" }

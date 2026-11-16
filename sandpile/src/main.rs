@@ -17,7 +17,7 @@ fn main() {
 /// their heights along the same colours (see [`palette`]). A cell at or over the threshold
 /// is drawn white.
 const PALETTE: [Color32; 4] = [
-    Color32::from_rgb(0x14, 0x18, 0x30),
+    ca_core::NAVY,
     Color32::from_rgb(0x2a, 0x9d, 0x8f),
     Color32::from_rgb(0xe9, 0xc4, 0x6a),
     Color32::from_rgb(0xe7, 0x6f, 0x51),
@@ -45,6 +45,8 @@ struct SandpileApp {
     drip: bool,
     drip_amount: u32,
     drip_points: DripPoints,
+    /// The cell under the pointer, for the readout.
+    hovered: Option<(usize, usize)>,
     /// The pile changed since its picture was last uploaded.
     dirty: bool,
 }
@@ -88,11 +90,11 @@ impl eframe::App for SandpileApp {
                 }
             }
             self.mark_drip_points(ui, &shown);
-            if let Some((x, y)) = shown.hovered {
-                shown.response.on_hover_text_at_pointer(format!(
-                    "({x}, {y}): {}",
-                    self.pile.grid().get(x, y)
-                ));
+            // The readout was drawn before the grid this frame: draw again, or the pointer
+            // row lags a cell behind while paused.
+            if shown.hovered != self.hovered {
+                self.hovered = shown.hovered;
+                ui.ctx().request_repaint();
             }
         });
 
@@ -116,6 +118,7 @@ impl SandpileApp {
             drip: true,
             drip_amount: 1,
             drip_points: DripPoints::centre(),
+            hovered: None,
             dirty: true,
         }
     }
@@ -133,7 +136,8 @@ impl SandpileApp {
         ui.small(
             "A step is one sweep across the pile, toppling every unstable cell it meets; \
              on a settled pile it drips first. Speed caps the cells swept per frame, \
-             so a big pile still redraws smoothly.",
+             so a big pile still redraws smoothly. Restart empties the pile, with the edge \
+             and neighbours chosen below; drip points stay.",
         );
         ui.separator();
 
@@ -238,21 +242,29 @@ impl SandpileApp {
         ui.separator();
 
         let side = self.pile.grid().width();
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            stat(ui, "grains", self.pile.grains);
-            stat(ui, "lost off the edge", self.pile.lost);
-            stat(ui, "topples", self.pile.topples);
-            stat(ui, "sweeps", self.pile.sweeps);
-            ui.label("state");
-            ui.label(if self.pile.is_stable() {
-                "stable"
-            } else {
-                "toppling"
+        let grid = self.pile.grid();
+        let under = (self.hovered)
+            .filter(|&(x, y)| x < grid.width() && y < grid.height())
+            .map(|(x, y)| {
+                let h = grid.get(x, y);
+                let unit = if h == 1 { "grain" } else { "grains" };
+                format!("({x}, {y}): {} {unit}", ca_core::grouped(h.into()))
             });
-            ui.end_row();
-            ui.label("grid");
-            ui.label(format!("{side} x {side}"));
-            ui.end_row();
+        ca_core::readout(ui, |r| {
+            r.row("grains", ca_core::grouped(self.pile.grains));
+            r.row("lost off the edge", ca_core::grouped(self.pile.lost));
+            r.row("topples", ca_core::grouped(self.pile.topples));
+            r.row("sweeps", ca_core::grouped(self.pile.sweeps));
+            r.row(
+                "state",
+                if self.pile.is_stable() {
+                    "stable"
+                } else {
+                    "toppling"
+                },
+            );
+            r.row("grid", format!("{side} x {side}"));
+            r.pointer(under);
         });
         if side >= self.pile.max_side() {
             ui.small(
@@ -386,12 +398,6 @@ fn palette(threshold: u32) -> Vec<Color32> {
             PALETTE[lo].lerp_to_gamma(PALETTE[hi], pos.fract())
         })
         .collect()
-}
-
-fn stat(ui: &mut egui::Ui, name: &str, value: u64) {
-    ui.label(name);
-    ui.label(value.to_string());
-    ui.end_row();
 }
 
 #[cfg(test)]
