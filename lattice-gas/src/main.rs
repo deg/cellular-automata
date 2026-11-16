@@ -5,7 +5,9 @@ mod sim;
 mod view;
 
 use ca_core::egui::{self, Color32, RichText, Stroke, vec2};
-use ca_core::{About, Advance, Pace, PaintStroke, Playback, eframe, generations_per_frame};
+use ca_core::{
+    About, Advance, NAVY, Pace, PaintStroke, Playback, eframe, generations_per_frame, grouped,
+};
 use flow::{Blocks, Field};
 use sim::{Inflow, Kind, Lattice, PARTICLES, SOUND_SPEED, WALL};
 use view::{LatticeView, Shown};
@@ -14,7 +16,6 @@ fn main() {
     ca_core::run("Lattice gas", GasApp::new);
 }
 
-const NAVY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
 const DUSK: Color32 = Color32::from_rgb(0x1f, 0x2a, 0x55);
 const BLUE: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
 const TEAL: Color32 = Color32::from_rgb(0x2a, 0x9d, 0x8f);
@@ -100,10 +101,10 @@ impl Show {
 
     fn label(self) -> &'static str {
         match self {
-            Self::Particles => "Particles",
-            Self::Speed => "Speed",
-            Self::Vorticity => "Swirl",
-            Self::Density => "Density",
+            Self::Particles => "particles",
+            Self::Speed => "speed",
+            Self::Vorticity => "swirl",
+            Self::Density => "density",
         }
     }
 
@@ -114,7 +115,7 @@ impl Show {
             }
             Self::Speed => "The averaged flow's speed: dark is still, white is fast.",
             Self::Vorticity => {
-                "The averaged flow's vorticity, how fast it spins: coral counter-clockwise, blue clockwise."
+                "The averaged flow's vorticity, how fast it spins: coral anticlockwise, blue clockwise."
             }
             Self::Density => "The averaged density: coral denser than the mean, blue thinner.",
         }
@@ -171,6 +172,10 @@ impl eframe::App for GasApp {
             if self.arrows {
                 self.draw_arrows(ui, &shown);
             }
+            if shown.hovered != self.hovered {
+                // The readout's pointer rows follow at once, even while paused.
+                ui.ctx().request_repaint();
+            }
             self.hovered = shown.hovered;
             let erase = ui.input(|i| i.modifiers.shift);
             for (x, y) in self.stroke.cells(shown.pressed) {
@@ -219,20 +224,22 @@ impl GasApp {
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice gas");
-        ui.label("Particles hop between the nodes of a hexagonal lattice and scatter when they meet, keeping their number and momentum. Averaged over many nodes, they flow like a fluid.");
+        ui.label("Particles hop on a hexagonal lattice and scatter when they meet. Averaged over many nodes, they flow like a fluid.");
         self.about.toggle_button(ui);
         ui.separator();
 
         self.playback.ui(ui);
+        ca_core::speed_cap_note(ui, "lattice");
+        ui.small("Restart sets up the chosen start again, with fresh random gas.");
         ui.small("Drag on the lattice to draw walls; shift-drag to erase.");
+        ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
         ui.separator();
 
+        ui.label(RichText::new("Show").strong());
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Show").strong());
             for show in Show::ALL {
                 if ui
                     .selectable_label(self.show == show, show.label())
-                    .on_hover_text(show.hint())
                     .clicked()
                 {
                     self.show = show;
@@ -242,42 +249,50 @@ impl GasApp {
             ui.checkbox(&mut self.arrows, "Arrows");
         });
         ui.small(self.show.hint());
-        egui::CollapsingHeader::new("Averaging and brush").show(ui, |ui| {
-            ui.label("Blocks of (nodes across)");
-            if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
+        egui::CollapsingHeader::new("Averaging").show(ui, |ui| {
+            if ui
+                .add(egui::Slider::new(&mut self.block, 6..=40).text("nodes per block"))
+                .on_hover_text("The width of each block of nodes averaged over.")
+                .changed()
+            {
                 self.blocks = blocks(self.kind, self.size, self.block);
                 // Sample the gas as it is, so the flow views aren't blank until the next step.
                 self.blocks.add(&self.lattice);
                 self.field = Field::new(&self.blocks);
                 self.dirty = true;
             }
-            ui.label("over about (steps)");
-            ui.add(egui::Slider::new(&mut self.window, 1.0..=1_000.0).logarithmic(true));
-            ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
+            ui.add(
+                egui::Slider::new(&mut self.window, 1.0..=1_000.0)
+                    .logarithmic(true)
+                    .text("steps averaged"),
+            )
+            .on_hover_text("About how many steps each average spans: a moving average.");
         });
         ui.separator();
 
+        ui.label(RichText::new("Lattice").strong());
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Lattice").strong());
-            for (kind, label, hint) in [
-                (Kind::Hex, "Hexagonal (FHP)", "Six directions: FHP-I, which flows like a real fluid."),
-                (Kind::Square, "Square (HPP)", "Four directions: the earlier HPP model, which doesn't. Each row keeps its own momentum, so the flow never spreads from row to row."),
+            for (kind, label) in [
+                (Kind::Hex, "hexagonal (FHP)"),
+                (Kind::Square, "square (HPP)"),
             ] {
-                if ui.selectable_label(self.kind == kind, label).on_hover_text(hint).clicked()
-                    && self.kind != kind
-                {
+                if ui.selectable_label(self.kind == kind, label).clicked() && self.kind != kind {
                     self.kind = kind;
                     self.blocks = blocks(kind, self.size, self.block);
                     self.restart();
                 }
             }
         });
+        ui.small(match self.kind {
+            Kind::Hex => "Six directions: FHP-I, which flows like a real fluid.",
+            Kind::Square => "Four directions: the earlier HPP model. Each row keeps its own momentum, so the flow never spreads from row to row.",
+        });
+
+        ui.label(RichText::new("Start").strong());
         ui.horizontal_wrapped(|ui| {
-            ui.label(RichText::new("Start").strong());
             for preset in Preset::ALL {
                 if ui
                     .selectable_label(self.preset == preset, preset.label())
-                    .on_hover_text(preset.hint())
                     .clicked()
                 {
                     self.preset = preset;
@@ -317,54 +332,47 @@ impl GasApp {
         self.stats(ui);
     }
 
-    /// The readout, a label/value grid like the other demos'.
+    /// The readout at the bottom of the panel.
     fn stats(&self, ui: &mut egui::Ui) {
         let l = &self.lattice;
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("step");
-            ui.label(l.steps.to_string());
-            ui.end_row();
-            ui.label("particles");
-            ui.label(l.particles().to_string());
-            ui.end_row();
+        ca_core::readout(ui, |r| {
+            r.row("step", grouped(l.steps));
+            r.row("particles", grouped(l.particles()));
             if let (Some(_), Kind::Hex) = (l.inflow, l.kind()) {
-                ui.label("Mach number");
-                ui.label(format!("{:.2}", self.speed / SOUND_SPEED)).on_hover_text(
-                    "The wind's speed over the speed of sound, 1/√2 node spacings per step.",
-                );
-                ui.end_row();
+                r.row("Mach number", format!("{:.2}", self.speed / SOUND_SPEED))
+                    .on_hover_text(
+                        "The wind's speed over the speed of sound, 1/√2 node spacings per step.",
+                    );
                 if let Some(width) = self.preset.obstacle_width(l.kind(), l.height()) {
-                    ui.label("Reynolds number");
-                    ui.label(format!("{:.0}", sim::reynolds(self.speed, width, self.density)))
-                        .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity at this density (Frisch et al. 1987). Higher means more eddies.");
-                    ui.end_row();
+                    r.row(
+                        "Reynolds number",
+                        format!("{:.0}", sim::reynolds(self.speed, width, self.density)),
+                    )
+                    .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity at this density (Frisch and colleagues, 1987). Higher means more eddies.");
                 }
             }
-            let (here, flow) = match self.hovered {
-                Some((x, y)) => {
-                    let c = l.get(x, y);
-                    let here = if c & WALL != 0 {
-                        "wall".to_string()
-                    } else {
-                        match (c & PARTICLES).count_ones() {
-                            1 => "1 particle".to_string(),
-                            n => format!("{n} particles"),
-                        }
-                    };
-                    let (px, py) = l.position(x, y);
-                    let f = &self.field;
-                    let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
-                    let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
-                    (here, format!("({ux:.2}, {uy:.2})"))
+            let flow = self.hovered.map(|(x, y)| {
+                let (px, py) = l.position(x, y);
+                let f = &self.field;
+                let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
+                let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
+                format!("({ux:.2}, {uy:.2})")
+            });
+            r.row(
+                "flow at the pointer",
+                flow.unwrap_or_else(|| "-".to_string()),
+            );
+            r.pointer(self.hovered.map(|(x, y)| {
+                let c = l.get(x, y);
+                if c & WALL != 0 {
+                    "wall".to_string()
+                } else {
+                    match (c & PARTICLES).count_ones() {
+                        1 => "1 particle".to_string(),
+                        n => format!("{n} particles"),
+                    }
                 }
-                None => ("-".to_string(), "-".to_string()),
-            };
-            ui.label("under the pointer");
-            ui.label(here);
-            ui.end_row();
-            ui.label("averaged flow there");
-            ui.label(flow);
-            ui.end_row();
+            }));
         });
     }
 
