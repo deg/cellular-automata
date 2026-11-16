@@ -233,6 +233,58 @@
       const PINK = [0xd1, 0x6b, 0xa5];
       paint(canvas, W, H, cells, (v) => [NAVY, TEAL, SHEATH, MARKER, CORAL, PINK, SPARK, GOLD][v]);
     },
+
+    snowflakes(canvas) {
+      // Reiter's model, the demo's Stellar preset, grown from one seed on a small hex grid
+      // (axial coordinates) until the ice nears the circle held at the background.
+      const VAPOUR = [0x6c, 0x8c, 0xc4], OLD_ICE = [0x8f, 0xc1, 0xe3];
+      // R counts hex rows, as Reiter's program does: the circle is R sqrt(3)/2 cells wide.
+      const R = 35, beta = 0.6, gamma = 0.01;
+      const c = R + 2, n = 2 * c + 1;
+      let water = new Float64Array(n * n).fill(beta), next = new Float64Array(n * n).fill(beta);
+      const field = new Float64Array(n * n).fill(beta), ice = new Uint8Array(n * n);
+      const rec = new Uint8Array(n * n), list = [];
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const q = x - c, r = y - c;
+        if (4 * (q * q + q * r + r * r) < 3 * R * R) list.push(y * n + x);
+      }
+      const inside = Int32Array.from(list), m = inside.length;
+      water[c * n + c] = 1;
+      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) {
+        for (let k = 0; k < m; k++) { const i = inside[k]; ice[i] = water[i] >= 1 ? 1 : 0; }
+        for (let k = 0; k < m; k++) {
+          const i = inside[k];
+          rec[i] = ice[i] | ice[i + 1] | ice[i - 1] | ice[i + n] | ice[i - n] | ice[i + n - 1] | ice[i - n + 1];
+          field[i] = rec[i] ? 0 : water[i];
+        }
+        for (let k = 0; k < m; k++) {
+          const i = inside[k], v = field[i];
+          const s = field[i + 1] + field[i - 1] + field[i + n] + field[i - n] + field[i + n - 1] + field[i - n + 1];
+          next[i] = v + (s - 6 * v) / 12 + (rec[i] ? water[i] + gamma : 0);
+          if (next[i] >= 1 && !ice[i]) {
+            const q = (i % n) - c, r = ((i / n) | 0) - c;
+            reach = Math.max(reach, q * q + q * r + r * r);
+          }
+        }
+        [water, next] = [next, water];
+      }
+      let most = 1;
+      for (const i of inside) most = Math.max(most, water[i]);
+      // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates).
+      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Float64Array(w * h);
+      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
+        const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), q = (px + 0.5 - w / 2) * scale - r / 2;
+        let rq = Math.round(q), rr = Math.round(r);
+        const rs = Math.round(-q - r), dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs + q + r);
+        if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
+        const x = rq + c, y = rr + c;
+        cells[py * w + px] = x >= 0 && y >= 0 && x < n && y < n ? water[y * n + x] : beta;
+      }
+      const mix = (a, b, t) => a.map((v, k) => Math.round(v + (b[k] - v) * t));
+      paint(canvas, w, h, cells, (v) => (v < 1
+        ? mix(NAVY, VAPOUR, Math.max(v, 0))
+        : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1)))));
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
