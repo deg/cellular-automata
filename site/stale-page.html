@@ -1,0 +1,31 @@
+<script>
+  // Inserted by site/build.sh at the top of every demo page. Each deploy gives a demo's .js
+  // and .wasm new names (they carry a hash of their contents) and deletes the old ones, and
+  // GitHub Pages lets browsers reuse a page for 10 minutes. A page cached from before a
+  // deploy would ask for files that are gone, and sit on "Loading…". So if one of the
+  // page's own .js or .wasm files fails to load, reload once: a reload checks the page with
+  // the server, and gets the new one. The flag stops a second reload in a row, should the
+  // new page fail too.
+  (function () {
+    var key = "stale-page-reloaded:" + location.pathname;
+    function remember(value) {
+      try {
+        if (value) sessionStorage.setItem(key, "1"); else sessionStorage.removeItem(key);
+        return true;
+      } catch (e) {
+        return false; // no storage: don't risk reloading for ever
+      }
+    }
+    function reloadedAlready() {
+      try { return sessionStorage.getItem(key) !== null; } catch (e) { return true; }
+    }
+    addEventListener("error", function (event) {
+      var element = event.target;
+      var url = element && (element.src || element.href);
+      if (url && /\.(js|wasm)(\?|$)/.test(url) && !reloadedAlready() && remember(true)) {
+        location.reload();
+      }
+    }, true); // load errors don't bubble: listen as they go down
+    addEventListener("TrunkApplicationStarted", function () { remember(false); });
+  })();
+</script>

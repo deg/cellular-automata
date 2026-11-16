@@ -33,6 +33,15 @@ entries=""
 for dir in "${demos[@]}"; do
   echo "== building $dir"
   (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
+  # The script that reloads a page cached from before a deploy (see the file), first in
+  # <head>, so it is listening before trunk's script asks for the demo's code.
+  page="$dist/$dir/index.html"
+  sed "/<head>/r $root/site/stale-page.html" "$page" > "$page.new"
+  mv "$page.new" "$page"
+  if ! grep -q 'stale-page-reloaded' "$page"; then
+    echo "$page: no <head> line to put the stale-page script after" >&2
+    exit 1
+  fi
   title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$dir/index.html" | head -1)"
   blurb="$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -1)"
   entries+="      <li><a class=\"card\" href=\"$dir/\"><canvas class=\"thumb\" data-demo=\"$dir\" aria-hidden=\"true\"></canvas><span class=\"card-title\">${title:-$dir}</span><span class=\"card-text\">$blurb</span></a></li>"$'\n'
