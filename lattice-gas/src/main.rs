@@ -317,38 +317,55 @@ impl GasApp {
         self.stats(ui);
     }
 
-    /// The readout, kept to a few lines so the panel fits a laptop screen.
+    /// The readout, a label/value grid like the other demos'.
     fn stats(&self, ui: &mut egui::Ui) {
         let l = &self.lattice;
-        ui.label(format!("step {}, {} particles", l.steps, l.particles()));
-        let width = self.preset.obstacle_width(l.kind(), l.height());
-        if let (Some(_), Kind::Hex) = (l.inflow, l.kind()) {
-            let mach = format!("Mach {:.2}", self.speed / SOUND_SPEED);
-            let text = match width {
-                Some(width) => format!(
-                    "{mach}, Reynolds {:.0}",
-                    sim::reynolds(self.speed, width, self.density)
-                ),
-                None => mach,
-            };
-            ui.label(text).on_hover_text("Mach: the wind's speed over the speed of sound, 1/√2 node spacings per step. Reynolds: speed x obstacle width x g / viscosity, with FHP's g and viscosity at this density (Frisch et al. 1987); higher means more eddies.");
-        }
-        if let Some((x, y)) = self.hovered {
-            let c = l.get(x, y);
-            let here = if c & WALL != 0 {
-                "wall".to_string()
-            } else {
-                match (c & PARTICLES).count_ones() {
-                    1 => "1 particle".to_string(),
-                    n => format!("{n} particles"),
+        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
+            ui.label("step");
+            ui.label(l.steps.to_string());
+            ui.end_row();
+            ui.label("particles");
+            ui.label(l.particles().to_string());
+            ui.end_row();
+            if let (Some(_), Kind::Hex) = (l.inflow, l.kind()) {
+                ui.label("Mach number");
+                ui.label(format!("{:.2}", self.speed / SOUND_SPEED)).on_hover_text(
+                    "The wind's speed over the speed of sound, 1/√2 node spacings per step.",
+                );
+                ui.end_row();
+                if let Some(width) = self.preset.obstacle_width(l.kind(), l.height()) {
+                    ui.label("Reynolds number");
+                    ui.label(format!("{:.0}", sim::reynolds(self.speed, width, self.density)))
+                        .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity at this density (Frisch et al. 1987). Higher means more eddies.");
+                    ui.end_row();
                 }
+            }
+            let (here, flow) = match self.hovered {
+                Some((x, y)) => {
+                    let c = l.get(x, y);
+                    let here = if c & WALL != 0 {
+                        "wall".to_string()
+                    } else {
+                        match (c & PARTICLES).count_ones() {
+                            1 => "1 particle".to_string(),
+                            n => format!("{n} particles"),
+                        }
+                    };
+                    let (px, py) = l.position(x, y);
+                    let f = &self.field;
+                    let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
+                    let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
+                    (here, format!("({ux:.2}, {uy:.2})"))
+                }
+                None => ("-".to_string(), "-".to_string()),
             };
-            let (px, py) = l.position(x, y);
-            let f = &self.field;
-            let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
-            let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
-            ui.label(format!("({x}, {y}): {here}, flow ({ux:.2}, {uy:.2})"));
-        }
+            ui.label("under the pointer");
+            ui.label(here);
+            ui.end_row();
+            ui.label("averaged flow there");
+            ui.label(flow);
+            ui.end_row();
+        });
     }
 
     fn advance(&mut self, dt: f64) {
