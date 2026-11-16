@@ -141,6 +141,9 @@ struct MandelbrotApp {
     sharp: bool,
     /// The c of the Julia set shown: the point last under the pointer, unless pinned.
     julia_c: [f64; 2],
+    /// The same in full, from a view too deep for an f64 to hold it: where its ring is drawn
+    /// (an f64 would put it at the view's centre).
+    julia_c_precise: Option<[Dd; 2]>,
     pinned: bool,
     show_julia: bool,
     /// The Julia set fills the view, in place of the Mandelbrot set.
@@ -182,6 +185,7 @@ impl MandelbrotApp {
             stop_at: 500,
             sharp: false,
             julia_c: FIRST_JULIA,
+            julia_c_precise: None,
             pinned: false,
             show_julia: true,
             julia_full: false,
@@ -285,6 +289,7 @@ impl MandelbrotApp {
             && !self.pinned
         {
             self.julia_c = hover.point;
+            self.julia_c_precise = hover.precise;
         }
         self.julia.set_family(Family::Julia(self.julia_c));
 
@@ -303,7 +308,10 @@ impl MandelbrotApp {
         } else {
             self.mandelbrot.paint(&painter, rect);
             if self.pinned {
-                let at = self.mandelbrot.to_screen(self.julia_c, rect);
+                let at = match self.julia_c_precise {
+                    Some(p) => self.mandelbrot.to_screen_dd(p, rect),
+                    None => self.mandelbrot.to_screen(self.julia_c, rect),
+                };
                 painter.circle_stroke(at, 7.0, Stroke::new(3.0, Color32::from_black_alpha(150)));
                 painter.circle_stroke(at, 7.0, Stroke::new(1.5, GOLD));
             }
@@ -442,6 +450,8 @@ impl MandelbrotApp {
                     && let Some((point, _)) = pos.and_then(|p| self.mandelbrot.pixel_at(p, rect))
                 {
                     self.julia_c = point;
+                    self.julia_c_precise =
+                        pos.and_then(|p| self.mandelbrot.precise_point_at(p, rect));
                     self.pinned = true;
                 }
             }
@@ -623,7 +633,12 @@ impl MandelbrotApp {
             Pixel::Running(n) => format!("still near 0 after {n} steps"),
             Pixel::Escaped { step, .. } => format!("escapes at step {step}"),
         });
+        // The orbit is followed from the pointer's point as an f64, which in a deep view is
+        // rounded to the same value for every pixel near it: its fate would then contradict
+        // the pixel's own. So it is shown only for views that aren't deep.
+        let deep = self.active().picture().view().perturbed();
         let cycle = match hover.orbit.fate {
+            _ if deep => None,
             Fate::Cycle(1) => Some("z settles on a single point".to_string()),
             Fate::Cycle(p) => Some(format!("z settles into a cycle of {p} points")),
             Fate::Undecided(n) if n > 0 && !matches!(hover.pixel, Pixel::Escaped { .. }) => {

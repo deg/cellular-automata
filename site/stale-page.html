@@ -1,10 +1,10 @@
 <script>
   // Inserted by site/build.sh near the top of every demo page, straight after <meta charset>,
-  // before trunk's script that loads the demo. Each deploy gives a demo's .js
-  // and .wasm new names (they carry a hash of their contents) and deletes the old ones, and
+  // before trunk's script that loads the demo. Each deploy gives a demo's .js, .mjs and
+  // .wasm new names (they carry a hash of their contents) and deletes the old ones, and
   // GitHub Pages lets browsers reuse a page for 10 minutes. A page cached from before a
-  // deploy would ask for files that are gone, and sit on "Loading…". So if one of the
-  // page's own .js or .wasm files fails to load, reload once: a reload checks the page with
+  // deploy would ask for files that are gone, and sit on "Loading…". So if one of the page's
+  // own .js, .mjs or .wasm files fails to load, reload once: a reload checks the page with
   // the server, and gets the new one. The flag stops a second reload in a row, should the
   // new page fail too.
   (function () {
@@ -25,7 +25,7 @@
       if (started) return;
       var element = event.target;
       var url = element && (element.src || element.href);
-      if (url && /\.(js|wasm)(\?|$)/.test(url) && !reloadedAlready() && remember(true)) {
+      if (url && /\.(m?js|wasm)(\?|$)/.test(url) && !reloadedAlready() && remember(true)) {
         location.reload();
       }
     }, true); // load errors don't bubble: listen as they go down

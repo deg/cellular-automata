@@ -138,6 +138,19 @@ impl Viewport {
         [b0 + i * self.step, b1 - j * self.step]
     }
 
+    /// [`Viewport::pixel_of`] for a point held in double-double: exact in a deep view, where
+    /// an f64 point would land every pixel on the same spot.
+    pub fn pixel_of_dd(&self, p: [Dd; 2]) -> [f64; 2] {
+        let d = [
+            (p[0] - self.base[0]).to_f64(),
+            (self.base[1] - p[1]).to_f64(),
+        ];
+        [
+            d[0] / self.step - self.offset[0] as f64 + self.width as f64 * 0.5,
+            d[1] / self.step - self.offset[1] as f64 + self.height as f64 * 0.5,
+        ]
+    }
+
     /// Where point `(x, y)` of `other` (in its pixels) falls in this view, in pixels: like
     /// `self.pixel_of(other.at(x, y))`, but exact enough for deep views, whose points don't
     /// fit an f64. For drawing an older picture scaled under a newer one.
@@ -425,13 +438,19 @@ impl Reference {
     /// Compute the orbit on to Z_limit, unless it has escaped. Returns the work done.
     /// Extending it later gives exactly the values computing it all at once would: the
     /// pictures rely on that to come out the same however the limit was raised.
-    fn extend(&mut self, limit: u32) -> u64 {
+    fn extend(&mut self, limit: u32, budget: u64) -> u64 {
         let mut work = 0;
-        while !self.escaped && self.cycle_from.is_none() && self.orbit.len() <= limit as usize {
+        while work < budget && !self.reaches(limit) {
             self.step(false);
             work += REFERENCE_COST;
         }
         work
+    }
+
+    /// Whether the orbit is long enough for pixels to run to `limit`: it reaches Z_limit, or
+    /// ends sooner by escaping or cycling.
+    fn reaches(&self, limit: u32) -> bool {
+        self.escaped || self.cycle_from.is_some() || self.orbit.len() > limit as usize
     }
 }
 
@@ -520,10 +539,16 @@ impl Picture {
     /// how much was done. Each pixel touched also counts a fixed cost for its overhead. A
     /// pixel can be left partway, and carries on next time.
     pub fn work(&mut self, budget: u64) -> u64 {
-        let mut spent = match &mut self.reference {
-            Some(reference) => reference.extend(self.limit),
-            None => 0,
-        };
+        // A deep picture's reference orbit comes first, within the budget too: extended to a
+        // high limit all at once, it stalled a frame (44 ms natively at a million steps).
+        // No pixel runs until it is long enough, which keeps pictures reproducible.
+        let mut spent = 0;
+        if let Some(reference) = &mut self.reference {
+            spent = reference.extend(self.limit, budget);
+            if !reference.reaches(self.limit) {
+                return spent;
+            }
+        }
         loop {
             if self.read >= self.queue.len() {
                 self.queue.truncate(self.write);
@@ -1622,6 +1647,54 @@ mod tests {
         fresh.work(u64::MAX);
         p.work(u64::MAX);
         assert!(same(&p, &fresh));
+    }
+
+    /// A deep picture's reference orbit must be extended within the frame's budget, not all
+    /// at once (that stalled a frame for 44 ms at a million steps), with no pixel run until it
+    /// is long enough; and the picture must still come out exactly as computed in one go.
+    /// The reference here, a Siegel disc point on the main cardioid's edge, neither escapes
+    /// nor cycles, so its orbit must run all the way to the limit.
+    #[test]
+    fn the_reference_is_extended_within_the_budget() {
+        let theta = std::f64::consts::TAU * 0.618_033_988_749_894_9;
+        let (cos, sin) = (theta.cos(), theta.sin());
+        let (cos2, sin2) = ((2.0 * theta).cos(), (2.0 * theta).sin());
+        let c = [cos / 2.0 - cos2 / 4.0, sin / 2.0 - sin2 / 4.0];
+        let view = deep(20, 16, c, [0.0, 0.0], 1e14);
+        let limit = 50_000;
+        let mut whole = Picture::new(Family::Mandelbrot, view, limit);
+        whole.work(u64::MAX);
+        let r = whole.reference.as_ref().unwrap();
+        assert!(
+            !r.escaped && r.cycle_from.is_none(),
+            "the premise: a reference that runs on"
+        );
+        let mut p = Picture::new(Family::Mandelbrot, view, limit);
+        let spent = p.work(6_000);
+        assert!(spent <= 6_000 + REFERENCE_COST, "spent {spent}");
+        assert!(
+            p.smooth.iter().all(|&s| s == FRESH),
+            "pixels ran before the orbit was long enough"
+        );
+        while !p.is_done() {
+            p.work(6_000);
+        }
+        assert!(state(&p) == state(&whole) && p.places == whole.places);
+    }
+
+    /// A point held in double-double must map back to its own pixel in a deep view; with f64
+    /// points every pixel there lands on the same spot (the pinned point's ring was drawn at
+    /// the view's centre).
+    #[test]
+    fn pixel_of_dd_is_exact_deep() {
+        let v = deep(300, 200, [0.0, 1.0], [3e-21, 0.0], 1e20);
+        for (x, y) in [(0, 0), (37, 151), (299, 199)] {
+            let [px, py] = v.pixel_of_dd(v.point_dd(x, y));
+            assert!(
+                (px - (x as f64 + 0.5)).abs() < 1e-3 && (py - (y as f64 + 0.5)).abs() < 1e-3,
+                "({x}, {y}): ({px}, {py})"
+            );
+        }
     }
 
     /// The view's two mappings must undo each other, zooming must keep the point under the

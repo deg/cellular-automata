@@ -192,6 +192,12 @@ impl Pane {
         self.replace(self.picture.family(), view);
     }
 
+    /// [`Pane::to_screen`] for a point held in full, exact in a deep view.
+    pub fn to_screen_dd(&self, p: [Dd; 2], rect: Rect) -> Pos2 {
+        let [x, y] = self.picture.view().pixel_of_dd(p);
+        rect.min + egui::vec2(x as f32, y as f32) / self.scale
+    }
+
     /// Where the plane point `p` is drawn, in `rect`.
     pub fn to_screen(&self, p: [f64; 2], rect: Rect) -> Pos2 {
         let [x, y] = self.picture.view().pixel_of(p);
