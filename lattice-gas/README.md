@@ -20,40 +20,108 @@ directions have a particle. Every step has two phases.
    - **Triple.** Exactly three particles, 120° apart. They leave in the three directions
      between the ones they arrived in.
 
-   Every other arrangement passes through unchanged. Both collisions keep the number of
-   particles and their total momentum (the sum of their velocity arrows) exactly, as real
-   collisions do.
+   Every other arrangement passes through unchanged: 5 of the 64 possible arrangements
+   collide, and 59 don't. Both collisions keep the number of particles and their total
+   momentum (the sum of their velocity arrows) exactly, as real collisions do.
 2. **Streaming.** Every particle moves one node along its direction.
 
 **Walls** send every particle back the way it came ("bounce-back"), so the gas next to a
 wall has no average velocity: it sticks to the wall, as a real fluid does.
 
+**The wind** comes in at the left edge: every step, the first few columns are refilled with
+fresh gas moving right. The world wraps around, so the same columns also swallow the gas
+leaving at the right edge: a wind tunnel.
+
+## Why the averages flow
+
+One node holds at most six particles, so on its own it says almost nothing: look at the
+**Particles** view, which is noise. The fluid appears in averages. The other views average
+each block of nodes (16 across, by default) over the last hundred steps or so, and draw the
+mean velocity as arrows and colour.
+
+Mass and momentum are conserved in every collision, and those two conservation laws are,
+at large scales, most of what the equations of fluid flow (the Navier-Stokes equations) say.
+The details of the collisions matter mostly through how fast momentum spreads between
+neighbouring layers of gas: the **viscosity**. So a gas this crude still flows like a real one, as long as the
+lattice is symmetric enough. That is where the hexagon matters.
+
 ## History
 
-- **1973: HPP.** Jean Hardy, Yves Pomeau and Olivier de Pazzis introduced the first fully
-  discrete lattice gas, on a square lattice, with head-on pairs turning through 90°
-  (J. Math. Phys. 14, 1746 (1973); Phys. Rev. A 13, 1949 (1976)). They built it to study
-  basic questions in statistical mechanics, such as how transport coefficients behave in
-  two dimensions. It conserves mass and momentum and carries sound waves, but its
-  large-scale flow does not obey the equations of real fluids: a square lattice is not
-  symmetric enough, and the averaged flow "feels" the lattice's directions.
+- **1973: HPP.** J. Hardy, Y. Pomeau and O. de Pazzis introduced the first fully discrete
+  lattice gas, on a square lattice: four directions, with head-on pairs turning through
+  90° (J. Math. Phys. 14, 1746 (1973); Phys. Rev. A 13, 1949 (1976)). They built it to
+  study basic questions in statistical mechanics, such as how transport coefficients
+  behave in two dimensions. It conserves mass and momentum and carries sound waves, but
+  its large-scale flow does not obey the Navier-Stokes equations: the square lattice is
+  not symmetric enough. The flow of momentum in the averaged gas depends on the
+  direction of flow relative to the lattice, so the gas behaves differently along the
+  lattice and diagonally across it.
 - **1986: FHP.** Uriel Frisch, Brosl Hasslacher and Yves Pomeau showed that the same kind of
-  model on a hexagonal lattice does obey the Navier-Stokes equations, the equations of
-  real fluid flow, at large scales ("Lattice-gas automata for the Navier-Stokes equation",
-  Phys. Rev. Lett. 56, 1505 (1986)). The model is known by their initials. Its rules are
-  only a few bits of logic per node, so they proposed it as the basis for simple, massively
-  parallel fluid computers.
-- **1987: the full theory and simulations.** The theory, with the exact collision rules
-  used here, is in U. Frisch, D. d'Humières, B. Hasslacher, P. Lallemand, Y. Pomeau and
-  J.-P. Rivet, "Lattice gas hydrodynamics in two and three dimensions", Complex Systems 1,
-  649–707 (1987). In the same issue, D. d'Humières and P. Lallemand simulated flows on
-  lattices of millions of nodes and compared them with real experiments: channel flow,
-  the flow past a backward step, and eddies behind a flat plate ("Numerical simulations of
-  hydrodynamics with lattice gas automata in two dimensions", Complex Systems 1, 599–632).
+  model on a hexagonal lattice does obey the Navier-Stokes equations at large scales
+  ("Lattice-gas automata for the Navier-Stokes equation", Phys. Rev. Lett. 56, 1505
+  (1986)). Six directions are enough to make the averaged flow the same in every
+  direction; four are not. The model is known by their initials. Its rules are a few bits
+  of logic per node, so they proposed it for simple, massively parallel fluid computers.
+- **1987: theory and simulations.** The full theory, with the exact collision rules used
+  here, is in U. Frisch, D. d'Humières, B. Hasslacher, P. Lallemand, Y. Pomeau and
+  J.-P. Rivet, "Lattice gas hydrodynamics in two and three dimensions" (Complex Systems 1,
+  649–707). In the same issue, D. d'Humières and P. Lallemand simulated lattices of
+  about a million nodes and compared them with known solutions and experiments: flow down a
+  channel, the flow past a backward step, and eddies growing behind a flat plate, which
+  they compared with experiments in water ("Numerical simulations of hydrodynamics with lattice gas automata
+  in two dimensions", Complex Systems 1, 599–632). The same volume describes RAP-1, a
+  cellular automaton machine built for fluid dynamics (A. Clouqueur and D. d'Humières).
+- **1988 and after: lattice Boltzmann.** G. McNamara and G. Zanetti proposed simulating
+  the gas's average populations directly, as real numbers, instead of individual
+  particles ("Use of the Boltzmann equation to simulate lattice-gas automata", Phys. Rev.
+  Lett. 61, 2332 (1988)). With no particles, there is none of the noise you see here.
+  Lattice gases were the precursor of these lattice Boltzmann methods.
+
+## What this one can and can't do
+
+- **Noise.** Every average is over a finite number of particles, so the flow views shimmer.
+  Bigger blocks or longer time averages smooth it, at the cost of detail or of lag.
+- **Low Reynolds numbers.** The Reynolds number says how much a flow is dominated by
+  inertia (high: eddies and turbulence) rather than viscosity (low: smooth, syrupy flow).
+  FHP-I's viscosity is high: at its best density, about 0.19 particles per direction, the
+  Reynolds number is only 0.387 times the Mach number (speed over the speed of sound)
+  times the obstacle's width in nodes (Frisch et al. 1987, Table 1). The wind must stay
+  well below the speed of sound for the gas to flow like a liquid rather than compress
+  (Frisch et al. §8), so at half the speed of sound an obstacle 100 nodes wide reaches a
+  Reynolds number of about 20. That is enough for a pair of eddies behind a plate, but
+  not for the alternating vortices that d'Humières and Lallemand saw shed from their
+  plate, at a Reynolds number of about 300, with a richer rule set (FHP-III, which adds
+  a resting particle and many more collisions, and reaches Reynolds numbers about six
+  times higher than FHP-I's) on a lattice of almost three million nodes.
+- **Not quite Galilean.** The lattice gas's flow carries itself along more slowly than a
+  real fluid's would, by a density-dependent factor (`g` in the papers); time is rescaled
+  to compare with real flows. The Reynolds number shown allows for it.
+
+## Things to try
+
+- **Flat plate in a wind.** Run it and watch the **Swirl** view. Two layers of opposite
+  spin peel off the plate's ends, and between them, behind the plate, the arrows shrink and
+  turn back: a pair of eddies, growing with time. Switch to **Speed** to see the still
+  bubble of the wake.
+- **Particles.** Switch to the particle view while the plate runs: the flow you just saw is
+  invisible in the raw automaton. The arrows still show it.
+- **A pulse of gas at rest.** A dense disc spreads as a ring at the speed of sound,
+  1/√2 node spacings per step. The ring stays round, though the particles move in only
+  six directions: that roundness is the symmetry that the square HPP lattice lacks.
+- **Draw your own obstacle.** Drag on the lattice to draw walls, shift-drag to erase. A
+  wall across the whole channel blocks the wind; a gap in it makes a jet.
+- **Flow down a channel.** Walls along the top and bottom. The gas sticks to them, and the
+  slow layers next to the walls thicken downstream.
+- **Change the averaging.** Small blocks and short windows show detail but noise; large
+  ones show smooth flow. Try 6 nodes and 10 steps, then 32 and 500.
+- **Change the wind.** A faster wind means a higher Reynolds number and bigger eddies, but
+  also a denser pile-up of gas in front of the obstacle (see **Density**).
 
 ## Further reading
 
-- The two Complex Systems papers above are free to read on the journal's site,
-  <https://www.complex-systems.com/>.
+- The two 1987 Complex Systems papers above are free to read on the journal's website,
+  <https://www.complex-systems.com/>, and explain both the theory and the practice.
 - [Lattice gas automaton](https://en.wikipedia.org/wiki/Lattice_gas_automaton) on
   Wikipedia.
+- D. A. Wolf-Gladrow, *Lattice-Gas Cellular Automata and Lattice Boltzmann Models*
+  (Springer, 2000): a textbook on both.

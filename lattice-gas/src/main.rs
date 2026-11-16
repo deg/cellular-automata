@@ -1,12 +1,14 @@
 //! Lattice gas demo: particles colliding on a hexagonal lattice, which flow like a fluid.
 
+mod flow;
 mod sim;
 mod view;
 
-use ca_core::egui::{self, Color32, RichText};
+use ca_core::egui::{self, Color32, RichText, Stroke, vec2};
 use ca_core::{About, Advance, Pace, Playback, eframe, generations_per_frame};
-use sim::{Inflow, Lattice, PARTICLES, ROW_HEIGHT, WALL};
-use view::LatticeView;
+use flow::{Blocks, Field};
+use sim::{Inflow, Lattice, PARTICLES, ROW_HEIGHT, SOUND_SPEED, WALL};
+use view::{LatticeView, Shown};
 
 fn main() {
     ca_core::run("Lattice gas", GasApp::new);
@@ -24,11 +26,20 @@ const STONE: Color32 = Color32::from_rgb(0xb8, 0xbc, 0xc8);
 /// A node's colour by its particle count, 0 to 6.
 const BY_COUNT: [Color32; 7] = [NAVY, DUSK, BLUE, TEAL, GOLD, CORAL, SPARK];
 
+/// Speed, from still to fast.
+const SPEED_RAMP: [Color32; 5] = [NAVY, BLUE, TEAL, GOLD, SPARK];
+
 /// World sizes, in nodes. Heights are even, as the wrapping lattice needs.
 const SIZES: &[(usize, usize)] = &[(400, 200), (800, 400), (1200, 600)];
 
 /// Columns refilled with fresh gas each step, at the left edge.
 const INFLOW_WIDTH: usize = 4;
+
+/// How much cheaper a node-step is here than a cell-generation of Life, which
+/// `generations_per_frame`'s budget is sized for (about 11 ns). Measured natively in a
+/// release build (`timing_steps`): 0.6 ns per node for the step, 0.4 for the averaging.
+/// The browser is slower, so the factor is kept well under the 11 it suggests.
+const CHEAPER_THAN_LIFE: usize = 5;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Preset {
@@ -52,26 +63,80 @@ impl Preset {
 
     fn hint(self) -> &'static str {
         match self {
-            Self::Plate => "A wall across the flow. Eddies grow behind it.",
-            Self::Cylinder => "A round obstacle. Its wake is gentler than the plate's.",
+            Self::Plate => {
+                "A wall across the wind. Behind it the flow turns back on itself in two eddies, which grow."
+            }
+            Self::Cylinder => "A round obstacle. Its wake is smaller than the plate's.",
             Self::Channel => {
-                "Walls along the top and bottom. The gas sticks to them and the flow slows near them."
+                "Walls along the top and bottom. The gas sticks to them, and the flow slows near them."
             }
             Self::Pulse => {
-                "A dense disc of gas in still gas spreads as a ring: a sound wave, and a round one."
+                "A dense disc of gas in still gas. It spreads as a ring at the speed of sound, as round as on a real gas."
             }
+        }
+    }
+
+    /// The obstacle's width across the wind, in node spacings, for the Reynolds number.
+    fn obstacle_width(self, h: usize) -> Option<f64> {
+        let side = h as f64 * ROW_HEIGHT;
+        match self {
+            Self::Plate => Some(side / 3.0),
+            Self::Cylinder => Some(side / 4.0),
+            Self::Channel | Self::Pulse => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Show {
+    Particles,
+    Speed,
+    Vorticity,
+    Density,
+}
+
+impl Show {
+    const ALL: [Show; 4] = [Self::Particles, Self::Speed, Self::Vorticity, Self::Density];
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Particles => "Particles",
+            Self::Speed => "Speed",
+            Self::Vorticity => "Swirl",
+            Self::Density => "Density",
+        }
+    }
+
+    fn hint(self) -> &'static str {
+        match self {
+            Self::Particles => {
+                "Each node coloured by how many particles it holds, 0 (dark) to 6 (white): the raw automaton."
+            }
+            Self::Speed => "The averaged flow's speed: dark is still, white is fast.",
+            Self::Vorticity => {
+                "The averaged flow's vorticity, how fast it spins: coral counter-clockwise, blue clockwise."
+            }
+            Self::Density => "The averaged density: coral denser than the mean, blue thinner.",
         }
     }
 }
 
 struct GasApp {
     lattice: Lattice,
+    blocks: Blocks,
+    field: Field,
     view: LatticeView,
     about: About,
     playback: Playback,
     pace: Pace,
     size: (usize, usize),
     preset: Preset,
+    show: Show,
+    arrows: bool,
+    /// Width of an averaging block, in nodes.
+    block: usize,
+    /// The time average's window, in steps.
+    window: f64,
     /// Particles per direction per node, 0 to 1: the gas's density.
     density: f64,
     /// The wind's speed, in node spacings per step.
@@ -90,22 +155,19 @@ impl eframe::App for GasApp {
         let dt = ui.input(|i| f64::from(i.stable_dt).min(0.1));
         self.advance(dt);
         if self.dirty {
+            self.field.blend(&self.blocks, self.window);
+            self.blocks.clear();
+            let image = self.image();
             let l = &self.lattice;
-            let (w, cells) = (l.width(), l.cells());
-            let image = view::image(w, l.height(), |x, y| {
-                let c = cells[y * w + x];
-                if c & WALL != 0 {
-                    STONE
-                } else {
-                    BY_COUNT[(c & PARTICLES).count_ones() as usize]
-                }
-            });
             self.view.set_image(ui.ctx(), l.width(), l.height(), image);
             self.dirty = false;
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
+            if self.arrows {
+                self.draw_arrows(ui, &shown);
+            }
             self.hovered = shown.hovered;
             if let Some((x, y)) = shown.pressed {
                 let erase = ui.input(|i| i.modifiers.shift);
@@ -122,14 +184,22 @@ impl eframe::App for GasApp {
 impl GasApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let size = SIZES[1];
+        let block = 16;
+        let blocks = blocks(size, block);
         let mut app = Self {
             lattice: Lattice::new(size.0, size.1, 1986),
+            field: Field::new(&blocks),
+            blocks,
             view: LatticeView::new(),
             about: About::new(include_str!("../README.md")),
-            playback: Playback::new(200, 5_000, "steps / second"),
+            playback: Playback::new(500, 5_000, "steps / second"),
             pace: Pace::default(),
             size,
             preset: Preset::Plate,
+            show: Show::Vorticity,
+            arrows: true,
+            block,
+            window: 100.0,
             density: 0.2,
             speed: 0.3,
             brush: 3.0,
@@ -143,12 +213,37 @@ impl GasApp {
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Lattice gas");
-        ui.label("Particles move along the lines of a hexagonal lattice, at most one per direction at each node. When they meet at a node, they scatter, keeping their number and momentum. Averaged over many nodes, they flow like a fluid.");
+        ui.label("Particles hop along the lines of a hexagonal lattice, at most one per direction at each node. When they meet at a node, they scatter, keeping their number and momentum. Averaged over many nodes, they flow like a fluid.");
         self.about.toggle_button(ui);
         ui.separator();
 
         self.playback.ui(ui);
         ui.small("Restart sets up the start again. Drag on the lattice to draw walls; shift-drag to erase them.");
+        ui.separator();
+
+        ui.label(RichText::new("Show").strong());
+        ui.horizontal_wrapped(|ui| {
+            for show in Show::ALL {
+                if ui
+                    .selectable_label(self.show == show, show.label())
+                    .on_hover_text(show.hint())
+                    .clicked()
+                {
+                    self.show = show;
+                    self.dirty = true;
+                }
+            }
+        });
+        ui.small(self.show.hint());
+        ui.checkbox(&mut self.arrows, "Arrows: the averaged velocity");
+        ui.label("Average over blocks of (nodes across)");
+        if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
+            self.blocks = blocks(self.size, self.block);
+            self.field = Field::new(&self.blocks);
+            self.dirty = true;
+        }
+        ui.label("and over about (steps)");
+        ui.add(egui::Slider::new(&mut self.window, 1.0..=1_000.0).logarithmic(true));
         ui.separator();
 
         ui.label(RichText::new("Start").strong());
@@ -159,13 +254,20 @@ impl GasApp {
                 .clicked()
             {
                 self.preset = preset;
+                // A sound wave moves fast: see it as density, averaged over few steps.
+                // The flows are slow and noisy: average them for longer.
+                if preset == Preset::Pulse {
+                    (self.show, self.window) = (Show::Density, 5.0);
+                } else if self.window < 20.0 || self.show == Show::Density {
+                    (self.show, self.window) = (Show::Vorticity, 100.0);
+                }
                 self.restart();
             }
         }
         ui.small(self.preset.hint());
         ui.add(egui::Slider::new(&mut self.density, 0.05..=0.5).text("density"));
         ui.add(egui::Slider::new(&mut self.speed, 0.0..=0.4).text("wind speed"));
-        ui.small("Density is particles per direction per node; speed, nodes per step. They take effect on Restart (the wind at once).");
+        ui.small("Density is particles per direction per node; speed, node spacings per step. The wind changes at once, the gas already there on Restart.");
         if let Some(inflow) = &mut self.lattice.inflow {
             inflow.speed = self.speed;
             inflow.density = self.density;
@@ -176,6 +278,7 @@ impl GasApp {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
+                    self.blocks = blocks(size, self.block);
                     self.restart();
                 }
             }
@@ -183,6 +286,10 @@ impl GasApp {
         ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
         ui.separator();
 
+        self.stats(ui);
+    }
+
+    fn stats(&self, ui: &mut egui::Ui) {
         let l = &self.lattice;
         egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
             ui.label("step");
@@ -192,16 +299,18 @@ impl GasApp {
             ui.label("particles");
             ui.label(n.to_string());
             ui.end_row();
-            // Momentum per particle: the gas's mean velocity, in node spacings per step.
-            let (px, py) = l.momentum();
-            let n = n.max(1) as f64;
-            ui.label("mean velocity");
-            ui.label(format!(
-                "({:.3}, {:.3})",
-                px as f64 / 2.0 / n,
-                py as f64 * 3f64.sqrt() / 4.0 / n
-            ));
-            ui.end_row();
+            if l.inflow.is_some() {
+                ui.label("Mach number");
+                ui.label(format!("{:.2}", self.speed / SOUND_SPEED))
+                    .on_hover_text("The wind's speed over the speed of sound, 1/√2 node spacings per step.");
+                ui.end_row();
+            }
+            if let (Some(_), Some(width)) = (l.inflow, self.preset.obstacle_width(l.height())) {
+                ui.label("Reynolds number");
+                ui.label(format!("{:.0}", sim::reynolds(self.speed, width, self.density)))
+                    .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity for this density (Frisch et al. 1987). Higher means more eddies; this lattice gas can't go far.");
+                ui.end_row();
+            }
             if let Some((x, y)) = self.hovered {
                 let c = l.get(x, y);
                 ui.label(format!("node ({x}, {y})"));
@@ -210,6 +319,13 @@ impl GasApp {
                 } else {
                     format!("{} particles", (c & PARTICLES).count_ones())
                 });
+                ui.end_row();
+                let (px, py) = Lattice::position(x, y);
+                let f = &self.field;
+                let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
+                let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
+                ui.label("averaged velocity");
+                ui.label(format!("({ux:.3}, {uy:.3})"));
                 ui.end_row();
             }
         });
@@ -223,14 +339,83 @@ impl GasApp {
             Advance::Idle => 0,
             Advance::Step => 1,
             Advance::Run(per_second) => {
-                let cap = generations_per_frame(self.size.0 * self.size.1, 200);
+                let nodes = self.size.0 * self.size.1;
+                let cap = generations_per_frame(nodes / CHEAPER_THAN_LIFE, 200);
                 self.pace.steps(per_second as f64, dt, cap)
             }
         };
         for _ in 0..steps {
             self.lattice.step();
+            self.blocks.add(&self.lattice);
         }
         self.dirty |= steps > 0;
+    }
+
+    /// The picture for the current view: one colour per node.
+    fn image(&self) -> egui::ColorImage {
+        let l = &self.lattice;
+        let (w, h, cells) = (l.width(), l.height(), l.cells());
+        let f = &self.field;
+        let wind = self.speed.max(0.05);
+        let mean = self.density * 6.0;
+        // Per block, the value to draw, interpolated between blocks for each node.
+        let values: Vec<f64> = (0..f.ny)
+            .flat_map(|by| (0..f.nx).map(move |bx| (bx, by)))
+            .map(|(bx, by)| {
+                let a = f.get(bx, by);
+                match self.show {
+                    Show::Particles => 0.0,
+                    Show::Speed => a.ux.hypot(a.uy) / (1.5 * wind),
+                    // Shear across an eddy about 30 nodes wide gives about wind / 15.
+                    Show::Vorticity => f.vorticity(bx, by) / (wind / 15.0),
+                    Show::Density => (a.density / mean - 1.0) / 0.25,
+                }
+            })
+            .collect();
+        let value = |bx: usize, by: usize| values[by * f.nx + bx];
+        view::image(w, h, |x, y| {
+            let c = cells[y * w + x];
+            if c & WALL != 0 {
+                return STONE;
+            }
+            if self.show == Show::Particles {
+                return BY_COUNT[(c & PARTICLES).count_ones() as usize];
+            }
+            let (px, py) = Lattice::position(x, y);
+            let v = f.at(px, py, value);
+            match self.show {
+                Show::Speed => ramp(&SPEED_RAMP, v),
+                _ => diverging(v),
+            }
+        })
+    }
+
+    /// An arrow per block (or per few blocks, if blocks are small on screen), showing the
+    /// averaged velocity: a wind's length is about one block.
+    fn draw_arrows(&self, ui: &egui::Ui, shown: &Shown) {
+        let f = &self.field;
+        let b = &self.blocks;
+        let block_points = b.bw as f32 * shown.scale();
+        if block_points <= 0.0 {
+            return;
+        }
+        let every = (14.0 / block_points).ceil().max(1.0) as usize;
+        let reach = block_points * every as f32 / self.speed.max(0.05) as f32 * 0.8;
+        let painter = ui.painter_at(shown.rect());
+        let stroke = Stroke::new(1.2, Color32::from_rgba_unmultiplied(0xf4, 0xf1, 0xde, 190));
+        for by in (0..f.ny).step_by(every) {
+            for bx in (0..f.nx).step_by(every) {
+                let a = f.get(bx, by);
+                let (cx, cy) = b.centre(bx, by);
+                // y up in the flow, down on screen.
+                let v = vec2(a.ux as f32, -a.uy as f32) * reach;
+                if v.length() < 1.5 {
+                    continue;
+                }
+                let tip = shown.to_screen(cx, cy) + v * 0.5;
+                painter.arrow(tip - v, v, stroke);
+            }
+        }
     }
 
     /// Set the current preset up afresh.
@@ -244,18 +429,16 @@ impl GasApp {
             density: self.density,
             speed: self.speed,
         });
+        let x0 = w as f64 / 4.0;
+        let across = self.preset.obstacle_width(h).unwrap_or(0.0);
         match self.preset {
             Preset::Plate => {
-                let half = h as f64 * ROW_HEIGHT / 6.0;
-                let x0 = w as f64 / 4.0;
-                l.wall_where(|px, py| (px - x0).abs() <= 1.0 && (py - mid_y).abs() <= half);
+                l.wall_where(|px, py| (px - x0).abs() <= 1.0 && (py - mid_y).abs() <= across / 2.0);
                 l.fill(self.density, self.speed);
                 l.inflow = wind;
             }
             Preset::Cylinder => {
-                let r = h as f64 * ROW_HEIGHT / 8.0;
-                let x0 = w as f64 / 4.0;
-                l.wall_where(|px, py| (px - x0).hypot(py - mid_y) <= r);
+                l.wall_where(|px, py| (px - x0).hypot(py - mid_y) <= across / 2.0);
                 l.fill(self.density, self.speed);
                 l.inflow = wind;
             }
@@ -269,11 +452,14 @@ impl GasApp {
             }
             Preset::Pulse => {
                 l.fill(self.density, 0.0);
-                let r = h as f64 * ROW_HEIGHT / 20.0;
+                let r = h as f64 * ROW_HEIGHT / 12.0;
                 l.fill_disc(w as f64 / 2.0, mid_y, r, (self.density * 2.5).min(1.0));
             }
         }
         self.lattice = l;
+        self.blocks.clear();
+        self.blocks.add(&self.lattice);
+        self.field = Field::new(&self.blocks);
         self.dirty = true;
     }
 
@@ -302,4 +488,32 @@ impl GasApp {
         }
         self.dirty = true;
     }
+}
+
+/// Averaging blocks `block` nodes across and about as tall (an even number of rows, so
+/// each block holds as many odd rows as even).
+fn blocks(size: (usize, usize), block: usize) -> Blocks {
+    let rows = ((block as f64 / ROW_HEIGHT / 2.0).round() as usize * 2).max(2);
+    Blocks::new(size.0, size.1, block, rows)
+}
+
+/// `t` from 0 to 1 along a ramp of colours, clamped.
+fn ramp(colours: &[Color32], t: f64) -> Color32 {
+    let t = t.clamp(0.0, 1.0) * (colours.len() - 1) as f64;
+    let i = (t as usize).min(colours.len() - 2);
+    mix(colours[i], colours[i + 1], (t - i as f64) as f32)
+}
+
+/// `t` from -1 (blue) through 0 (navy) to 1 (coral), clamped.
+fn diverging(t: f64) -> Color32 {
+    if t < 0.0 {
+        ramp(&[NAVY, BLUE, SPARK], -t)
+    } else {
+        ramp(&[NAVY, CORAL, SPARK], t)
+    }
+}
+
+fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+    let m = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
+    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }

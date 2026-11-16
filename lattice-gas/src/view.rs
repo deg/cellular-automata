@@ -57,6 +57,29 @@ pub struct Shown {
     /// The node under the pointer on every frame the button is held, for painting.
     pub pressed: Option<(usize, usize)>,
     pub hovered: Option<(usize, usize)>,
+    rect: Rect,
+    /// Points per node spacing.
+    scale: f32,
+}
+
+impl Shown {
+    /// The screen point of the lattice position `(px, py)`, in node spacings, y down (as
+    /// `Lattice::position` gives it). A node's bricks span one node spacing to the right of
+    /// its position and one row down, so its centre is half of each further on.
+    pub fn to_screen(&self, px: f64, py: f64) -> Pos2 {
+        let (cx, cy) = (px + 0.5, py + 0.5 * ROW_HEIGHT);
+        self.rect.min + vec2(cx as f32 * self.scale, cy as f32 * self.scale)
+    }
+
+    /// Points per node spacing.
+    pub fn scale(&self) -> f32 {
+        self.scale
+    }
+
+    /// Where the lattice was drawn.
+    pub fn rect(&self) -> Rect {
+        self.rect
+    }
 }
 
 impl LatticeView {
@@ -85,6 +108,8 @@ impl LatticeView {
             return Shown {
                 pressed: None,
                 hovered: None,
+                rect: Rect::NOTHING,
+                scale: 0.0,
             };
         };
         // In node spacings: (w + 1/2) across, h rows of ROW_HEIGHT down.
@@ -111,6 +136,8 @@ impl LatticeView {
         Shown {
             pressed,
             hovered: response.hover_pos().and_then(node_at),
+            rect,
+            scale,
         }
     }
 }

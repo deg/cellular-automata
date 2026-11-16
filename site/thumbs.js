@@ -165,6 +165,89 @@
         n < 3 ? NAVY : n < 5 ? DUSK : [BLUE, TEAL, GOLD, CORAL][n % 4]);
     },
 
+    "lattice-gas"(canvas) {
+      // FHP-I particles blowing past a plate, then averaged: each pixel's colour is the
+      // swirl (vorticity) of the mean flow, coral one way and blue the other.
+      const STONE = [0xb8, 0xbc, 0xc8];
+      const w = 120, h = 78, random = rng(1986);
+      // Bits 0-5: particles moving at 0°, 60°, ... 300° (y up); bit 6 wall; bit 7 the
+      // random bit choosing which way a head-on pair turns.
+      const rot = (n, k) => ((n << k) | (n >> (6 - k))) & 63;
+      const table = new Uint8Array(256);
+      for (let s = 0; s < 256; s++) {
+        const n = s & 63, keep = s & 192;
+        let out = n;
+        if (s & 64) out = rot(n, 3);
+        else if (n === 21 || n === 42) out = rot(n, 1);
+        else if (n === 9 || n === 18 || n === 36) out = rot(n, s & 128 ? 5 : 1);
+        table[s] = keep ^ (out !== n && !(s & 64) ? 128 : 0) | out;
+      }
+      const fresh = () => {
+        let b = 0;
+        for (let i = 0; i < 6; i++) {
+          if (random() < 0.2 * (1 + 0.6 * Math.cos(i * Math.PI / 3))) b |= 1 << i;
+        }
+        return b;
+      };
+      let cells = new Uint8Array(w * h), next = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const wall = Math.abs(x + (y & 1) / 2 - 30) < 1 && Math.abs(y - h / 2) < 16;
+        cells[y * w + x] = (random() < 0.5 ? 128 : 0) | (wall ? 64 : fresh());
+      }
+      const jx = new Float64Array(w * h), jy = new Float64Array(w * h);
+      // Each node's momentum, in units (2 cos, 4 sin / sqrt 3) of its particles' directions.
+      const mxT = new Int8Array(256), myT = new Int8Array(256);
+      [[2, 0], [1, 2], [-1, 2], [-2, 0], [-1, -2], [1, -2]].forEach(([a, b], k) => {
+        for (let s = 0; s < 64; s++) if (s >> k & 1) { mxT[s] += a; myT[s] += b; }
+      });
+      for (let t = 0; t < 650; t++) {
+        for (let i = 0; i < w * h; i++) cells[i] = table[cells[i]];
+        for (let y = 0; y < h; y++) {
+          const p = y & 1, up = (y + h - 1) % h * w, dn = (y + 1) % h * w, row = y * w;
+          for (let x = 0; x < w; x++) {
+            const l = (x + w - 1) % w, r = (x + 1) % w;
+            const a = p ? x : l, b = p ? r : x; // the diagonal neighbours' columns
+            next[row + x] = (cells[row + x] & 192) | (cells[row + l] & 1) |
+              (cells[row + r] & 8) | (cells[dn + a] & 2) | (cells[dn + b] & 4) |
+              (cells[up + b] & 16) | (cells[up + a] & 32);
+          }
+        }
+        [cells, next] = [next, cells];
+        for (let y = 0; y < h; y++) for (let x = 0; x < 2; x++) {
+          const i = y * w + x;
+          if (!(cells[i] & 64)) cells[i] = (cells[i] & 128) | fresh();
+        }
+        if (t >= 200 && t % 2) for (let i = 0; i < w * h; i++) {
+          const c = cells[i] & 64 ? 0 : cells[i];
+          jx[i] += mxT[c]; jy[i] += myT[c];
+        }
+      }
+      // Mean momentum over 6 x 6 nodes, and its curl, one value per pixel of an 80 x 50 picture.
+      const bx = 6, by = 6, nx = w / bx, ny = h / by;
+      const mx = new Float64Array(nx * ny), my = new Float64Array(nx * ny);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const k = Math.floor(y / by) * nx + Math.floor(x / bx);
+        mx[k] += jx[y * w + x]; my[k] += jy[y * w + x];
+      }
+      const at = (a, x, y) => a[Math.min(ny - 1, Math.max(0, y)) * nx + Math.min(nx - 1, Math.max(0, x))];
+      const curl = (x, y) => (at(my, x + 1, y) - at(my, x - 1, y)) + (at(mx, x, y + 1) - at(mx, x, y - 1));
+      const cells2 = new Float64Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const gx = x * nx / W, gy = y * ny / H;
+        const x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+        cells2[y * W + x] = (curl(x0, y0) * (1 - fx) + curl(x0 + 1, y0) * fx) * (1 - fy) +
+          (curl(x0, y0 + 1) * (1 - fx) + curl(x0 + 1, y0 + 1) * fx) * fy;
+      }
+      const scale = 1 / 2500;
+      const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+      paint(canvas, W, H, cells2, (v, i) => {
+        const x = i % W, y = (i / W) | 0;
+        if (Math.abs(x - 20) < 1 && Math.abs(y - H / 2) < 10) return STONE;
+        const t = Math.max(-1, Math.min(1, v * scale));
+        return t < 0 ? mixc(NAVY, BLUE, -t) : mixc(NAVY, CORAL, t);
+      });
+    },
+
     wireworld(canvas) {
       // The demo's OR gate: two clocks feeding one output through diodes.
       const rows = [

@@ -70,6 +70,30 @@ pub fn velocity(i: usize) -> (f64, f64) {
 /// `sqrt(3) / 2` apart.
 pub const ROW_HEIGHT: f64 = 0.866_025_403_784_438_6;
 
+/// FHP-I's speed of sound, in node spacings per step: `1 / sqrt 2` (Frisch et al. 1987,
+/// §7, after equation (7.6)).
+pub const SOUND_SPEED: f64 = std::f64::consts::FRAC_1_SQRT_2;
+
+/// FHP-I's factor `g` on the flow's self-advection, at density `d` per direction: the
+/// lattice gas follows the Navier-Stokes equations with time rescaled by it (Frisch et al.
+/// 1987, Table 1: `g = (1/2)(1 - 2d)/(1 - d)`).
+pub fn advection_factor(d: f64) -> f64 {
+    0.5 * (1.0 - 2.0 * d) / (1.0 - d)
+}
+
+/// FHP-I's kinematic shear viscosity at density `d`, in node spacings squared per step
+/// (Frisch et al. 1987, Table 1, in the lattice Boltzmann approximation:
+/// `1 / (12 d (1 - d)^3) - 1/8`).
+pub fn viscosity(d: f64) -> f64 {
+    1.0 / (12.0 * d * (1.0 - d).powi(3)) - 0.125
+}
+
+/// The Reynolds number of a flow at speed `u` past an obstacle `l` node spacings across,
+/// at density `d`: `u l g / nu` (Frisch et al. 1987, equation (8.27)).
+pub fn reynolds(u: f64, l: f64, d: f64) -> f64 {
+    u * l * advection_factor(d) / viscosity(d)
+}
+
 /// The collision applied to every possible node byte, built once at compile time.
 pub static COLLIDE: [u8; 256] = collision_table();
 
@@ -298,7 +322,9 @@ impl Lattice {
             .sum()
     }
 
-    /// Total momentum in [`MOMENTUM`]'s integer units, walls included.
+    /// Total momentum in [`MOMENTUM`]'s integer units, walls included (for the conservation
+    /// tests).
+    #[cfg(test)]
     pub fn momentum(&self) -> (i64, i64) {
         let (mut px, mut py) = (0, 0);
         for &c in &self.cells {
@@ -465,6 +491,20 @@ mod tests {
             changed,
             vec![0b00_1001, 0b01_0010, 0b01_0101, 0b10_0100, 0b10_1010]
         );
+    }
+
+    /// Frisch et al. (1987, equation (8.32) and Table 1): for FHP-I the Reynolds number per
+    /// unit Mach number and length, `c_s g / nu`, is largest, 0.387, at density d = 0.187.
+    #[test]
+    fn reynolds_coefficient_peaks_where_the_paper_says() {
+        let (best, d) = (1..1000)
+            .map(|k| {
+                let d = k as f64 / 2000.0;
+                (SOUND_SPEED * advection_factor(d) / viscosity(d), d)
+            })
+            .fold((0.0, 0.0), |a, b| if b.0 > a.0 { b } else { a });
+        assert!((best - 0.387).abs() < 0.0005, "{best}");
+        assert!((d - 0.187).abs() < 0.001, "{d}");
     }
 
     /// Every collision keeps the node's particle count and momentum, exactly; a wall keeps
