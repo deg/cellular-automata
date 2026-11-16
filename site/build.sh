@@ -44,6 +44,18 @@ for dir in "${demos[@]}"; do
     echo "$page: no <meta charset> line to put the stale-page script after" >&2
     exit 1
   fi
+  # The "Loading… n%" count (site/loading.mjs) divides the bytes received by the size
+  # trunk writes into the page, but trunk measures the .wasm before wasm-opt shrinks it
+  # (5.9 MB against 4.5 MB), so the count would stop near 76% and then jump. Put in the
+  # size of the file actually served.
+  wasm="$(cd "$dist/$dir" && ls ./*_bg.wasm)"
+  size="$(wc -c < "$dist/$dir/$wasm" | tr -d ' ')"
+  sed -E "s|(__trunkInitializer\\(init, '$wasm', )[0-9]+|\\1$size|" "$page" > "$page.new"
+  mv "$page.new" "$page"
+  if ! grep -q "__trunkInitializer(init, '$wasm', $size," "$page"; then
+    echo "$page: could not set the .wasm's size for the loading count" >&2
+    exit 1
+  fi
   title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$dir/index.html" | head -1)"
   blurb="$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -1)"
   entries+="      <li><a class=\"card\" href=\"$dir/\"><canvas class=\"thumb\" data-demo=\"$dir\" aria-hidden=\"true\"></canvas><span class=\"card-title\">${title:-$dir}</span><span class=\"card-text\">$blurb</span></a></li>"$'\n'

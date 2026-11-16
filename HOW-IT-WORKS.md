@@ -269,7 +269,8 @@ The centred pile took 6.7 s that day, so this machine ran about twice as slow as
 2. Write `src/sim.rs`, the automaton, with tests of known behaviour.
 3. Write `src/main.rs`, using `ca_core::run`, `controls_panel`, `Playback`, `GridView`
    and `About`. Copy an existing demo, such as `brians-brain/src/main.rs`, as a start.
-4. Copy another demo's `index.html` and change its title and `data-bin`.
+4. Copy another demo's `index.html` and change its title and `data-bin`. Keep its
+   `data-initializer="../site/loading.mjs"`, which shows the download's progress.
 5. Write `README.md`: the rule, its history (with checked sources), things to try.
 6. Optionally, add a function to `site/thumbs.js` that draws its card's picture; otherwise
    it gets a generic one.

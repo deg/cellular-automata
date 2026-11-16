@@ -152,6 +152,9 @@ make siblings               # before/after a Rust update: build+test David's oth
   by fingerprinted URLs (`?v=<cksum>`), and every demo page gets `site/stale-page.html`
   inserted after `<meta charset>`: it reloads once if the page's own `.js`/`.wasm` are gone
   (a page cached from before a deploy). The build fails if either step is missed.
+  Every demo's `index.html` names `site/loading.mjs` as trunk's `data-initializer`, which
+  turns "Loading…" into a percentage; trunk records the `.wasm`'s size before wasm-opt, so
+  `build.sh` writes in the size of the file actually served.
 - A new command worth repeating gets a Makefile target with a `## description`, so
   `make help` lists it.
 - Use `--release` for anything but small grids: debug builds simulate far slower,
