@@ -64,6 +64,13 @@ impl Elementary {
         &self.row
     }
 
+    /// The generation drawn in row `y` of [`Self::history`], or `None` for a row not yet
+    /// reached. The last filled row is the current generation, and each row above it one
+    /// generation earlier.
+    pub fn generation_of_row(&self, y: usize) -> Option<u64> {
+        (y < self.filled).then(|| self.generation + 1 + y as u64 - self.filled as u64)
+    }
+
     /// The rule's answer for the 3-cell pattern `left, centre, right`.
     pub fn apply(rule: u8, left: bool, centre: bool, right: bool) -> bool {
         let pattern = (left as u8) << 2 | (centre as u8) << 1 | right as u8;
@@ -186,6 +193,24 @@ mod tests {
             let front = (50..100).take_while(|&i| e.row()[i]).last().unwrap();
             assert_eq!(front, 59 - t, "generation {t}");
         }
+    }
+
+    /// The pointer readout names the generation in each row of the diagram: rows count up
+    /// from 0 while the diagram fills, rows below the current one have none yet, and once it
+    /// scrolls the top row is the oldest generation kept.
+    #[test]
+    fn each_row_knows_its_generation() {
+        let mut e = Elementary::new(9, 5, 30, true, Start::SingleCell);
+        e.step();
+        e.step();
+        let gens: Vec<_> = (0..5).map(|y| e.generation_of_row(y)).collect();
+        assert_eq!(gens, [Some(0), Some(1), Some(2), None, None]);
+        for _ in 0..10 {
+            e.step();
+        }
+        let gens: Vec<_> = (0..5).map(|y| e.generation_of_row(y)).collect();
+        assert_eq!(gens, [Some(8), Some(9), Some(10), Some(11), Some(12)]);
+        assert_eq!(e.generation_of_row(4), Some(e.generation));
     }
 
     /// Once the diagram is full it scrolls: the newest row stays at the bottom and the

@@ -11,7 +11,7 @@ fn main() {
     ca_core::run("Elementary cellular automata", ElementaryApp::new);
 }
 
-const OFF: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
+const OFF: Color32 = ca_core::NAVY;
 const ON: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
 /// Rules worth a look, with what to notice.
@@ -26,7 +26,7 @@ const PRESETS: &[(u8, &str)] = &[
     ),
     (
         110,
-        "Can compute anything (Cook, 2004). Try a random start.",
+        "Can compute anything, as Matthew Cook proved in 2004. Try a random start.",
     ),
     (184, "Traffic: each 1 is a car that moves right into a gap."),
     (
@@ -47,6 +47,8 @@ struct ElementaryApp {
     width: usize,
     random_start: bool,
     seed: u64,
+    /// The cell under the pointer, for the readout.
+    hovered: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -66,7 +68,13 @@ impl eframe::App for ElementaryApp {
         }
 
         egui::CentralPanel::default().show(ui, |ui| {
-            self.view.show(ui);
+            let shown = self.view.show(ui);
+            // The readout was drawn before the picture this frame: draw again, or the
+            // pointer row lags a cell behind while paused.
+            if shown.hovered != self.hovered {
+                self.hovered = shown.hovered;
+                ui.ctx().request_repaint();
+            }
         });
 
         if self.playback.running || self.dirty {
@@ -78,7 +86,7 @@ impl eframe::App for ElementaryApp {
 impl ElementaryApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let width = WIDTHS[1];
-        let mut playback = Playback::new(60, 2_000, "rows / second");
+        let mut playback = Playback::new(60, 2_000, "generations / second");
         playback.running = true; // a 1D rule is best seen growing
         Self {
             automaton: Elementary::new(width, rows_for(width), 30, true, Start::SingleCell),
@@ -89,6 +97,7 @@ impl ElementaryApp {
             width,
             random_start: false,
             seed: 1,
+            hovered: None,
             dirty: true,
         }
     }
@@ -111,13 +120,17 @@ impl ElementaryApp {
         rule_table(ui, &mut self.automaton.rule);
         ui.small("Click an output square to flip it. The outputs, read as binary from left to right, are the rule number.");
         ui.horizontal_wrapped(|ui| {
-            for &(rule, note) in PRESETS {
-                if ui.button(rule.to_string()).on_hover_text(note).clicked() {
+            for &(rule, _) in PRESETS {
+                let chosen = self.automaton.rule == rule;
+                if ui.selectable_label(chosen, rule.to_string()).clicked() {
                     self.automaton.rule = rule;
                     self.restart();
                 }
             }
         });
+        if let Some((_, note)) = PRESETS.iter().find(|(r, _)| *r == self.automaton.rule) {
+            ui.small(*note);
+        }
         ui.small("A preset restarts; changing the rule by hand carries on from the current row.");
         ui.separator();
 
@@ -156,12 +169,25 @@ impl ElementaryApp {
         }
         ui.separator();
 
-        let on = self.automaton.row().iter().filter(|&&b| b).count();
-        ui.label(format!(
-            "generation {}, {on} cells on",
-            self.automaton.generation
-        ));
-        ui.small("Under rule 184 on a ring, the count of cells on never changes: cars are neither made nor destroyed.");
+        let a = &self.automaton;
+        let on = a.row().iter().filter(|&&b| b).count();
+        let under = (self.hovered).map(|(x, y)| {
+            let history = a.history();
+            match a.generation_of_row(y) {
+                Some(g) if x < history.width() => {
+                    let state = if history.get(x, y) { "on" } else { "off" };
+                    // Short, so a seven-digit generation still fits the panel's width.
+                    format!("cell {x}, gen. {}: {state}", ca_core::grouped(g))
+                }
+                _ => format!("cell {x}: not reached yet"),
+            }
+        });
+        ca_core::readout(ui, |r| {
+            r.row("generation", ca_core::grouped(a.generation));
+            r.row("cells on", ca_core::grouped(on as u64));
+            r.pointer(under);
+        });
+        ui.small("Under Rule 184 on a ring, the count of cells on never changes: cars are neither made nor destroyed.");
     }
 
     fn advance(&mut self, dt: f64) {
