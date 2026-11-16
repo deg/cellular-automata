@@ -45,8 +45,9 @@ minutes, not a rebuild.
 | 19:20 | Shared code moved into `ca_core`. |
 | 19:50 | Last fixes (lattice gas) merged; `main`'s one new commit merged in; `make check`, `make slow` and `make site` run on `integration`. |
 
-The building took about two hours of wall-clock time for all four, instead of roughly eight
-hours one after another.
+The building took about two hours of wall-clock time for all four. One after another it
+would have taken roughly eight, though that is an estimate: nobody built them in sequence
+to compare.
 
 ## Decisions, and why
 
@@ -237,11 +238,13 @@ the conflicts early; the fixes came in as later merges.
 
 ## Cost
 
-Builders used about 240-350 thousand tokens each, reviewers about 140-160 thousand, and the
-fixes 10-80 thousand. That is several times what one agent building the demos in sequence
+Builders used about 240-350 thousand tokens each, reviewers about 135-185 thousand, and the
+resumed builders' fixes about 14-47 thousand. That is several times what one agent building the demos in sequence
 would spend, because each builder reads the project and its conventions afresh. What it
-buys is wall-clock time (about two hours instead of eight) and the independent reviews,
-which found two real bugs that the builders' own checks had passed.
+buys is wall-clock time (about two hours instead of an estimated eight) and the independent
+reviews, which found real bugs the builders' own checks had passed (the snowflakes' radius
+unit, the lattice-gas card's dropped samples, a blank view after a slider change, a painting
+offset) and four gaps in the tests that mutation testing exposed.
 
 ## Appendix: the briefs and scripts
 
