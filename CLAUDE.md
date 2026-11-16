@@ -135,6 +135,8 @@ make siblings               # before/after a Rust update: build+test David's oth
 
 - Keep the simulation in `sim.rs`, separate from the UI, and test its invariants there.
 - Move code into `ca_core` only once a second demo needs it.
+- `HOW-IT-WORKS.md` explains the architecture and quotes timings and `ca_core` APIs:
+  update it when those change, or it drifts from the code.
 - Every demo has a `README.md` for a reader who has never heard of the automaton: the
   rule, where the name comes from, its history (who, when, why it mattered, with
   citations), things to try in the demo, and further reading. `main.rs` passes it to

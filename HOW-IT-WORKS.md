@@ -39,21 +39,21 @@ in `main.rs` only reads the simulation's state and calls its methods.
 ## Why Rust
 
 - **Speed.** Cellular automata are pure number-crunching: millions of cells, updated
-  thousands of times. Rust compiles to machine code, with speed comparable to C and no garbage
-  collector pausing the animation. The sandpile shows what that buys: a million grains
-  dropped on one cell settle in about 3 seconds natively (see the case study below). An
-  interpreted language would typically be many times slower.
+  thousands of times. Rust compiles to machine code, with speed comparable to C and no
+  garbage collector pausing the animation. The sandpile shows what that buys: a million
+  grains dropped on one cell settle in about 3 seconds natively (see the case study
+  below). An interpreted language would typically be many times slower.
 - **One codebase, desktop and browser.** Rust compiles to WebAssembly as easily as to a
   native program, and the UI library used here (egui) runs in both. There is no
   JavaScript version to keep in step with a desktop version: the same `sim.rs` and
   `main.rs` run in both.
-- **Safety without a runtime.** Rust checks at compile time that memory is used
-  correctly: no dangling pointers, no data races, no reading past the end of an array
-  without being caught. Bugs that would silently corrupt a C program become compile
-  errors, or a clean crash with a message, in Rust.
-- **Strong types catch mistakes early.** For example, the sandpile's cell counts are
-  32-bit, and the type system made it natural to ask "can this overflow?". The answer
-  led to a cap on the pile's total size, which bounds every cell.
+- **Safety without a garbage collector.** Rust checks at compile time that memory is
+  used correctly: no dangling pointers, no data races. At run time it checks every
+  array access, so nothing is read past the end unnoticed. Bugs that would silently
+  corrupt a C program become compile errors, or a clean crash with a message, in Rust.
+- **Overflow is caught, not ignored.** Integer overflow stops a debug build with an
+  error, and checked arithmetic is easy to write. The sandpile caps the pile's total
+  grains so that no cell's 32-bit count can overflow, and its tests check that cap.
 - **Good tooling.** `cargo` builds, tests and fetches libraries; `clippy` lints; `rustfmt`
   formats. `make check` runs all three.
 
@@ -222,9 +222,9 @@ or many at once. In order:
 
 Two ideas that sounded good were measured and dropped: skipping quiet regions (about half
 the pile topples on every sweep, so there is little to skip), and removing branches from
-the inner loop (slower). The fast paths only apply while the pile is symmetric. A grain
-dropped anywhere else switches to the plain method, which gives the same answer, just
-slower.
+the inner loop (slower). The fast paths only apply while every grain has gone to the centre of a growing grid
+with 4 or 8 neighbours. Anything else (a grain dropped elsewhere, a hex grid, a sink
+edge) uses the plain method, which gives the same answer, just slower.
 
 ## Adding a demo
 
