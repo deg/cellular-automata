@@ -11,6 +11,8 @@
 //! - [`line`]: the cells on a straight line, so drag-painting leaves no gaps.
 //! - [`HEX_NEIGHBOURS`]: the six neighbours of a cell in [`Layout::Hex`]'s coordinates.
 //! - [`moore_counts`]: each cell's count of neighbours in some state, edges handled once.
+//! - [`readout`], [`speed_cap_note`], [`grouped`], [`NAVY`]: the panel's shared readout grid,
+//!   wording, number format and background colour.
 //! - [`run`]: the entry point, which opens a native window or starts in the browser.
 //!
 //! `eframe` and `egui` are re-exported so every demo uses the same version.
@@ -22,6 +24,7 @@ mod grid;
 mod neighbours;
 mod pace;
 mod playback;
+mod readout;
 mod rng;
 mod view;
 
@@ -34,5 +37,6 @@ pub use grid::{Grid, line};
 pub use neighbours::moore_counts;
 pub use pace::{Pace, generations_per_frame};
 pub use playback::{Advance, Playback};
+pub use readout::{NAVY, Readout, grouped, readout, speed_cap_note};
 pub use rng::Rng;
 pub use view::{GridResponse, GridView, HEX_NEIGHBOURS, Layout};

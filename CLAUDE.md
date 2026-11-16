@@ -133,6 +133,9 @@ make siblings               # before/after a Rust update: build+test David's oth
     down rather than freeze.
   - `Rng`: a small seeded generator for random fills.
   - `About`: the side panel rendering the demo's `README.md`.
+  - `readout` (the label/value grid at the bottom of every panel, with its `pointer` row
+    "under the pointer"), `speed_cap_note`, `grouped` (numbers as 1,234,567) and `NAVY`
+    (the background): shared so the demos' panels look and read alike.
   - `controls_panel`: the scrolling left panel each demo puts its controls in. It is a
     fixed 290 points wide, so rows must fit or wrap: use `horizontal_wrapped`, and put
     sliders on their own line (a slider doesn't wrap and would run past the edge).
