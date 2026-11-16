@@ -138,6 +138,7 @@ impl SnowflakeApp {
         }
         ui.separator();
 
+        ui.label(RichText::new("Rule").strong());
         ui.label("Background vapour β");
         ui.add(egui::Slider::new(&mut self.params.beta, 0.0..=0.95));
         if self.params.beta != self.crystal.beta() {
