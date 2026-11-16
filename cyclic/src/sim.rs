@@ -118,13 +118,13 @@ pub const PRESETS: &[Preset] = &[
         name: "Imperfect",
         rule: Rule::new(1, 2, 4, Moore),
         credit: "John Elliott",
-        note: "Spirals form quickly and fill the world.",
+        note: "Spirals form quickly. Later, tiny clocks may appear and suddenly take over from them.",
     },
     Preset {
         name: "313",
         rule: Rule::new(1, 3, 3, Moore),
         credit: "David Griffeath",
-        note: "Three colours, threshold 3, range 1.",
+        note: "Only three colours, and still spirals.",
     },
     Preset {
         name: "Cyclic spirals",
@@ -148,7 +148,7 @@ pub const PRESETS: &[Preset] = &[
         name: "Stripes",
         rule: Rule::new(3, 4, 5, VonNeumann),
         credit: "Mirek Wójtowicz",
-        note: "Range 3, diamond neighbourhood.",
+        note: "As the name says: the waves line up in stripes.",
     },
     Preset {
         name: "Fossil debris",
@@ -197,6 +197,7 @@ impl Cyclic {
         &self.grid
     }
 
+    #[cfg(test)]
     pub fn set(&mut self, x: usize, y: usize, colour: u8) {
         self.grid.set(x, y, colour);
     }
