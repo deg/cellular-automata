@@ -8,12 +8,13 @@ use crate::egui::{self, Color32};
 pub const NAVY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
 
 /// The note under the speed slider in a demo whose work per frame is capped (see
-/// [`crate::generations_per_frame`]). `world` is what the demo calls its world: "world",
+/// [`crate::generations_per_frame`]). It names no number: each demo sizes its budget by its
+/// own cost per cell. `world` is what the demo calls its world: "world",
 /// "field", "lattice".
 pub fn speed_cap_note(ui: &mut egui::Ui, world: &str) {
     ui.small(format!(
-        "On a big {world} the top speeds are out of reach: each frame does at most about a \
-         million cell updates, so the {world} slows down instead of freezing."
+        "On a big {world} the top speeds are out of reach: each frame does a fixed amount of \
+         work, so the {world} slows down instead of freezing."
     ));
 }
 
