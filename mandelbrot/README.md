@@ -172,15 +172,16 @@ inset shatter.
 ## Further reading
 
 - The Wikipedia article [Mandelbrot set](https://en.wikipedia.org/wiki/Mandelbrot_set).
-- [The Mandelbrot Set](https://www.youtube.com/watch?v=NGMRB4O922I), Numberphile, with
-  Holly Krieger: why the rule makes the shape.
-- A. K. Dewdney,
-  [A computer microscope zooms in for a look at the most complex object in mathematics](https://www.scientificamerican.com/article/computer-recreations-1985-08/),
-  Scientific American, August 1985.
-- John Horgan, [Mandelbrot Set-To](https://www.scientificamerican.com/article/mandelbrot-set-1990-horgan/),
-  Scientific American, April 1990: who discovered it.
-- A. Douady and J. H. Hubbard,
-  [Exploring the Mandelbrot set: the Orsay notes](https://pi.math.cornell.edu/~hubbard/OrsayEnglish.pdf),
-  for the mathematics.
+- Numberphile, *The Mandelbrot Set*, with Holly Krieger,
+  [video](https://www.youtube.com/watch?v=NGMRB4O922I): why the rule makes the shape.
+- A. K. Dewdney, *A computer microscope zooms in for a look at the most complex object in
+  mathematics*, in his *Computer Recreations* column, Scientific American 253, 16–24
+  (August 1985),
+  [article](https://www.scientificamerican.com/article/computer-recreations-1985-08/).
+- John Horgan, *Mandelbrot Set-To*, Scientific American 262, 30–34 (April 1990),
+  [article](https://www.scientificamerican.com/article/mandelbrot-set-1990-horgan/): who
+  discovered it.
+- A. Douady and J. H. Hubbard, *Exploring the Mandelbrot set: the Orsay notes*,
+  [PDF](https://pi.math.cornell.edu/~hubbard/OrsayEnglish.pdf): the mathematics.
 - Robert Munafo's [Mu-Ency](https://mrob.com/pub/muency.html), an encyclopedia of the
   set's places and lore.

@@ -75,7 +75,8 @@ is B3/S23. Try:
   [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life).
 - [LifeWiki](https://conwaylife.com/wiki/Conway's_Game_of_Life), the community's
   encyclopedia of patterns and history.
-- Martin Gardner's
-  [October 1970 column](https://www.ibiblio.org/lifepatterns/october1970.html).
+- Martin Gardner, *The fantastic combinations of John Conway's new solitaire game
+  "life"*, in his *Mathematical Games* column, Scientific American 223, 120–123
+  (October 1970), [transcription](https://www.ibiblio.org/lifepatterns/october1970.html).
 - [Golly](https://golly.sourceforge.io/), a fast open-source Life simulator that can run
   enormous patterns.

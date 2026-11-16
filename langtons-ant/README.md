@@ -51,5 +51,6 @@ termites".
 ## Further reading
 
 - The Wikipedia article [Langton's ant](https://en.wikipedia.org/wiki/Langton%27s_ant).
-- Gale, Propp, Sutherland and Troubetzkoy, *Further travels with my ant*
-  ([arXiv:math/9501233](https://arxiv.org/abs/math/9501233)).
+- David Gale, James Propp, Scott Sutherland and Serge Troubetzkoy, *Further travels with
+  my ant*, Mathematical Intelligencer 17, 48–56 (1995),
+  [arXiv:math/9501233](https://arxiv.org/abs/math/9501233).

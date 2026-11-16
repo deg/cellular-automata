@@ -145,7 +145,8 @@ one, as long as the lattice is symmetric enough. That is where the hexagon matte
 ## Further reading
 
 - The Wikipedia article [Lattice gas automaton](https://en.wikipedia.org/wiki/Lattice_gas_automaton).
-- The two 1987 Complex Systems papers above are free to read on the journal's website,
-  <https://www.complex-systems.com/>, and explain both the theory and the practice.
+- The two 1987 Complex Systems papers above are free to read on the
+  [journal's website](https://www.complex-systems.com/), and explain both the theory and
+  the practice.
 - D. A. Wolf-Gladrow, *Lattice-Gas Cellular Automata and Lattice Boltzmann Models*
   (Springer, 2000): a textbook on both.

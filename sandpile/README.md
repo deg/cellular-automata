@@ -114,6 +114,6 @@ holds for every such choice.
 - The Wikipedia article
   [Abelian sandpile model](https://en.wikipedia.org/wiki/Abelian_sandpile_model).
 - Lionel Levine and James Propp, *What is a sandpile?*, Notices of the American
-  Mathematical Society 57, 976–979 (2010): a short introduction
-  ([free PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf)).
+  Mathematical Society 57, 976–979 (2010),
+  [PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf): a short introduction.
 - Per Bak, *How Nature Works: The Science of Self-Organized Criticality* (1996).
