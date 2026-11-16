@@ -4,6 +4,7 @@ use crate::colour::Colours;
 use crate::sim::{Family, Picture, Pixel, Viewport};
 use crate::view::PlaneView;
 use ca_core::egui::{self, Pos2, Rect, Vec2};
+use web_time::Instant;
 
 pub struct Pane {
     picture: Picture,
@@ -133,9 +134,12 @@ impl Pane {
     }
 
     /// Do up to `budget` iterations of work, and upload the picture if it changed. Returns
-    /// the work done.
-    pub fn update(&mut self, ctx: &egui::Context, colours: &Colours, budget: u64) -> u64 {
+    /// the work done and the seconds it took. Only the work is timed, not the upload: the
+    /// upload's cost is fixed, and counted in would make the work look slower than it is.
+    pub fn update(&mut self, ctx: &egui::Context, colours: &Colours, budget: u64) -> (u64, f64) {
+        let started = Instant::now();
         let spent = self.picture.work(budget);
+        let seconds = started.elapsed().as_secs_f64();
         if spent > 0 || self.redraw {
             self.view.set_picture(ctx, &self.picture, colours);
             self.redraw = false;
@@ -143,7 +147,7 @@ impl Pane {
         if self.picture.is_done() {
             self.view.drop_backdrop();
         }
-        spent
+        (spent, seconds)
     }
 
     pub fn paint(&self, painter: &egui::Painter, rect: Rect) {

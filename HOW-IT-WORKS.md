@@ -169,7 +169,8 @@ window on the plane that zooms and pans, not a grid of cells, so it draws with a
 own (`mandelbrot/src/view.rs`) that maps the screen to the plane exactly, both ways. It
 still runs like the others: each pixel keeps its state (its z and its step count), so
 raising the iteration limit carries on rather than starting again, and the work per frame
-is capped by iterations done. A new view is filled in coarse pixels first, with the old
+is sized from the speed measured as it goes, since the browser and native builds run at
+different speeds. A new view is filled in coarse pixels first, with the old
 view drawn scaled underneath until it is.
 
 ## Explanations inside the app

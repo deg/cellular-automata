@@ -16,7 +16,6 @@ use ca_core::{About, Advance, Pace, Playback, eframe};
 use colour::{Colours, Palette};
 use pane::Pane;
 use sim::{Family, Fate, Orbit, Pixel, orbit};
-use web_time::Instant;
 
 fn main() {
     ca_core::run("The Mandelbrot set", MandelbrotApp::new);
@@ -66,6 +65,14 @@ const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 /// so it needn't go deep.
 const MAP_MOST_STEPS: u32 = 1_000;
 
+/// The least work a frame is given, and the least `Budget::record` learns from.
+const BUDGET_FLOOR: u64 = 50_000;
+const LEARN_FROM: u64 = 20_000;
+
+/// The shortest time `Budget::record` believes, in seconds: about the step of a browser's
+/// clock.
+const CLOCK_STEP: f64 = 1e-4;
+
 /// How many iterations a frame can afford, from the speed measured as the pictures are
 /// computed. A fixed count, measured natively, made frames of 60 ms and more in the browser.
 struct Budget {
@@ -81,16 +88,23 @@ impl Budget {
         Self { per_second: 1e8 }
     }
 
-    /// The iterations that fit in `ms` milliseconds.
+    /// The iterations that fit in `ms` milliseconds. Never less than [`BUDGET_FLOOR`], which
+    /// is more than the least `record` learns from, so a budget that has fallen too low still
+    /// gives samples to learn from and climbs back: with the floor below that threshold, it
+    /// once could stay stuck there for good.
     fn for_ms(&self, ms: f64) -> u64 {
-        ((self.per_second * ms / 1000.0) as u64).max(20_000)
+        ((self.per_second * ms / 1000.0) as u64).max(BUDGET_FLOOR)
     }
 
     /// Learn from `spent` iterations taking `seconds`. Small amounts are timed too coarsely
-    /// to learn from.
+    /// to learn from. A time under [`CLOCK_STEP`] is taken as that: browsers round their
+    /// clock to about a tenth of a millisecond, so a fast machine's small budget can read as
+    /// no time at all. (Ignoring short times instead would trap a fast machine's budget at
+    /// the floor, its work always too quick to time.)
     fn record(&mut self, spent: u64, seconds: f64) {
-        if spent >= 50_000 && seconds > 0.0005 {
-            self.per_second = 0.8 * self.per_second + 0.2 * (spent as f64 / seconds);
+        if spent >= LEARN_FROM {
+            let rate = spent as f64 / seconds.max(CLOCK_STEP);
+            self.per_second = 0.8 * self.per_second + 0.2 * rate;
         }
     }
 }
@@ -276,14 +290,13 @@ impl MandelbrotApp {
         let ctx = ui.ctx().clone();
         let painter = ui.painter().with_clip_rect(rect);
         let budget = self.budget.for_ms(MAIN_MS);
-        let started = Instant::now();
         let active = if self.julia_full {
             &mut self.julia
         } else {
             &mut self.mandelbrot
         };
-        let spent = active.update(&ctx, &self.colours, budget);
-        self.budget.record(spent, started.elapsed().as_secs_f64());
+        let (spent, seconds) = active.update(&ctx, &self.colours, budget);
+        self.budget.record(spent, seconds);
         if self.julia_full {
             self.julia.paint(&painter, rect);
         } else {
@@ -795,6 +808,34 @@ fn complex(c: [f64; 2], digits: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A budget slowed by a run of slow frames (say, Sharp on with a big window) must climb
+    /// back once frames are fast again. It once could not: its floor was below the least it
+    /// learned from, so once low it never learned again.
+    #[test]
+    fn budget_recovers_from_slow_frames() {
+        let mut b = Budget::new();
+        for _ in 0..200 {
+            let spent = b.for_ms(MAIN_MS);
+            b.record(spent, 0.050); // every frame's work took 50 ms
+        }
+        assert_eq!(
+            b.for_ms(MAIN_MS),
+            BUDGET_FLOOR,
+            "slow frames shrink it to the floor"
+        );
+        let fast = 4e8; // iterations a second
+        for _ in 0..200 {
+            let spent = b.for_ms(MAIN_MS);
+            b.record(spent, spent as f64 / fast);
+        }
+        let expected = fast * MAIN_MS / 1000.0;
+        assert!(
+            (b.for_ms(MAIN_MS) as f64 / expected - 1.0).abs() < 0.05,
+            "back up to the fast rate: {} of {expected}",
+            b.for_ms(MAIN_MS)
+        );
+    }
 
     #[test]
     fn magnifications_read_well() {
