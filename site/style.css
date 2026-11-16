@@ -130,11 +130,12 @@ a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-r
 /* Footer */
 .footer {
   margin-top: 72px;
-  padding-block: 22px 40px;
-  border-top: 1px solid var(--rule);
+  padding-block: 0 40px;
   color: var(--muted);
   font-size: 0.9rem;
 }
+/* The rule sits on the content, not the padded box, so it lines up with the text. */
+.footer p:first-child { border-top: 1px solid var(--rule); padding-top: 22px; }
 .footer p { margin: 0 0 4px; }
 
 /* The How-it-works page */

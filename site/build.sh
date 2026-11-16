@@ -28,7 +28,12 @@ mkdir -p "$dist"
 entries=""
 for dir in "${demos[@]}"; do
   echo "== building $dir"
-  (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
+  # trunk occasionally fails copying the optimised wasm into dist, and a rerun succeeds;
+  # retry once rather than fail the whole site (cause unknown: cellular-automata-z02).
+  if ! (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir"); then
+    echo "== trunk failed for $dir; retrying once (see bead cellular-automata-z02)" >&2
+    (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
+  fi
   title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$dir/index.html" | head -1)"
   blurb="$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -1)"
   entries+="      <li><a class=\"card\" href=\"$dir/\"><canvas class=\"thumb\" data-demo=\"$dir\" aria-hidden=\"true\"></canvas><span class=\"card-title\">${title:-$dir}</span><span class=\"card-text\">$blurb</span></a></li>"$'\n'
