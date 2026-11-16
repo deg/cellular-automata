@@ -36,7 +36,7 @@ signals turn it left. So each trip of the genome builds one side and one corner 
 loop. After four trips the arm has come round and joined itself, and the collision of
 signals at the new junction makes two new signals. A "5" travels back into the parent,
 pulling the "umbilical cord" in behind it, and on to the parent's next corner, where it
-starts a new arm, turned 90 degrees counterclockwise from the last. A "6 0" travels into
+starts a new arm, turned 90 degrees anticlockwise from the last. A "6 0" travels into
 the new loop and starts its arm.
 
 The table lists each neighbourhood once, and it also applies turned through a quarter, a
@@ -53,8 +53,7 @@ list leaves the cell as it is. Beyond the edge of the world every cell is empty.
   Burks, as *Theory of Self-Reproducing Automata* (1966).
 - **1965: Codd.** In his doctoral thesis at the University of Michigan (1965), published
   as the book *Cellular Automata* (1968), Edgar F. Codd found a universal constructor that
-  needs only 8 states. His
-  machines are built from **data paths**, a core of 1s between sheaths of 2s, along which
+  needs only 8 states. His machines are built from **data paths**, a core of 1s between sheaths of 2s, along which
   signals travel. One of his components is the **periodic emitter**, a path that loops back
   on itself so that its signals circulate forever.
 - **1984: Langton.** Christopher Langton, at the University of Michigan, asked the reverse
@@ -72,8 +71,8 @@ list leaves the cell as it is. Beyond the edge of the world every cell is empty.
 - **The colony.** Langton also described how a colony grows. Each loop builds its
   offspring on each of its sides in turn. A loop that finds a site taken retracts its arm
   and blocks its own core, and its signals are then erased one by one, leaving a dead,
-  empty loop. So the first, "Adam" loop reproduces four times, each of its immediate offspring
-  only twice, and the colony grows at its edge for as long as there is room.
+  empty loop. So the first, "Adam" loop reproduces four times, each of its immediate
+  offspring only twice, and the colony grows at its edge for as long as there is room.
 
 Langton went on to coin the name "artificial life", and organised the first workshop on
 it, at Los Alamos National Laboratory in 1987. Langton's ant, another demo in this project,
@@ -83,27 +82,15 @@ This demo's tests check the paper's central claims: the first copy is complete a
 generation 151 and is exactly the starting loop, its own copy follows 151 generations
 later, and the Adam loop has four offspring and then dies.
 
-**Sources.** The table is Table I of Langton's paper (page 140), and the starting loop is
-its fig. 6. The demo's copy of the table was taken from the machine-readable transcription
-in Golly, a free cellular-automaton program: `Rules/Langtons-Loops.rule` and
-`Patterns/Loops/Langtons-Loops.rle` at its git commit
-[53bdb74e](https://sourceforge.net/p/golly/code/ci/53bdb74e48cd0792f87a2e3e6a5bb0c5d7d5af0e/tree/).
-It matches the paper's Table I entry for entry, and also the list in Eli Bachmutsky's Java
-applet
-[`loops.java`](https://web.archive.org/web/20010521213854/necsi.org/postdocs/sayama/sdsr/java/loops.java)
-(1999), which Golly's file credits. The paper doesn't say what happens to a neighbourhood
-missing from the table; Golly and the applet both leave the cell unchanged, and so does
-this demo.
-
 ## Things to try
 
-- **The first copy.** Press Run and watch the arm grow out of the bottom right corner,
-  turn left four times and close. Pause near generation 120 and Step on to 151 to see the
-  two loops separate: watch for the pink 5 and the white 6.
+- **The first copy.** The demo opens running: watch the arm grow out of the bottom right
+  corner, turn left four times and close. *Restart*, *Pause* near generation 120 and *Step*
+  on to 151 to see the two loops separate: watch for the pink 5 and the white 6.
 - **The arm moves on.** Watch the parent: after each copy it builds a new arm on its next
-  side, a quarter turn counterclockwise from the last.
+  side, a quarter turn anticlockwise from the last.
 - **The colony.** Raise the speed to a few hundred and let the colony spread, with
-  "Follow the colony" zooming out as it grows. The dead loops inside keep only their teal
+  *Follow the colony* zooming out as it grows. The dead loops inside keep only their teal
   core and indigo sheath; the signals live in the fringe.
 - **Interfere.** Pause, pick a state under *Draw*, and paint over part of a loop: erase a
   piece of sheath, add a signal to the genome, or change a gold 7 into a coral 4. Then run
@@ -114,25 +101,27 @@ this demo.
 
 ## Further reading
 
-- The Wikipedia article [Langton's loops](https://en.wikipedia.org/wiki/Langton%27s_loops),
-  with a table comparing the loops that followed.
-- C. G. Langton, *Self-reproduction in cellular automata*, Physica D 10 (1984) 135-144,
+- The Wikipedia article [Langton's loops](https://en.wikipedia.org/wiki/Langton%27s_loops).
+  It has a table comparing the loops that followed.
+- C. G. Langton, *Self-reproduction in cellular automata*, Physica D 10, 135–144 (1984),
   [doi:10.1016/0167-2789(84)90256-2](https://doi.org/10.1016/0167-2789(84)90256-2), with a
   free copy at the University of Michigan's
   [Deep Blue](https://hdl.handle.net/2027.42/24968).
 - J. von Neumann, *Theory of Self-Reproducing Automata*, edited and completed by A. W.
   Burks (University of Illinois Press, 1966).
 - E. F. Codd, *Cellular Automata* (Academic Press, 1968).
-- Smaller loops: J. Byl, *Self-reproduction in small cellular automata*, Physica D 34
-  (1989) 295-299, removes the inner sheath; J. A. Reggia, S. L. Armentrout, H.-H. Chou and
-  Y. Peng, *Simple systems that exhibit self-directed replication*, Science 259 (1993)
-  1282-1287, remove the sheath altogether.
+- Smaller loops: J. Byl, *Self-reproduction in small cellular automata*, Physica D 34,
+  295–299 (1989), removes the inner sheath; J. A. Reggia, S. L. Armentrout, H.-H. Chou and
+  Y. Peng, *Simple systems that exhibit self-directed replication*, Science 259, 1282–1287
+  (1993), remove the sheath altogether.
 - Loops that die and evolve: H. Sayama, *Introduction of structural dissolution into
-  Langton's self-reproducing loop*, Artificial Life VI (1998), adds a state that dissolves
-  loops, and his *evoloops* (1999) evolve. H. Sayama and C. L. Nehaniv,
+  Langton's self-reproducing loop*, Artificial Life VI, 114–122 (1998), adds a state that
+  dissolves loops, and his *evoloops* (1999) evolve. H. Sayama and C. L. Nehaniv,
   *Self-reproduction and evolution in cellular automata: 25 years after evoloops*,
-  Artificial Life 31 (2025) 81-95,
+  Artificial Life 31, 81–95 (2025),
   [doi:10.1162/artl_a_00451](https://doi.org/10.1162/artl_a_00451), reviews
   what followed.
 - [Golly](https://golly.sourceforge.io/), which runs these and many other rules, and its
   [Rule Table Repository](https://github.com/GollyGang/ruletablerepository).
+- Sources: the rule table and the starting loop are Table I and fig. 6 of Langton's paper,
+  checked against Golly's transcription.
