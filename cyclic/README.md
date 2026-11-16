@@ -1,4 +1,4 @@
-# Cyclic Cellular Automaton
+# Cyclic cellular automaton
 
 Every cell holds one of a few colours, numbered 0, 1, 2, and so on. The colours are
 arranged in a **wheel**: after colour 0 comes 1, then 2, ..., and after the last colour
@@ -40,11 +40,11 @@ cycle.
   Automaton Machine* (CAM), a plug-in board for running automata quickly, designed by
   Toffoli and Margolus. To their surprise, the screen filled with large spiral waves
   (Griffeath, 1988).
-- **1991: the cyclic cellular automaton.** Hoping a rule without randomness would be easier
-  to analyse, Fisch, Gravner and Griffeath turned to the deterministic version: range 1,
-  diamond neighbourhood, threshold 1. This is the *CCA* preset here (Fisch, Gravner and
-  Griffeath, 1991a). With 14 colours on a 256 x 256 grid, they saw four stages, named
-  with four Ds:
+- **1989-91: the cyclic cellular automaton.** Hoping a rule without randomness would be
+  easier to analyse, Fisch, Gravner and Griffeath turned to the deterministic version:
+  range 1, diamond neighbourhood, threshold 1. This is the *CCA* preset here (Fisch,
+  Gravner and Griffeath, 1991a; the work was under way by 1989, when Dewdney wrote about
+  it). With 14 colours on a 256 x 256 grid, they saw four stages, named with four Ds:
   - **Debris.** Almost every cell soon has nothing to eat, and stops: random debris.
   - **Droplets.** A few active patches survive, and grow as droplets of waves that spread
     until they have eaten all the debris.
@@ -81,11 +81,14 @@ cycle.
   things about. A closely related rule, the *Greenberg-Hastings model*, differs only in
   that every colour except 0 advances automatically.
 
-The presets' names, rules and credits come from the rule list of **MCell**, Mirek
-Wójtowicz's program for exploring cellular automata, except *Bootstrap fixation*, which is
-Plate G of Fisch, Gravner and Griffeath (1991b). It writes a rule as, for example,
-`R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box) neighbourhood (`NN` is von
-Neumann). The panel shows each rule in this notation.
+Every preset is in the rule list of **MCell**, Mirek Wójtowicz's program for exploring
+cellular automata, and most take their names from it (*Bootstrap fixation* is MCell's
+*Cubism*). MCell credits each rule to a person, but several were published first by
+Fisch, Gravner and Griffeath (1991b): *Perfect*, *Turbulent phase* and *Bootstrap
+fixation* are their Plates H, F and G, *Imperfect* and *Lava lamp* come from their section
+10, and *313* from section 7. The panel gives both credits. MCell writes a rule as, for
+example, `R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box) neighbourhood (`NN`
+is von Neumann). The panel shows each rule in this notation.
 
 ## Things to try
 
@@ -139,8 +142,10 @@ Neumann). The panel shows each rule in this notation.
 - R. Durrett and D. Griffeath (1993), "Asymptotic behavior of excitable cellular
   automata", *Experimental Mathematics* 2, no. 3.
   [PDF](https://sites.math.duke.edu/~rtd/reprints/paper79.pdf).
-- C. R. Shalizi and K. L. Shalizi, "Quantifying self-organization in cyclic cellular
-  automata", [arXiv:nlin/0507067](https://arxiv.org/abs/nlin/0507067).
+- C. R. Shalizi and K. L. Shalizi (2003), "Quantifying self-organization in cyclic
+  cellular automata", in *Noise in Complex Systems and Stochastic Dynamics*, Proceedings
+  of SPIE 5114, [doi:10.1117/12.485805](https://doi.org/10.1117/12.485805); fuller
+  version (2005), [arXiv:nlin/0507067](https://arxiv.org/abs/nlin/0507067).
 - MCell's [Cyclic CA family](https://mcell.ca/pages/families.html#cyclic-ca) and its
   [rule list](https://mcell.ca/app/data/rules.txt).
 - The Wikipedia article

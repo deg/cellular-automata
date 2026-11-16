@@ -90,7 +90,8 @@ impl Rule {
 pub struct Preset {
     pub name: &'static str,
     pub rule: Rule,
-    /// Who the source credits, and where it comes from.
+    /// Where the rule was published first, if before MCell, and whom MCell's list credits
+    /// it to ("A rule by X"), which is not always who found it.
     pub credit: &'static str,
     /// What to look for.
     pub note: &'static str,
@@ -98,68 +99,68 @@ pub struct Preset {
 
 use Neighbourhood::{Moore, VonNeumann};
 
-/// Named rules. Names, parameters and credits are from MCell's rule list
-/// (<https://mcell.ca/app/data/rules.txt>), except the last, which is Plate G of Fisch,
-/// Gravner and Griffeath (1991).
+/// Named rules. Every one is in MCell's rule list (<https://mcell.ca/app/data/rules.txt>),
+/// whose names they mostly use. "FGG 1991b" is Fisch, Gravner and Griffeath,
+/// "Threshold-range scaling of excitable cellular automata", where several appeared first.
 pub const PRESETS: &[Preset] = &[
     Preset {
         name: "CCA",
         rule: Rule::new(1, 1, 14, VonNeumann),
-        credit: "David Griffeath",
+        credit: "Fisch, Gravner and Griffeath (1989-91). MCell's \"CCA\", credited to David Griffeath.",
         note: "The basic rule. Droplets of waves eat the noise, then spirals appear and slowly take over.",
     },
     Preset {
         name: "Perfect",
         rule: Rule::new(1, 3, 4, Moore),
-        credit: "David Griffeath",
+        credit: "FGG 1991b, Plate H. MCell's \"Perfect\", credited to David Griffeath.",
         note: "A long, churning soup first; then perfect spiral cores appear and take over. Use a big world.",
     },
     Preset {
         name: "Imperfect",
         rule: Rule::new(1, 2, 4, Moore),
-        credit: "John Elliott",
-        note: "Spirals form quickly. Later, tiny clocks may appear and suddenly take over from them.",
+        credit: "FGG 1991b, section 10.3. MCell's \"Imperfect\", credited to John Elliott.",
+        note: "Spirals form quickly. Later, a small structure that cycles on its own may appear and suddenly take over.",
     },
     Preset {
         name: "313",
         rule: Rule::new(1, 3, 3, Moore),
-        credit: "David Griffeath",
+        credit: "FGG 1991b, section 7, as a rule that makes spirals. MCell's \"313\", credited to David Griffeath.",
         note: "Only three colours, and still spirals.",
     },
     Preset {
         name: "Cyclic spirals",
         rule: Rule::new(3, 5, 8, Moore),
-        credit: "David Griffeath",
+        credit: "MCell's \"Cyclic spirals\", credited to David Griffeath.",
         note: "A larger range: broad, smooth spirals.",
     },
     Preset {
         name: "Turbulent phase",
         rule: Rule::new(2, 5, 8, Moore),
-        credit: "David Griffeath",
+        credit: "FGG 1991b, Plate F. MCell's \"Turbulent phase\", credited to David Griffeath.",
         note: "Would-be spirals keep unravelling. On small worlds it often freezes instead.",
     },
     Preset {
         name: "Lava lamp",
         rule: Rule::new(2, 10, 3, Moore),
-        credit: "Jason Rampe",
+        credit: "FGG 1991b, section 10.2, the \"lava light\". MCell's \"LavaLamp\", credited to Jason Rampe.",
         note: "Blobs that separate and join, like a lava lamp.",
     },
     Preset {
         name: "Stripes",
         rule: Rule::new(3, 4, 5, VonNeumann),
-        credit: "Mirek Wójtowicz",
+        credit: "MCell's \"Stripes\", credited to Mirek Wójtowicz.",
         note: "As the name says: the waves line up in stripes.",
     },
     Preset {
         name: "Fossil debris",
         rule: Rule::new(2, 9, 4, Moore),
-        credit: "David Griffeath",
+        credit: "MCell's \"Fossil debris\", credited to David Griffeath.",
         note: "Range 2, threshold 9, four colours.",
     },
     Preset {
         name: "Bootstrap fixation",
         rule: Rule::new(2, 5, 3, VonNeumann),
-        credit: "Fisch, Gravner and Griffeath, Plate G",
+        credit: "FGG 1991b, Plate G. MCell's \"Cubism\", credited to Jason Rampe.",
         note: "The threshold is too high to keep going: the world freezes.",
     },
 ];
@@ -246,8 +247,9 @@ impl Cyclic {
     /// (about 11 ns, as `ca_core` measured for its frame budget), for
     /// [`ca_core::generations_per_frame`]. Measured natively with the `timing` test on
     /// 2026-11-16: about 10 ns a cell, plus 0.5 ns per colour (a pass over the world each)
-    /// and 0.85 ns per row of the neighbourhood (two lookups each). So 1.6 Life cells for
-    /// the basic CCA, and 4.2 at range 10 with 32 colours.
+    /// and 0.85 ns per row of the neighbourhood (two lookups each). The formula gives 1.8
+    /// Life cells for the basic CCA (measured 1.5 to 1.7) and 4.3 at range 10 with 32
+    /// colours (measured 4.2), rounded up to whole units.
     pub fn work_per_cell(&self) -> usize {
         let rows = 2 * self.rule.range + 1;
         (20 + usize::from(self.rule.colours) + 2 * rows).div_ceil(22)
@@ -528,23 +530,28 @@ mod tests {
         }
     }
 
-    /// The fast count must match the obvious one exactly, for random rules, both
-    /// neighbourhoods, both edges, and worlds whose sides are not multiples of anything.
+    /// The fast count must match the obvious one exactly, for random rules over the whole
+    /// range the UI offers (range 1 to 10, 2 to 32 colours, any threshold up to the whole
+    /// neighbourhood), both neighbourhoods, both edges, and worlds whose sides are not
+    /// multiples of anything, some narrower than the neighbourhood.
     #[test]
     fn fast_step_matches_the_definition() {
         let mut rng = Rng::new(42);
-        for trial in 0..60 {
-            let range = 1 + (rng.next_u64() % 5) as usize;
-            let nb = if rng.chance(0.5) { Moore } else { VonNeumann };
-            let colours = 2 + (rng.next_u64() % 10) as u8;
+        let mut pick = |lo: usize, hi: usize| lo + (rng.next_u64() % (hi - lo + 1) as u64) as usize;
+        let mut moved = 0;
+        for trial in 0..100 {
+            let range = pick(1, MAX_RANGE);
+            let nb = if pick(0, 1) == 0 { Moore } else { VonNeumann };
+            let colours = pick(2, usize::from(MAX_COLOURS)) as u8;
             let probe = Rule::new(range, 1, colours, nb);
-            let threshold = 1 + (rng.next_u64() % (probe.neighbours() as u64 / 3).max(1)) as usize;
+            // Half the trials keep the threshold near the expected count of next-colour
+            // cells, so cells do advance; the rest range up to the whole neighbourhood.
+            let most = probe.neighbours();
+            let typical = (2 * most / usize::from(colours)).max(1);
+            let threshold = pick(1, if trial % 2 == 0 { typical } else { most });
             let rule = Rule { threshold, ..probe };
-            let wrap = rng.chance(0.5);
-            let (w, h) = (
-                11 + (rng.next_u64() % 20) as usize,
-                11 + (rng.next_u64() % 20) as usize,
-            );
+            let wrap = pick(0, 1) == 0;
+            let (w, h) = (pick(11, 40), pick(11, 40));
             let mut ca = soup(w, h, rule, wrap, trial);
             for g in 0..5 {
                 let expected = naive_step(ca.grid(), rule, wrap);
@@ -555,7 +562,9 @@ mod tests {
                     "trial {trial}, {rule:?}, wrap {wrap}, gen {g}"
                 );
             }
+            moved += usize::from(ca.generation > 0 && ca.changed() > 0);
         }
+        assert!(moved >= 40, "only {moved} trials had cells advancing");
     }
 
     /// The band test of Fisch, Gravner and Griffeath (1991, section 2), on the box
@@ -690,8 +699,8 @@ mod tests {
         }
     }
 
-    /// Shalizi and Shalizi, "Quantifying self-organization in cyclic cellular automata"
-    /// (2003), section 2: with four colours and the range-1 box, "Fixation occurs with
+    /// Shalizi and Shalizi, "Quantifying self-organization in cyclic cellular automata",
+    /// arXiv:nlin/0507067 (2005; first in SPIE Proceedings 5114, 2003), section 2: with four colours and the range-1 box, "Fixation occurs with
     /// T ≥ 4", while T = 1 and T = 2 are locally periodic (incoherent oscillations, and
     /// spirals that entrain the whole lattice). Their runs used 100 x 100 with wrap-around.
     #[test]

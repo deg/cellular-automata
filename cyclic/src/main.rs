@@ -9,7 +9,7 @@ use ca_core::{
 use sim::{Cyclic, MAX_COLOURS, MAX_RANGE, Neighbourhood, PRESETS};
 
 fn main() {
-    ca_core::run("Cyclic Cellular Automaton", CyclicApp::new);
+    ca_core::run("Cyclic cellular automaton", CyclicApp::new);
 }
 
 /// The project's palette, in the order the colour wheel runs through it.
@@ -128,7 +128,7 @@ impl CyclicApp {
     }
 
     fn controls(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Cyclic Cellular Automaton");
+        ui.heading("Cyclic cellular automaton");
         ui.label("Each cell has a colour on a wheel. A cell moves on to the next colour when enough cells near it already have that colour; the last colour leads back to the first.");
         self.about.toggle_button(ui);
         ui.separator();
@@ -141,7 +141,7 @@ impl CyclicApp {
         ui.label(RichText::new("Presets").strong());
         ui.horizontal_wrapped(|ui| {
             for p in PRESETS {
-                let hover = format!("{}\n{} ({})", p.note, p.rule.notation(), p.credit);
+                let hover = format!("{}\n{}\n{}", p.note, p.rule.notation(), p.credit);
                 if ui
                     .selectable_label(self.ca.rule == p.rule, p.name)
                     .on_hover_text(hover)
@@ -153,7 +153,7 @@ impl CyclicApp {
             }
         });
         if let Some(p) = PRESETS.iter().find(|p| p.rule == self.ca.rule) {
-            ui.small(format!("{} Rule by {}.", p.note, p.credit));
+            ui.small(format!("{} {}", p.note, p.credit));
         }
         ui.small("A preset starts again from the same random colours.");
         ui.separator();
