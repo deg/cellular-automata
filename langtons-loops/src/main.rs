@@ -11,7 +11,7 @@ use framing::Frame;
 use sim::{LANGTON_LOOP, Loops, Rule, STATES, pattern};
 
 fn main() {
-    ca_core::run("Langton's Loops", LoopsApp::new);
+    ca_core::run("Langton's loops", LoopsApp::new);
 }
 
 /// One colour per state. The background and the 0s between signals are the same navy, which
@@ -163,7 +163,7 @@ impl LoopsApp {
     }
 
     fn controls(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Langton's Loops");
+        ui.heading("Langton's loops");
         ui.label("Each cell is in one of 8 states and sees only its four nearest neighbours. Christopher Langton chose 219 rules so that a loop carrying a train of signals builds a copy of itself, which builds another, and so on.");
         self.about.toggle_button(ui);
         ui.separator();
