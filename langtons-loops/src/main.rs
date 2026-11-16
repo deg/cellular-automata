@@ -224,7 +224,7 @@ impl LoopsApp {
         ui.horizontal_wrapped(|ui| {
             ui.label("World:");
             for &size in SIZES {
-                let label = format!("{} x {}", grouped(size.0 as u64), grouped(size.1 as u64));
+                let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
                     self.restart();
@@ -239,11 +239,7 @@ impl LoopsApp {
             r.row(
                 "colony",
                 match self.loops.bounds() {
-                    Some(b) => format!(
-                        "{} x {} cells",
-                        grouped(b.width() as u64),
-                        grouped(b.height() as u64)
-                    ),
+                    Some(b) => format!("{} x {} cells", b.width(), b.height()),
                     None => "empty".to_string(),
                 },
             );
