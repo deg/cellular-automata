@@ -193,19 +193,24 @@ impl LoopsApp {
         ui.separator();
 
         ui.label(RichText::new("Draw").strong());
+        // Two brushes a row, each a colour swatch and its name.
         egui::Grid::new("brushes").num_columns(2).show(ui, |ui| {
             for (state, name) in NAMES.iter().enumerate() {
-                let (rect, _) =
-                    ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
-                ui.painter().rect_filled(rect, 2.0, COLOURS[state]);
-                ui.painter().rect_stroke(
-                    rect,
-                    2.0,
-                    egui::Stroke::new(1.0, Color32::GRAY),
-                    egui::StrokeKind::Inside,
-                );
-                ui.selectable_value(&mut self.brush, state as u8, format!("{state} {name}"));
-                ui.end_row();
+                ui.horizontal(|ui| {
+                    let (rect, _) =
+                        ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+                    ui.painter().rect_filled(rect, 2.0, COLOURS[state]);
+                    ui.painter().rect_stroke(
+                        rect,
+                        2.0,
+                        egui::Stroke::new(1.0, Color32::GRAY),
+                        egui::StrokeKind::Inside,
+                    );
+                    ui.selectable_value(&mut self.brush, state as u8, format!("{state} {name}"));
+                });
+                if state % 2 == 1 {
+                    ui.end_row();
+                }
             }
         });
         ui.small("Drag on the grid to paint the chosen state; shift-drag erases. A loop with a broken sheath or genome goes wrong in its own way.");
