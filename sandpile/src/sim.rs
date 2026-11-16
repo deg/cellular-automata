@@ -120,8 +120,10 @@ pub struct Sandpile {
     /// eighth of it, the octant `0 <= j <= i` of offsets from the centre, and the rest of the
     /// grid is filled in by mirroring. See [`Sandpile::sweep_octant`].
     symmetric: bool,
-    /// Whether `grid` is out of date: outside the octant in symmetric mode, or anywhere while
-    /// a Jacobi stage holds the heights. [`Sandpile::sync_grid`] brings it up to date.
+    /// Whether `grid` is out of date: outside the octant in symmetric mode, or after a Jacobi
+    /// sweep not yet written back. [`Sandpile::sync_grid`] brings it up to date. A Jacobi
+    /// stage goes on running after a sync, with the grid up to date until its next sweep,
+    /// which [`Sandpile::add_to_jacobi`] relies on.
     grid_stale: bool,
     /// In symmetric mode, once every height is small, the pile's quarter lives here and is
     /// swept by the much faster Jacobi stage (see [`jacobi`]); `grid` is then a copy.
@@ -856,17 +858,24 @@ fn patch_cells_per_cell(neighbours: usize) -> usize {
 fn is_square_neighbourhood(offsets: &[(isize, isize)]) -> bool {
     // Square symmetry alone isn't enough: the Jacobi stage hard-codes these two shapes
     // (the four diagonals alone, say, are symmetric too, but would come out wrong).
-    let set: std::collections::HashSet<_> = offsets.iter().copied().collect();
-    [&ORTHOGONAL[..], &MOORE[..]]
-        .iter()
-        .any(|shape| shape.len() == set.len() && shape.iter().all(|o| set.contains(o)))
+    matching_shape(offsets, &[&ORTHOGONAL, &MOORE]).is_some()
 }
 
 /// The neighbour count, if `offsets` are exactly a neighbourhood a [`Patch`] can sweep:
 /// the 4 or 8 square neighbours, or the 6 hex ones.
 fn patch_kernel(offsets: &[(isize, isize)]) -> Option<usize> {
+    matching_shape(offsets, &[&ORTHOGONAL, &MOORE, &HEX])
+}
+
+/// The neighbour count, if `offsets` are exactly one of `shapes`, in any order. A repeated
+/// offset never matches: the threshold is the number of offsets, and the plain sweep sends a
+/// repeated neighbour two grains, where a fast path built for the shape would send one.
+fn matching_shape(offsets: &[(isize, isize)], shapes: &[&[(isize, isize)]]) -> Option<usize> {
     let set: std::collections::HashSet<_> = offsets.iter().copied().collect();
-    [&ORTHOGONAL[..], &MOORE[..], &HEX[..]]
+    if set.len() != offsets.len() {
+        return None;
+    }
+    shapes
         .iter()
         .find(|shape| shape.len() == set.len() && shape.iter().all(|o| set.contains(o)))
         .map(|shape| shape.len())
@@ -1362,6 +1371,27 @@ mod tests {
         assert_eq!(fast.grid(), plain.grid());
         assert_eq!((fast.lost, fast.grains), (plain.lost, plain.grains));
         assert_eq!(fast.lost + sum(&fast), 5_000);
+    }
+
+    /// A neighbourhood listing a neighbour twice has a threshold one higher than its shape
+    /// and sends that neighbour two grains, so the fast paths built for the shape would give
+    /// a different pile. It must get none, in any order of offsets, and still match the plain
+    /// sweep. (The app never builds one; this guards the public constructor.)
+    #[test]
+    fn a_repeated_neighbour_gets_no_fast_path() {
+        let doubled = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 0)];
+        assert_eq!(patch_kernel(&doubled), None);
+        assert!(!is_square_neighbourhood(&doubled));
+        assert_eq!(patch_kernel(&[(0, 1), (1, 0), (0, -1), (-1, 0)]), Some(4));
+        let run = |pile: Sandpile| {
+            let mut pile = pile;
+            pile.add_relative(2, 0, 2_000);
+            pile.relax_fully();
+            pile
+        };
+        let fast = run(Sandpile::new(3, &doubled, Boundary::Grow));
+        let plain = run(Sandpile::new(3, &doubled, Boundary::Grow).plain());
+        assert_same_pile(&fast, &plain, "doubled right neighbour");
     }
 
     /// Symmetric mode is only safe for the two neighbourhoods its fast paths know: the four
