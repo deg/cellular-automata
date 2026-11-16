@@ -50,6 +50,20 @@ runs it like the automata: each pixel is a cell with a state (its z), and each s
 cell takes one more turn of z → z² + c. Run shows the set emerging step by step. (The
 sandpile demo makes a fractal too, from a rule that is a true cellular automaton.)
 
+## Julia sets
+
+Turn the question round. Fix c, and ask which *starting points* z₀ stay near 0 when you
+repeat z → z² + c. Those points make the (filled) **Julia set** of c, and every c has its
+own. The inset in the corner shows the Julia set of the c under the pointer. Click the
+picture to pin c, and click the inset (or Enlarge) to see the Julia set full size, where
+you can zoom and follow orbits too.
+
+The Mandelbrot set is a map of all the Julia sets. Fatou and Julia proved that the Julia
+set of c is in one piece exactly when the orbit of 0 stays bounded, that is, when c is in
+the Mandelbrot set. For any c outside it, the Julia set falls apart into a dust of
+separate points. Move the pointer across the edge of the Mandelbrot set and watch the
+inset shatter.
+
 ## History
 
 - **1915–1920: Fatou and Julia.** In 1915 the French Académie des Sciences set the
@@ -117,6 +131,10 @@ sandpile demo makes a fractal too, from a rule that is a true cellular automaton
   −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (raise the stop
   limit for the longer ones). The doublings come faster and faster, and pile up at the
   *Feigenbaum point*, −1.401155. Beyond it lies the spike.
+- **Cross the edge with the Julia inset showing.** Inside the set, the Julia set is one
+  piece; step outside and it breaks into dust. Pin c in the bulb above the main cardioid,
+  enlarge the Julia set, and hover inside it: its orbits settle into the same cycle of
+  three points.
 - **Zoom into the edge.** Scroll the mouse wheel or pinch to zoom in on the pointer; drag
   or swipe to move. Places with names:
   - **Seahorse Valley**, the pinched waist between the main cardioid and the disc to its

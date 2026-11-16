@@ -154,12 +154,36 @@ pub enum Pixel {
 const FRESH: f32 = f32::NEG_INFINITY;
 const INSIDE: f32 = f32::INFINITY;
 
-/// The Mandelbrot set over a [`Viewport`], computed a budgeted piece at a time.
+/// Which set a picture shows. Both iterate z -> z² + c; they differ in what a pixel's point
+/// stands for.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Family {
+    /// The pixel's point is c, and z starts at 0.
+    Mandelbrot,
+    /// c is fixed, and the pixel's point is where z starts: the filled Julia set of c.
+    Julia([f64; 2]),
+}
+
+impl Family {
+    /// |z| squared past which z is sure to escape: 2, or |c| if that is bigger (see the
+    /// README's "Why 2?", whose argument needs |z| > 2 and |z| ≥ |c|). For the Mandelbrot
+    /// set c is the pixel, and a pixel past 2 escapes at step 1 anyway.
+    fn escape_squared(self) -> f64 {
+        match self {
+            Self::Mandelbrot => 4.0,
+            Self::Julia([cr, ci]) => (cr * cr + ci * ci).max(4.0),
+        }
+    }
+}
+
+/// The Mandelbrot set, or a Julia set, over a [`Viewport`], computed a budgeted piece at a
+/// time.
 ///
 /// Raise the limit with [`Picture::raise_limit`] and call [`Picture::work`] each frame until
 /// [`Picture::is_done`]. The work is split between frames by iteration count, not time: the
 /// browser has no clock for that (`std::time::Instant` panics in wasm).
 pub struct Picture {
+    family: Family,
     view: Viewport,
     limit: u32,
     z: Vec<[f64; 2]>,
@@ -176,9 +200,10 @@ pub struct Picture {
 }
 
 impl Picture {
-    pub fn new(view: Viewport, limit: u32) -> Self {
+    pub fn new(family: Family, view: Viewport, limit: u32) -> Self {
         let n = view.width * view.height;
         let mut picture = Self {
+            family,
             view,
             limit,
             z: vec![[0.0; 2]; n],
@@ -195,6 +220,10 @@ impl Picture {
 
     pub fn view(&self) -> &Viewport {
         &self.view
+    }
+
+    pub fn family(&self) -> Family {
+        self.family
     }
 
     /// Every pixel is iterated until it escapes or reaches this many steps.
@@ -275,14 +304,23 @@ impl Picture {
     }
 
     /// Iterate pixel `i` towards the limit, at most `allowance` steps. Returns the work done
-    /// (the steps plus the pixel's overhead, or 1 if it needed none) and whether the pixel is finished: escaped, inside, or at the limit.
+    /// (the steps plus the pixel's overhead, or 1 if it needed none) and whether the pixel
+    /// is finished: escaped, inside, or at the limit.
     fn advance(&mut self, i: usize, allowance: u64) -> (u64, bool) {
         let (x, y) = (i % self.view.width, i / self.view.width);
-        let c = self.view.point(x, y);
+        let point = self.view.point(x, y);
+        let c = match self.family {
+            Family::Mandelbrot => point,
+            Family::Julia(c) => c,
+        };
         if self.smooth[i] == FRESH {
-            if known_inside(c) {
-                self.smooth[i] = INSIDE;
-                return (1, true);
+            match self.family {
+                Family::Mandelbrot if known_inside(c) => {
+                    self.smooth[i] = INSIDE;
+                    return (1, true);
+                }
+                Family::Mandelbrot => {}
+                Family::Julia(_) => self.z[i] = point,
             }
             self.smooth[i] = f32::NAN;
         }
@@ -293,11 +331,12 @@ impl Picture {
         let stop = self
             .limit
             .min(start.saturating_add(allowance.min(u32::MAX as u64) as u32));
+        let escape = self.family.escape_squared();
         let [mut zr, mut zi] = self.z[i];
         let mut k = start;
         loop {
             let (zr2, zi2) = (zr * zr, zi * zi);
-            if zr2 + zi2 > 4.0 {
+            if zr2 + zi2 > escape {
                 self.smooth[i] = smooth_count(c, [zr, zi], k);
                 break;
             }
@@ -378,14 +417,14 @@ const PIXEL_COST: u64 = 8;
 
 /// The path of 0 under z -> z² + c, for showing a reader why a point escapes or stays.
 pub struct Orbit {
-    /// z₀ = 0, z₁ = c, z₂, ...: up to the first point past 2, or `steps` steps.
+    /// z₀, z₁, z₂, ...: up to the first point past the escape radius, or `steps` steps.
     pub points: Vec<[f64; 2]>,
     pub fate: Fate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fate {
-    /// |z| first passed 2 at this step.
+    /// |z| first passed the escape radius (2, for the Mandelbrot set) at this step.
     Escapes(u32),
     /// z has settled into a cycle of this many points (1: a single fixed point).
     Cycle(u32),
@@ -396,24 +435,30 @@ pub enum Fate {
 /// The longest cycle looked for.
 const LONGEST_CYCLE: usize = 64;
 
-/// Follow 0 under z -> z² + c for at most `steps` steps, and say what became of it.
+/// Follow `z0` under z -> z² + c for at most `steps` steps, and say what became of it. For
+/// the Mandelbrot set z0 is 0; for a Julia set, the point in question.
 ///
-/// A point inside the set usually settles into a cycle: in the main cardioid onto a single
-/// point, in the disc to its left onto two, in other bulbs onto more. The cycle is found by
-/// looking back from the last point for the same point repeated, twice over, to within a
-/// tiny distance. Points near the edge settle slowly, and may not show a cycle in time.
-pub fn orbit(c: [f64; 2], steps: u32) -> Orbit {
-    let mut points = vec![[0.0f64, 0.0]];
-    let mut z = [0.0f64, 0.0];
-    for n in 1..=steps {
-        z = [z[0] * z[0] - z[1] * z[1] + c[0], 2.0 * z[0] * z[1] + c[1]];
-        points.push(z);
-        if z[0] * z[0] + z[1] * z[1] > 4.0 {
+/// A point inside the Mandelbrot set usually settles into a cycle: in the main cardioid onto
+/// a single point, in the disc to its left onto two, in other bulbs onto more. The cycle is
+/// found by looking back from the last point for the same point repeated, twice over, to
+/// within a tiny distance. Points near the edge settle slowly, and may not show a cycle in
+/// time.
+pub fn orbit(z0: [f64; 2], c: [f64; 2], steps: u32) -> Orbit {
+    let escape = Family::Julia(c).escape_squared();
+    let mut points = vec![z0];
+    let mut z = z0;
+    for n in 0..=steps {
+        if z[0] * z[0] + z[1] * z[1] > escape {
             return Orbit {
                 points,
                 fate: Fate::Escapes(n),
             };
         }
+        if n == steps {
+            break;
+        }
+        z = [z[0] * z[0] - z[1] * z[1] + c[0], 2.0 * z[0] * z[1] + c[1]];
+        points.push(z);
     }
     let close = |a: [f64; 2], b: [f64; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) < 1e-9;
     let last = points.len() - 1;
@@ -510,7 +555,7 @@ mod tests {
     }
 
     fn finished(view: Viewport, limit: u32) -> Picture {
-        let mut p = Picture::new(view, limit);
+        let mut p = Picture::new(Family::Mandelbrot, view, limit);
         p.work(u64::MAX);
         assert!(p.is_done());
         p
@@ -572,7 +617,7 @@ mod tests {
     fn step_by_step_equals_all_at_once() {
         let view = home(50, 40);
         let target = finished(view, 120);
-        let mut p = Picture::new(view, 0);
+        let mut p = Picture::new(Family::Mandelbrot, view, 0);
         let mut budget = 1;
         for limit in 0..=120 {
             p.raise_limit(limit);
@@ -667,13 +712,13 @@ mod tests {
     /// cycles double on the way to the Feigenbaum point: 1 at -0.5, 2 at -1, 4 at -1.3.
     #[test]
     fn orbit_fates() {
-        let o = orbit([1.0, 0.0], 100);
+        let o = orbit([0.0, 0.0], [1.0, 0.0], 100);
         assert_eq!(o.fate, Fate::Escapes(3));
         assert_eq!(
             o.points,
             vec![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [5.0, 0.0]]
         );
-        let fate = |c| orbit(c, 5_000).fate;
+        let fate = |c| orbit([0.0, 0.0], c, 5_000).fate;
         assert_eq!(fate([0.0, 0.0]), Fate::Cycle(1));
         assert_eq!(fate([-2.0, 0.0]), Fate::Cycle(1));
         assert_eq!(fate([-1.0, 0.0]), Fate::Cycle(2));
@@ -682,7 +727,7 @@ mod tests {
         assert_eq!(fate([-0.1226, 0.7449]), Fate::Cycle(3));
         assert_eq!(fate([-0.5, 0.0]), Fate::Cycle(1));
         assert_eq!(fate([-1.3, 0.0]), Fate::Cycle(4));
-        assert_eq!(orbit([0.0, 0.0], 0).fate, Fate::Undecided(0));
+        assert_eq!(orbit([0.0, 0.0], [0.0, 0.0], 0).fate, Fate::Undecided(0));
         // The picture and the orbit must agree on when a point escapes.
         for c in [[0.5, 0.5], [-0.75, 0.1], [0.26, 0.0]] {
             let Fate::Escapes(n) = fate(c) else {
@@ -690,6 +735,70 @@ mod tests {
             };
             assert_eq!(escape_step(c, 5_000), Some(n));
         }
+    }
+
+    /// For c = 0 the rule is plain squaring, which pulls points inside the unit circle in to
+    /// 0 and pushes points outside it away, so the filled Julia set is the unit disc.
+    #[test]
+    fn julia_of_zero_is_the_unit_disc() {
+        let view = Viewport::fit(80, 80, [0.0, 0.0], [3.0, 3.0]);
+        let mut p = Picture::new(Family::Julia([0.0, 0.0]), view, 300);
+        p.work(u64::MAX);
+        for y in 0..80 {
+            for x in 0..80 {
+                let [a, b] = view.point(x, y);
+                let r = a.hypot(b);
+                match p.pixel(x, y) {
+                    Pixel::Running(_) => assert!(r < 1.01, "({a}, {b}) should escape"),
+                    Pixel::Escaped { .. } => assert!(r > 0.99, "({a}, {b}) should stay"),
+                    other => panic!("({a}, {b}) is {other:?}"),
+                }
+            }
+        }
+        // And the orbit agrees: 0.5 squares down towards 0, 1.5 runs off.
+        assert_eq!(orbit([0.5, 0.0], [0.0, 0.0], 100).fate, Fate::Cycle(1));
+        assert_eq!(orbit([1.5, 0.0], [0.0, 0.0], 100).fate, Fate::Escapes(1));
+        assert_eq!(orbit([3.0, 0.0], [0.0, 0.0], 100).fate, Fate::Escapes(0));
+    }
+
+    /// z and -z square to the same thing, so every Julia set is symmetric through 0: a
+    /// picture centred on 0 must match itself turned half round, exactly.
+    #[test]
+    fn julia_sets_are_symmetric_through_zero() {
+        let (w, h) = (41, 31);
+        let view = Viewport::fit(w, h, [0.0, 0.0], [3.2, 2.4]);
+        let mut p = Picture::new(Family::Julia([-0.1226, 0.7449]), view, 200);
+        p.work(u64::MAX);
+        for y in 0..h {
+            for x in 0..w {
+                assert_eq!(p.pixel(x, y), p.pixel(w - 1 - x, h - 1 - y), "({x}, {y})");
+            }
+        }
+    }
+
+    /// Julia pictures, like Mandelbrot ones, must come out the same however the work and
+    /// the limit are cut up, and after panning.
+    #[test]
+    fn julia_step_by_step_and_panned_equal_all_at_once() {
+        let family = Family::Julia([-0.8, 0.156]);
+        let view = Viewport::fit(40, 30, [0.0, 0.0], [3.2, 2.4]);
+        let mut target = Picture::new(family, view, 90);
+        target.work(u64::MAX);
+        let mut p = Picture::new(family, view, 0);
+        let mut budget = 3;
+        for limit in 0..=90 {
+            p.raise_limit(limit);
+            while !p.is_done() {
+                p.work(budget);
+                budget = budget * 5 % 701 + 1;
+            }
+        }
+        assert!(state(&p) == state(&target));
+        p.pan(-6, 4);
+        p.work(u64::MAX);
+        let mut fresh = Picture::new(family, *p.view(), 90);
+        fresh.work(u64::MAX);
+        assert!(state(&p) == state(&fresh));
     }
 
     /// The view's two mappings must undo each other, zooming must keep the point under the
@@ -738,7 +847,7 @@ mod tests {
             ),
         ];
         for (name, view, limit) in views {
-            let mut p = Picture::new(view, limit);
+            let mut p = Picture::new(Family::Mandelbrot, view, limit);
             let start = std::time::Instant::now();
             let mut iterations = 0;
             while !p.is_done() {
