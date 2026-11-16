@@ -34,8 +34,8 @@ termites".
 - **More colours.** Greg Turk and Jim Propp generalised the ant to more than two colours.
   Cells cycle through the colours in order, and the rule says, for each colour, whether
   to turn left or right. The rule is written as a string of letters, so Langton's ant is
-  `RL`. The paper *Further travels with my ant* (David Gale, James Propp, Scott Sutherland
-  and Serge Troubetzkoy, Mathematical Intelligencer 17, 1995) explores this family.
+  `RL`. David Gale, James Propp, Scott Sutherland and Serge Troubetzkoy explored this
+  family in *Further travels with my ant*, Mathematical Intelligencer 17, 48–56 (1995).
 
 ## Things to try
 

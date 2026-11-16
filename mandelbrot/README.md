@@ -68,10 +68,11 @@ inset shatter.
 
 - **1915–1920: Fatou and Julia.** In 1915 the French Académie des Sciences set the
   iteration of rational functions as the subject of its Grand Prix for 1918. Gaston Julia
-  won it, with his *Mémoire sur l'itération des fonctions rationnelles* (Journal de
-  Mathématiques Pures et Appliquées, 1918). Pierre Fatou, who did not enter, worked on the
-  same questions in a series of papers (Comptes Rendus 1917, Bulletin de la Société
-  Mathématique de France 1919–1920). Between them they proved the fact the Mandelbrot set
+  won it, with his *Mémoire sur l'itération des fonctions rationnelles*, Journal de
+  Mathématiques Pures et Appliquées, 8th series, 1, 47–245 (1918). Pierre Fatou, who did
+  not enter, worked on the same questions in notes in the Comptes Rendus in 1917 and in
+  *Sur les équations fonctionnelles*, Bulletin de la Société Mathématique de France 47,
+  161–271 (1919) and 48, 33–94 and 208–314 (1920). Between them they proved the fact the Mandelbrot set
   rests on: for each c, the set of starting points whose orbit under z → z² + c stays
   bounded (now called the *filled Julia set* of c; the Julia set proper is its edge) is
   all in one piece if the orbit of 0 stays bounded, and otherwise a dust of separate
@@ -84,22 +85,25 @@ inset shatter.
 - **1979–1980: Mandelbrot.** Benoit Mandelbrot, a mathematician at IBM's research centre
   in Yorktown Heights, used its computers to draw the set in late 1979 or early 1980
   (sources disagree on the date), and published pictures in *Fractal aspects of the
-  iteration of z ↦ λz(1−z) for complex λ and z* (Annals of the New York Academy of
-  Sciences, 1980). His printouts showed small islands apparently separate from the main
+  iteration of z ↦ λz(1−z) for complex λ and z*, Annals of the New York Academy of
+  Sciences 357, 249–259 (1980). His printouts showed small islands apparently separate from the main
   body, which he at first took for specks of dirt, and he thought the set was in several
   pieces. Others drew pictures of it about the same time, and who saw it first was later
   disputed. His book *The Fractal Geometry of Nature* followed in 1982.
 - **1982: Douady and Hubbard.** Adrien Douady and John H. Hubbard proved that the set is
   **connected**, all in one piece: the islands are joined to the main body by filaments too
-  fine for the computer to find (Comptes Rendus, January 1982). They named it after
+  fine for the computer to find. Their note is *Itération des polynômes quadratiques
+  complexes*, Comptes Rendus de l'Académie des Sciences, Série I, 294, 123–125 (1982).
+  They named it after
   Mandelbrot, for his observations of it, and their lecture notes from Orsay (1984–1985)
   worked out much of its structure.
 - **1985: fame.** A. K. Dewdney's *Computer Recreations* column in Scientific American,
   August 1985, called it "the most complex object in mathematics" and brought it to a wide
   audience. It has been a favourite thing to program ever since.
 - **1998: Shishikura.** Mitsuhiro Shishikura proved that the set's boundary is as wiggly as
-  a curve can be: its Hausdorff dimension is 2, the same as a filled-in area (Annals of
-  Mathematics, 1998).
+  a curve can be: its Hausdorff dimension is 2, the same as a filled-in area. His paper is
+  *The Hausdorff dimension of the boundary of the Mandelbrot set and Julia sets*, Annals
+  of Mathematics 147, 225–267 (1998).
 - **Still open.** Whether the set is *locally connected* (roughly: whether every bit of it
   is joined to its neighbours by paths that don't wander far) has been asked since Douady
   and Hubbard, and is still unproved. Much else would follow from it. Even its area is

@@ -38,9 +38,9 @@ them all at once.
 
 - **1987: self-organized criticality.** The physicists Per Bak, Chao Tang and Kurt
   Wiesenfeld introduced the sandpile in *Self-organized criticality: an explanation of the
-  1/f noise* (Physical Review Letters 59, 381;
-  [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf)). They were asking why so many natural
-  systems show events of every size, with no typical scale: earthquakes, avalanches,
+  1/f noise*, Physical Review Letters 59, 381–384 (1987),
+  [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf). They were
+  asking why so many natural systems show events of every size, with no typical scale: earthquakes, avalanches,
   forest fires, solar flares. Their answer was that some systems drive themselves to a
   "critical" state with no tuning from outside. Keep dripping sand onto the pile and it
   reaches a state where avalanche sizes follow a power law. Most are tiny, a few are huge,
@@ -49,22 +49,23 @@ them all at once.
 - **1990: the abelian property.** Deepak Dhar proved that the order of topplings doesn't
   matter (the property that gives the model its name), and showed it has deep algebraic
   structure. On a finite grid with a sink edge, the stable piles that keep recurring as
-  you add grains form a mathematical group, which Dhar named the **sandpile group**. The number of those
-  piles equals the number of spanning trees of the grid
-  (*Self-organized critical state of sandpile automaton models*, Physical Review
-  Letters 64, 1613).
+  you add grains form a mathematical group, which Dhar named the **sandpile group**. The
+  number of those piles equals the number of spanning trees of the grid. His paper is
+  *Self-organized critical state of sandpile automaton models*, Physical Review Letters
+  64, 1613–1616 (1990).
 - **1991: chip-firing.** Combinatorialists study the same process on any graph, as a
-  *chip-firing game*. Anders Björner, László Lovász and Peter Shor, *Chip-firing games on
-  graphs* (European Journal of Combinatorics 12, 1991).
+  *chip-firing game*. An early paper is Anders Björner, László Lovász and Peter Shor,
+  *Chip-firing games on graphs*, European Journal of Combinatorics 12, 283–291 (1991).
 - **2010s: why the fractal looks the way it does.** For a long time the pattern from a
   single source was a well-known picture that nobody could explain. Wesley Pegden and
-  Charles Smart proved that it has a definite limiting shape as the number of grains grows
-  (*Convergence of the Abelian sandpile*, Duke Mathematical Journal 162, 2013;
-  [arXiv:1105.0111](https://arxiv.org/abs/1105.0111)). With Lionel
-  Levine they then explained its circles and triangles through **Apollonian circle
-  packings**, named after the Greek geometer Apollonius of Perga, in which circles
-  fill the gaps between circles, smaller and smaller without end (*Apollonian structure in the Abelian sandpile*, Geometric and
-  Functional Analysis 26, 2016; [arXiv:1208.4839](https://arxiv.org/abs/1208.4839)).
+  Charles Smart proved that it has a definite limiting shape as the number of grains
+  grows, in *Convergence of the Abelian sandpile*, Duke Mathematical Journal 162, 627–642
+  (2013), [arXiv:1105.0111](https://arxiv.org/abs/1105.0111). With Lionel Levine they
+  then explained its circles and triangles through **Apollonian circle packings**, named
+  after the Greek geometer Apollonius of Perga, in which circles fill the gaps between
+  circles, smaller and smaller without end: *Apollonian structure in the Abelian
+  sandpile*, Geometric and Functional Analysis 26, 306–336 (2016),
+  [arXiv:1208.4839](https://arxiv.org/abs/1208.4839).
 
 ## Variants
 
