@@ -619,6 +619,7 @@ impl MandelbrotApp {
                 "in the main cardioid or the disc left of it: known to be inside, without iterating"
                     .to_string()
             }
+            Pixel::Settled(n) => format!("settled into a cycle by step {n}: inside the set"),
             Pixel::Running(n) => format!("still near 0 after {n} steps"),
             Pixel::Escaped { step, .. } => format!("escapes at step {step}"),
         });

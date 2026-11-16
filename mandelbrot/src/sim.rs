@@ -243,16 +243,29 @@ pub enum Pixel {
     /// In the main cardioid or the large disc to its left, which are known to be inside the
     /// set without iterating.
     Inside,
+    /// Settled into a cycle, found at this step: inside the set, so iterating stopped there
+    /// (see [`SETTLE_TOLERANCE`]).
+    Settled(u32),
     /// |z| first passed 2 at `step`. `smooth` is a fractional version of the step that
     /// varies continuously from pixel to pixel, for colouring without bands: close to `step`,
     /// see [`smooth_count`].
     Escaped { step: u32, smooth: f32 },
 }
 
-// `Picture::smooth` codes: NaN while running, these two for fresh and inside, and otherwise
-// the escaped pixel's smooth count (never negative).
+// `Picture::smooth` codes: NaN while running, these three for fresh, inside and settled,
+// and otherwise the escaped pixel's smooth count (never negative, never near f32::MAX).
 const FRESH: f32 = f32::NEG_INFINITY;
 const INSIDE: f32 = f32::INFINITY;
+const SETTLED: f32 = f32::MAX;
+
+/// A point inside the set settles into a cycle, and then never escapes, however long it
+/// runs; a pixel that has is stopped. Without this, every pixel inside ran to the stop
+/// limit, which near the set's edge is most of the work (on the spike at x8,103, all of it:
+/// 13 s natively at 5,000 steps). Each pixel saves its z at steps 1, 2, 4, 8, ... (Brent's
+/// method) and is taken to have settled once a later z comes back within this distance of
+/// the saved one. Too large, and a point just outside the set, lingering near a cycle before
+/// it escapes, would be taken for inside: see the test `settled_pixels_never_escape`.
+const SETTLE_TOLERANCE: f64 = 1e-10;
 
 /// Which set a picture shows. Both iterate z -> z² + c; they differ in what a pixel's point
 /// stands for.
@@ -302,6 +315,9 @@ pub struct Picture {
     /// difference from the reference's, not z itself.
     reference: Option<Reference>,
     places: Vec<u32>,
+    /// Each pixel's z at the last step that was a power of two, to tell when it has settled
+    /// into a cycle (see [`SETTLE_TOLERANCE`]).
+    saved: Vec<[f64; 2]>,
 }
 
 /// Perturbation, for views too deep for f64. A pixel's point c is not representable in f64
@@ -376,6 +392,7 @@ impl Picture {
             pass_limit: limit,
             reference: None,
             places: Vec::new(),
+            saved: vec![[0.0; 2]; n],
         };
         if family == Family::Mandelbrot && view.perturbed() {
             picture.reference = Some(Reference::new(view.reference_point()));
@@ -425,6 +442,8 @@ impl Picture {
             Pixel::Fresh
         } else if s == INSIDE {
             Pixel::Inside
+        } else if s == SETTLED {
+            Pixel::Settled(self.steps[i])
         } else if s.is_nan() {
             Pixel::Running(self.steps[i])
         } else {
@@ -495,6 +514,7 @@ impl Picture {
                 Family::Mandelbrot => {}
                 Family::Julia(_) => self.z[i] = point,
             }
+            self.saved[i] = self.z[i];
             self.smooth[i] = f32::NAN;
         }
         if !self.smooth[i].is_nan() {
@@ -506,6 +526,7 @@ impl Picture {
             .min(start.saturating_add(allowance.min(u32::MAX as u64) as u32));
         let escape = self.family.escape_squared();
         let [mut zr, mut zi] = self.z[i];
+        let [mut sr, mut si] = self.saved[i];
         let mut k = start;
         loop {
             let (zr2, zi2) = (zr * zr, zi * zi);
@@ -516,11 +537,19 @@ impl Picture {
             if k >= stop {
                 break;
             }
+            if k > 0 && (zr - sr).abs() + (zi - si).abs() < SETTLE_TOLERANCE {
+                self.smooth[i] = SETTLED;
+                break;
+            }
+            if k.is_power_of_two() {
+                (sr, si) = (zr, zi);
+            }
             zi = 2.0 * zr * zi + c[1];
             zr = zr2 - zi2 + c[0];
             k += 1;
         }
         self.z[i] = [zr, zi];
+        self.saved[i] = [sr, si];
         self.steps[i] = k;
         let finished = !self.smooth[i].is_nan() || k >= self.limit;
         // A pixel already at the limit only needed checking: charge it as such, not as a
@@ -610,6 +639,7 @@ impl Picture {
         if !self.places.is_empty() {
             shift(&mut self.places, w, h, dx, dy, 0);
         }
+        shift(&mut self.saved, w, h, dx, dy, [0.0; 2]);
         self.view = self.view.panned(dx, dy);
         self.rebuild_queue();
     }
@@ -873,7 +903,7 @@ mod tests {
                 match p.pixel(x, y) {
                     Pixel::Escaped { step, .. } => assert_eq!(Some(step), expect),
                     Pixel::Running(n) => assert_eq!((n, expect), (200, None)),
-                    Pixel::Inside => assert_eq!(expect, None),
+                    Pixel::Inside | Pixel::Settled(_) => assert_eq!(expect, None),
                     Pixel::Fresh => panic!("pixel ({x}, {y}) never computed"),
                 }
             }
@@ -1001,7 +1031,7 @@ mod tests {
                     let expect = escape_step_dd(view.point_dd(x, y), limit);
                     let got = match p.pixel(x, y) {
                         Pixel::Escaped { step, .. } => Some(step),
-                        Pixel::Running(_) | Pixel::Inside => None,
+                        Pixel::Running(_) | Pixel::Inside | Pixel::Settled(_) => None,
                         Pixel::Fresh => panic!("{what}: ({x}, {y}) never computed"),
                     };
                     steps.insert(got);
@@ -1086,6 +1116,62 @@ mod tests {
         let shallow = home(300, 200);
         let moved = shallow.panned(5, -3);
         assert_eq!(moved.pixel_of_view(&shallow, 10.0, 20.0), [15.0, 17.0]);
+    }
+
+    /// A pixel stopped as settled must really be inside: the plain loop must not see it
+    /// escape even with ten times the steps. Checked where it is hardest, near the edge of
+    /// the set and its small copies, at several zooms; and the stopping must pay: on the
+    /// spike at x8,103, where every pixel is inside, most must stop early.
+    #[test]
+    fn settled_pixels_never_escape() {
+        let views = [
+            ("home", home(160, 130), 1_000),
+            (
+                "seahorse x8103",
+                Viewport::fit(120, 90, [-0.7453, 0.1127], [3.2, 2.6]).zoomed(60.0, 45.0, 8103.0),
+                2_000,
+            ),
+            (
+                "spike x8103",
+                Viewport::fit(120, 90, [-1.7549, 0.0], [3.2, 2.6]).zoomed(60.0, 45.0, 8103.0),
+                2_000,
+            ),
+            (
+                "period-3 bulb edge x500",
+                Viewport::fit(120, 90, [-0.1226, 0.7449], [3.2, 2.6]).zoomed(60.0, 45.0, 500.0),
+                2_000,
+            ),
+            (
+                "cardioid edge x1e6",
+                Viewport::fit(120, 90, [0.2501, 0.0], [3.2, 2.6]).zoomed(60.0, 45.0, 1e6),
+                2_000,
+            ),
+        ];
+        for (what, view, limit) in views {
+            let mut p = Picture::new(Family::Mandelbrot, view, limit);
+            p.work(u64::MAX);
+            let (mut settled, mut early) = (0, 0);
+            for y in 0..view.height {
+                for x in 0..view.width {
+                    if let Pixel::Settled(k) = p.pixel(x, y) {
+                        settled += 1;
+                        early += usize::from(k < limit / 2);
+                        assert_eq!(
+                            escape_step(view.point(x, y), 10 * limit),
+                            None,
+                            "{what}: ({x}, {y}) settled at step {k} but escapes"
+                        );
+                    }
+                }
+            }
+            eprintln!("{what}: {settled} settled, {early} before half the limit");
+            if what.starts_with("spike") {
+                assert!(
+                    early * 2 > view.width * view.height,
+                    "{what}: too few stop early"
+                );
+            }
+        }
     }
 
     /// The pixels the shortcut skips must be ones plain iteration never sees escape.
@@ -1192,7 +1278,9 @@ mod tests {
                 let [a, b] = view.point(x, y);
                 let r = a.hypot(b);
                 match p.pixel(x, y) {
-                    Pixel::Running(_) => assert!(r < 1.01, "({a}, {b}) should escape"),
+                    Pixel::Running(_) | Pixel::Settled(_) => {
+                        assert!(r < 1.01, "({a}, {b}) should escape")
+                    }
                     Pixel::Escaped { .. } => assert!(r > 0.99, "({a}, {b}) should stay"),
                     other => panic!("({a}, {b}) is {other:?}"),
                 }
@@ -1286,6 +1374,12 @@ mod tests {
             (
                 "seahorse",
                 Viewport::fit(910, 830, [-0.7436, 0.1318], [0.01, 0.01]),
+                5_000,
+            ),
+            // Every pixel inside the set: the case settling into a cycle exists for.
+            (
+                "spike x8103",
+                Viewport::fit(910, 830, [-1.7549, 0.0], [3.2, 2.6]).zoomed(455.0, 415.0, 8103.0),
                 5_000,
             ),
             // Perturbation: one double-double reference, every pixel in f64 against it.

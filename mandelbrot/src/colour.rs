@@ -110,7 +110,7 @@ impl Colours {
     pub fn of(&self, pixel: Pixel) -> Option<Color32> {
         Some(match pixel {
             Pixel::Fresh => return None,
-            Pixel::Running(_) | Pixel::Inside => self.palette.inside(),
+            Pixel::Running(_) | Pixel::Inside | Pixel::Settled(_) => self.palette.inside(),
             Pixel::Escaped { step, smooth } => {
                 let count = if self.bands { step as f32 } else { smooth };
                 let t = (count / self.period).rem_euclid(1.0);
