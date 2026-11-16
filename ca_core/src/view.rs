@@ -33,6 +33,12 @@ pub enum Layout {
     Hex,
 }
 
+/// The six neighbours of a cell in [`Layout::Hex`]'s axial coordinates, as `(dx, dy)`: the
+/// two beside it in its row, and two each in the rows above and below. They come in opposite
+/// pairs, so `HEX_NEIGHBOURS[2 * i + 1]` is `-HEX_NEIGHBOURS[2 * i]`.
+pub const HEX_NEIGHBOURS: [(isize, isize); 6] =
+    [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)];
+
 impl Layout {
     /// Texture size, `[width, height]` in texels, for a `w` x `h` grid.
     pub fn texture_size(self, w: usize, h: usize) -> [usize; 2] {
@@ -302,6 +308,32 @@ fn crisp_scale(scale: f32, pixels_per_point: f32) -> f32 {
         pixels / pixels_per_point
     } else {
         scale // smaller than a pixel: the grid is shrunk to fit regardless
+    }
+}
+
+#[cfg(test)]
+mod hex_neighbour_tests {
+    use super::*;
+
+    /// Drawn with [`Layout::Hex`], all six neighbours sit at the same distance from a cell,
+    /// so the offsets really are a hexagon in this layout and not some other six cells.
+    #[test]
+    fn hex_neighbours_are_equidistant_on_screen() {
+        let layout = Layout::Hex;
+        let centre = |x: usize, y: usize| {
+            let (tx, ty) = layout.cell_texel(x, y);
+            let half = layout.cell_width() as f32 / 2.0;
+            (tx as f32 + half, ty as f32 * layout.texel_aspect())
+        };
+        let (cx, cy) = centre(5, 5);
+        for (dx, dy) in HEX_NEIGHBOURS {
+            let (nx, ny) = centre((5 + dx) as usize, (5 + dy) as usize);
+            let d = ((nx - cx).powi(2) + (ny - cy).powi(2)).sqrt();
+            assert!((d - 2.0).abs() < 1e-5, "({dx}, {dy}) is {d} texels away");
+        }
+        for pair in HEX_NEIGHBOURS.chunks(2) {
+            assert_eq!((pair[0].0 + pair[1].0, pair[0].1 + pair[1].1), (0, 0));
+        }
     }
 }
 

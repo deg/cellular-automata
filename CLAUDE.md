@@ -124,6 +124,8 @@ make siblings               # before/after a Rust update: build+test David's oth
     `cell_rect`/`cell_size` for drawing markers over cells. Both directions of the
     mapping go through its `Layout` (square, or hex as offset bricks), defined as plain
     functions with round-trip tests; `Layout::image` builds the picture without a window.
+    `HEX_NEIGHBOURS` is the six neighbour offsets in the hex layout's axial coordinates
+    (the sandpile and the snowflakes use it).
   - `Playback`: Run, Pause, Step, Restart and a speed slider. Each frame,
     `take_restart()`, then `advance()` returns `Idle`, `Step` or `Run(speed)`.
   - `Pace`: turns steps per second into steps per frame, carrying the fraction.

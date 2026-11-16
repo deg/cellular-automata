@@ -33,10 +33,9 @@
 
 use ca_core::Grid;
 
-/// The six neighbours of a hex cell in axial coordinates (see `ca_core::Layout::Hex`): the
-/// two beside it in its row, and two each in the rows above and below. The same constant
-/// as `sandpile::sim::HEX`, copied so this demo does not depend on the sandpile.
-pub const HEX: [(isize, isize); 6] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)];
+/// The six neighbours of a hex cell in axial coordinates (see `ca_core::Layout::Hex`), in
+/// opposite pairs.
+use ca_core::HEX_NEIGHBOURS as HEX;
 
 /// Growth stops when an ice cell comes this many rows from the boundary circle, as in
 /// Reiter's script (the circle through its third row).

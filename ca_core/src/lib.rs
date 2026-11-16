@@ -9,6 +9,7 @@
 //! - [`Pace`]: steps per second to steps per frame, for automata watched slowly.
 //! - [`Rng`]: a small seeded random generator, for random fills.
 //! - [`line`]: the cells on a straight line, so drag-painting leaves no gaps.
+//! - [`HEX_NEIGHBOURS`]: the six neighbours of a cell in [`Layout::Hex`]'s coordinates.
 //! - [`moore_counts`]: each cell's count of neighbours in some state, edges handled once.
 //! - [`run`]: the entry point, which opens a native window or starts in the browser.
 //!
@@ -34,4 +35,4 @@ pub use neighbours::moore_counts;
 pub use pace::{Pace, generations_per_frame};
 pub use playback::{Advance, Playback};
 pub use rng::Rng;
-pub use view::{GridResponse, GridView, Layout};
+pub use view::{GridResponse, GridView, HEX_NEIGHBOURS, Layout};

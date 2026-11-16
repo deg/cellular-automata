@@ -39,9 +39,8 @@ pub const MOORE: [(isize, isize); 8] = [
     (-1, -1),
 ];
 
-/// The six neighbours of a hex cell in axial coordinates (see `ca_core::Layout::Hex`): the
-/// two beside it in its row, and two each in the rows above and below.
-pub const HEX: [(isize, isize); 6] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)];
+/// The six neighbours of a hex cell in axial coordinates (see `ca_core::Layout::Hex`).
+pub use ca_core::HEX_NEIGHBOURS as HEX;
 
 /// By default grids never grow past this many cells on a side: bigger textures fail in many
 /// browsers. A layout that draws cells wider than one texel needs a smaller limit, set with
