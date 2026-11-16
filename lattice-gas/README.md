@@ -54,10 +54,10 @@ one, as long as the lattice is symmetric enough. That is where the hexagon matte
 
 - **1973: HPP.** J. Hardy, Y. Pomeau and O. de Pazzis introduced the first fully discrete
   lattice gas, on a square lattice: four directions, with head-on pairs turning through
-  90 degrees (J. Hardy, Y. Pomeau and O. de Pazzis, *Time evolution of a two-dimensional
-  model system I*, Journal of Mathematical Physics 14, 1746–1759 (1973); J. Hardy,
-  O. de Pazzis and Y. Pomeau, *Molecular dynamics of a classical lattice gas: Transport
-  properties and time correlation functions*, Physical Review A 13, 1949–1961 (1976)).
+  90 degrees. Their papers are *Time evolution of a two-dimensional model system. I.
+  Invariant states and time correlation functions*, Journal of Mathematical Physics 14,
+  1746–1759 (1973), and *Molecular dynamics of a classical lattice gas: transport
+  properties and time correlation functions*, Physical Review A 13, 1949–1961 (1976).
   They built it to study basic questions in statistical mechanics, such as how transport
   coefficients behave in two dimensions. It conserves mass and momentum and carries sound
   waves, but its large-scale flow does not obey the Navier-Stokes equations: the square
@@ -65,26 +65,26 @@ one, as long as the lattice is symmetric enough. That is where the hexagon matte
   direction of flow relative to the lattice, so the gas behaves differently along the
   lattice and diagonally across it.
 - **1986: FHP.** Uriel Frisch, Brosl Hasslacher and Yves Pomeau showed that the same kind of
-  model on a hexagonal lattice does obey the Navier-Stokes equations at large scales
-  (U. Frisch, B. Hasslacher and Y. Pomeau, *Lattice-gas automata for the Navier-Stokes
-  equation*, Physical Review Letters 56, 1505–1508 (1986)). Six directions are enough to
+  model on a hexagonal lattice does obey the Navier-Stokes equations at large scales, in
+  *Lattice-gas automata for the Navier-Stokes equation*, Physical Review Letters 56,
+  1505–1508 (1986). Six directions are enough to
   make the averaged flow the same in every direction; four are not. The model is known by
   their initials. Its rules are a few bits of logic per node, so they proposed it for
   simple, massively parallel fluid computers.
 - **1987: theory and simulations.** The full theory, with the exact collision rules used
   here, is in U. Frisch, D. d'Humières, B. Hasslacher, P. Lallemand, Y. Pomeau and
   J.-P. Rivet, *Lattice gas hydrodynamics in two and three dimensions*, Complex Systems 1,
-  649–707 (1987). In the same issue, D. d'Humières and P. Lallemand simulated lattices of
-  about a million nodes and compared them with known solutions and experiments: flow down
-  a channel, the flow past a backward step, and eddies growing behind a flat plate, which
-  they compared with experiments in water (D. d'Humières and P. Lallemand, *Numerical
-  simulations of hydrodynamics with lattice gas automata in two dimensions*, Complex
-  Systems 1, 599–632 (1987)). The same volume describes RAP-1, a cellular automaton machine
+  649–707 (1987). In the same issue, in *Numerical simulations of hydrodynamics with
+  lattice gas automata in two dimensions*, Complex Systems 1, 599–632 (1987),
+  D. d'Humières and P. Lallemand simulated lattices of about a million nodes and compared
+  them with known solutions and experiments: flow down a channel, the flow past a
+  backward step, and eddies growing behind a flat plate, which they compared with
+  experiments in water. The same issue describes RAP1, a cellular automaton machine
   built for fluid dynamics, by A. Clouqueur and D. d'Humières.
-- **1988 and after: lattice Boltzmann.** McNamara and Zanetti proposed simulating the gas's
-  average populations directly, as real numbers, instead of individual particles
-  (G. R. McNamara and G. Zanetti, *Use of the Boltzmann equation to simulate lattice-gas
-  automata*, Physical Review Letters 61, 2332–2335 (1988)). With no particles, there is
+- **1988 and after: lattice Boltzmann.** Guy McNamara and Gianluigi Zanetti proposed
+  simulating the gas's average populations directly, as real numbers, instead of
+  individual particles, in *Use of the Boltzmann equation to simulate lattice-gas
+  automata*, Physical Review Letters 61, 2332–2335 (1988). With no particles, there is
   none of the noise you see here. Lattice gases were the precursor of these lattice
   Boltzmann methods.
 
@@ -145,7 +145,8 @@ one, as long as the lattice is symmetric enough. That is where the hexagon matte
 ## Further reading
 
 - The Wikipedia article [Lattice gas automaton](https://en.wikipedia.org/wiki/Lattice_gas_automaton).
-- The two 1987 Complex Systems papers above are free to read on the journal's website,
-  <https://www.complex-systems.com/>, and explain both the theory and the practice.
+- The two 1987 Complex Systems papers above are free to read on the
+  [journal's website](https://www.complex-systems.com/), and explain both the theory and
+  the practice.
 - D. A. Wolf-Gladrow, *Lattice-Gas Cellular Automata and Lattice Boltzmann Models*
   (Springer, 2000): a textbook on both.

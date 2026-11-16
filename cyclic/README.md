@@ -84,7 +84,7 @@ each rule in this notation, and who published it or added it to MCell's list.
   droplets of waves eat it, then spirals appear and grow. Leave it running: the
   *changed last generation* count climbs until every cell changes every generation.
 - **More colours.** Fisch, Gravner and Griffeath found that with 20 colours the droplets
-  become distinct and "drop-like". Set *colours* to 20 with the CCA rule, on the largest
+  become distinct and "drop-like". Set *colours* to 20 with the *CCA* rule, on the largest
   world. They expected a 256 x 256 world to fixate once there are more than about 20
   colours, because droplets that survive get too rare to appear: on the middle-sized
   world, some random starts already freeze with 20.
@@ -122,24 +122,24 @@ each rule in this notation, and who published it or added it to MCell's list.
 - The Wikipedia article
   [Cyclic cellular automaton](https://en.wikipedia.org/wiki/Cyclic_cellular_automaton).
 - R. Fisch, J. Gravner and D. Griffeath, *Cyclic cellular automata in two dimensions*, in
-  Spatial Stochastic Processes, a festschrift for T. E. Harris, Birkhäuser,
-  pp. 171–185 (1991), [PDF](https://www.math.ucdavis.edu/~gravner/papers/cca.pdf).
+  Spatial Stochastic Processes, a festschrift for T. E. Harris, Birkhäuser, pp. 171–185
+  (1991), [PDF](https://www.math.ucdavis.edu/~gravner/papers/cca.pdf).
 - R. Fisch, J. Gravner and D. Griffeath, *Threshold-range scaling of excitable cellular
-  automata*, Statistics and Computing 1, pp. 23–39 (1991),
+  automata*, Statistics and Computing 1, 23–39 (1991),
   [PDF](https://www.math.ucdavis.edu/~gravner/papers/fgg.pdf),
   [arXiv:patt-sol/9304001](https://arxiv.org/abs/patt-sol/9304001).
 - M. Bramson and D. Griffeath, *Flux and fixation in cyclic particle systems*, Annals of
-  Probability 17, pp. 26–45 (1989).
+  Probability 17, 26–45 (1989).
 - D. Griffeath, *Cyclic random competition: a case history in experimental mathematics*,
-  Notices of the American Mathematical Society, December, pp. 1472–1480 (1988).
+  Notices of the American Mathematical Society 35 (1988).
 - A. K. Dewdney, *A cellular universe of debris, droplets, defects and demons*, in his
-  *Computer Recreations* column, Scientific American, August, pp. 102–105 (1989).
+  *Computer Recreations* column, Scientific American 261, 102–105 (August 1989).
 - R. Durrett and D. Griffeath, *Asymptotic behavior of excitable cellular automata*,
-  Experimental Mathematics 2, no. 3 (1993),
+  Experimental Mathematics 2, 183–208 (1993),
   [PDF](https://sites.math.duke.edu/~rtd/reprints/paper79.pdf).
 - C. R. Shalizi and K. L. Shalizi, *Quantifying self-organization in cyclic cellular
   automata*, in Noise in Complex Systems and Stochastic Dynamics, Proceedings of SPIE
-  5114 (2003), [doi:10.1117/12.485805](https://doi.org/10.1117/12.485805); a fuller
+  5114, 108–117 (2003), [doi:10.1117/12.485805](https://doi.org/10.1117/12.485805); a fuller
   version (2005), [arXiv:nlin/0507067](https://arxiv.org/abs/nlin/0507067).
 - MCell's [Cyclic CA family](https://mcell.ca/pages/families.html#cyclic-ca) and its
   [rule list](https://mcell.ca/app/data/rules.txt).

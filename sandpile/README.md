@@ -36,11 +36,11 @@ them all at once.
 
 ## History
 
-- **1987: self-organized criticality.** The physicists Per Bak, Chao Tang and Kurt
+- **1987: self-organised criticality.** The physicists Per Bak, Chao Tang and Kurt
   Wiesenfeld introduced the sandpile in *Self-organized criticality: an explanation of the
-  1/f noise* (Physical Review Letters 59, 381;
-  [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf)). They were asking why so many natural
-  systems show events of every size, with no typical scale: earthquakes, avalanches,
+  1/f noise*, Physical Review Letters 59, 381–384 (1987),
+  [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf). They were
+  asking why so many natural systems show events of every size, with no typical scale: earthquakes, avalanches,
   forest fires, solar flares. Their answer was that some systems drive themselves to a
   "critical" state with no tuning from outside. Keep dripping sand onto the pile and it
   reaches a state where avalanche sizes follow a power law. Most are tiny, a few are huge,
@@ -49,22 +49,23 @@ them all at once.
 - **1990: the abelian property.** Deepak Dhar proved that the order of topplings doesn't
   matter (the property that gives the model its name), and showed it has deep algebraic
   structure. On a finite grid with a sink edge, the stable piles that keep recurring as
-  you add grains form a mathematical group, which Dhar named the **sandpile group**. The number of those
-  piles equals the number of spanning trees of the grid
-  (*Self-organized critical state of sandpile automaton models*, Physical Review
-  Letters 64, 1613).
+  you add grains form a mathematical group, which Dhar named the **sandpile group**. The
+  number of those piles equals the number of spanning trees of the grid. His paper is
+  *Self-organized critical state of sandpile automaton models*, Physical Review Letters
+  64, 1613–1616 (1990).
 - **1991: chip-firing.** Combinatorialists study the same process on any graph, as a
-  *chip-firing game*. Anders Björner, László Lovász and Peter Shor, *Chip-firing games on
-  graphs* (European Journal of Combinatorics 12, 1991).
+  *chip-firing game*. An early paper is Anders Björner, László Lovász and Peter Shor,
+  *Chip-firing games on graphs*, European Journal of Combinatorics 12, 283–291 (1991).
 - **2010s: why the fractal looks the way it does.** For a long time the pattern from a
   single source was a well-known picture that nobody could explain. Wesley Pegden and
-  Charles Smart proved that it has a definite limiting shape as the number of grains grows
-  (*Convergence of the Abelian sandpile*, Duke Mathematical Journal 162, 2013;
-  [arXiv:1105.0111](https://arxiv.org/abs/1105.0111)). With Lionel
-  Levine they then explained its circles and triangles through **Apollonian circle
-  packings**, named after the Greek geometer Apollonius of Perga, in which circles
-  fill the gaps between circles, smaller and smaller without end (*Apollonian structure in the Abelian sandpile*, Geometric and
-  Functional Analysis 26, 2016; [arXiv:1208.4839](https://arxiv.org/abs/1208.4839)).
+  Charles Smart proved that it has a definite limiting shape as the number of grains
+  grows, in *Convergence of the Abelian sandpile*, Duke Mathematical Journal 162, 627–642
+  (2013), [arXiv:1105.0111](https://arxiv.org/abs/1105.0111). With Lionel Levine they
+  then explained its circles and triangles through **Apollonian circle packings**, named
+  after the Greek geometer Apollonius of Perga, in which circles fill the gaps between
+  circles, smaller and smaller without end: *Apollonian structure in the Abelian
+  sandpile*, Geometric and Functional Analysis 26, 306–336 (2016),
+  [arXiv:1208.4839](https://arxiv.org/abs/1208.4839).
 
 ## Variants
 
@@ -74,7 +75,7 @@ holds for every such choice.
 
 - **8 neighbours.** Choose *8* under *Neighbours*, which starts a fresh pile. Diagonal cells now count as
   neighbours: a cell holds up to 7 grains and topples at 8, sending one grain in each of
-  the eight directions. The colours spread over the eight heights. Drop 100,000 grains
+  the eight directions. The colours spread over the eight heights. *Drop* 100,000 grains
   and compare the shape with the four-neighbour pile.
 - **Hex grid.** Choose *6 (hex grid)*. Each cell is a hexagon with six neighbours, and
   topples at 6. The cells are drawn as offset bricks, each row shifted half a cell from
@@ -87,22 +88,23 @@ holds for every such choice.
 
 ## Things to try
 
-- **Watch avalanches.** Restart, keep *Drip* on with 1 grain per drip, set the speed low,
-  and press Run. Toppling cells flash white. Most grains do nothing; now and then one sets
+- **Watch avalanches.** *Restart*, keep *Drip while running* on with 1 grain per drip, set
+  the speed low, and press *Run*. Toppling cells flash white. Most grains do nothing; now and then one sets
   off an avalanche across the pile.
-- **Step through one.** Pause, then press Step repeatedly. On a settled pile, Step drips
-  first (one grain, unless you raise *grains per drip*); while an avalanche is running, each Step is one sweep across the pile.
-- **Grow the fractal.** Restart and Drop 100,000 grains (a second or two). Then try
-  1,000,000 at a high speed setting: about 3 seconds natively, longer in the browser. The pattern keeps the same character, finer
-  and finer. Anywhere but the centre, or on a hex grid, a million grains take several
+- **Step through one.** *Pause*, then press *Step* repeatedly. On a settled pile, *Step*
+  drips first (one grain, unless you raise *grains per drip*); while an avalanche is
+  running, each *Step* is one sweep across the pile.
+- **Grow the fractal.** *Restart* and *Drop* 100,000 grains (a second or two). Then try
+  1,000,000 at a high speed setting: about 3 seconds natively, longer in the browser. The
+  pattern keeps the same character, finer and finer. Anywhere but the centre, or on a hex grid, a million grains take several
   times longer: only a pile fed at the centre has the symmetry that the fastest method
   uses.
-- **Sink edge.** Choose *grains fall off* and Restart. Grains now escape at the edge of a
+- **Sink edge.** Choose *grains fall off* and *Restart*. Grains now escape at the edge of a
   small grid, which is the setting of the original 1987 paper and of the sandpile group.
 - **Several sources.** Shift-click the grid to add a drip point, marked with a pink ring;
   shift-click it again to remove it, and *Centre only* puts things back. Every drip feeds
-  all the points at once. Add two or three, raise *grains per drip* to 100 or so, and Run:
-  watch the piles grow into each other. Drip points stay put through Restart, so you can
+  all the points at once. Add two or three, raise *grains per drip* to 100 or so, and *Run*:
+  watch the piles grow into each other. Drip points stay put through *Restart*, so you can
   try the same arrangement with either edge. On a *grains fall off* grid, though, points
   beyond its edge drip straight off it: their grains count as lost, and the panel says how
   many points that is.
@@ -113,6 +115,6 @@ holds for every such choice.
 - The Wikipedia article
   [Abelian sandpile model](https://en.wikipedia.org/wiki/Abelian_sandpile_model).
 - Lionel Levine and James Propp, *What is a sandpile?*, Notices of the American
-  Mathematical Society 57, 976–979 (2010): a short introduction
-  ([free PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf)).
+  Mathematical Society 57, 976–979 (2010),
+  [PDF](https://faculty.uml.edu/jpropp/whatisasandpile.pdf): a short introduction.
 - Per Bak, *How Nature Works: The Science of Self-Organized Criticality* (1996).

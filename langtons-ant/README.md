@@ -34,16 +34,16 @@ termites".
 - **More colours.** Greg Turk and Jim Propp generalised the ant to more than two colours.
   Cells cycle through the colours in order, and the rule says, for each colour, whether
   to turn left or right. The rule is written as a string of letters, so Langton's ant is
-  `RL`. The paper *Further travels with my ant* (David Gale, James Propp, Scott Sutherland
-  and Serge Troubetzkoy, Mathematical Intelligencer 17, 1995) explores this family.
+  `RL`. David Gale, James Propp, Scott Sutherland and Serge Troubetzkoy explored this
+  family in *Further travels with my ant*, Mathematical Intelligencer 17, 48–56 (1995).
 
 ## Things to try
 
-- **The highway.** Press Run, or press *Jump ahead 10,000 steps* to skip the chaos and
+- **The highway.** Press *Run*, or press *Jump ahead 10,000 steps* to skip the chaos and
   watch the highway being built.
 - **Collisions.** The grid wraps around, so the highway eventually runs back into the
   ant's own earlier mess. What happens then?
-- **Two ants.** Restart, click to add a second ant near the first, and Run. Their paths
+- **Two ants.** *Restart*, click to add a second ant near the first, and *Run*. Their paths
   interfere: does a highway still come?
 - **Other rules.** Try the presets, or type any string of L and R (2 to 12 letters). Some
   make chaos, some grow in regular shapes, some build highways of their own.
@@ -51,5 +51,6 @@ termites".
 ## Further reading
 
 - The Wikipedia article [Langton's ant](https://en.wikipedia.org/wiki/Langton%27s_ant).
-- Gale, Propp, Sutherland and Troubetzkoy, *Further travels with my ant*
-  ([arXiv:math/9501233](https://arxiv.org/abs/math/9501233)).
+- David Gale, James Propp, Scott Sutherland and Serge Troubetzkoy, *Further travels with
+  my ant*, Mathematical Intelligencer 17, 48–56 (1995),
+  [arXiv:math/9501233](https://arxiv.org/abs/math/9501233).

@@ -65,12 +65,12 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   the air it grows in. He controlled them by setting the air temperature and that of a
   water bath supplying the vapour.
 - **1984: Packard's digital snowflakes.** Norman Packard's *Lattice models for
-  solidification and aggregation* (an Institute for Advanced Study preprint, reprinted in
-  1986) used a hexagonal automaton whose cells are ice or not: a cell freezes when exactly
+  solidification and aggregation*, an Institute for Advanced Study preprint later printed
+  in Science on Form, pp. 95–101 (1986), used a hexagonal automaton whose cells are ice or not: a cell freezes when exactly
   one of its neighbours is ice. Stephen Wolfram popularised it in *A New Kind of Science*
   (2002). It makes plates and sectors, but not dendrites or stars.
 - **2005: Reiter.** Clifford A. Reiter, *A local cellular model for snow crystal growth*,
-  Chaos, Solitons & Fractals 23, 1111–1119 (2005);
+  Chaos, Solitons & Fractals 23, 1111–1119 (2005),
   [doi:10.1016/S0960-0779(04)00374-1](https://doi.org/10.1016/S0960-0779(04)00374-1),
   [preprint](https://webbox.lafayette.edu/~reiterc/mvp/sfn/sfn_pp.pdf). Following Nakaya,
   he aimed for a simple local model with just two parameters, β and γ, and did not try to
@@ -83,17 +83,17 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   idealised quasi-liquid layer, using eight parameters. It captures the tip instabilities
   and faceted branches of real crystals, which Reiter's lacks. They call its crystals
   *snowfakes*: *Modeling snow crystal growth II: A mesoscopic lattice map with plausible
-  dynamics*, Physica D: Nonlinear Phenomena 237, 385–404 (2008);
+  dynamics*, Physica D 237, 385–404 (2008),
   [doi:10.1016/j.physd.2007.09.008](https://doi.org/10.1016/j.physd.2007.09.008). They
   extended it to three dimensions in *Modeling snow-crystal growth: A three-dimensional
-  mesoscopic approach*, Physical Review E 79, 011601 (2009);
+  mesoscopic approach*, Physical Review E 79, 011601 (2009),
   [doi:10.1103/PhysRevE.79.011601](https://doi.org/10.1103/PhysRevE.79.011601).
 
 ## Things to try
 
-- **The presets** are Reiter's own examples: his Figure 4's thin dendrite, thick dendrite,
-  stellar and sector forms; a plate; and *Many levels*, his Figure 5's α = 2.003, "a
-  pretty growth pattern with many levels of dendrites". Each starts again from a seed.
+- **The presets** are Reiter's own examples: *Thin dendrite*, *Thick dendrite*, *Stellar*
+  and *Sector* are his Figure 4's forms, *Plate* grows a plate, and *Many levels* is his
+  Figure 5's α = 2.003, "a pretty growth pattern with many levels of dendrites". Each starts again from a seed.
 - **Change conditions as it grows.** A real crystal falls through air of changing
   temperature and humidity. γ and α take effect at once, so you can do the same. Reiter's
   Figure 7 grew a plate with β = 0.4 and γ = 0.5, then lowered γ to 0.001 to grow
@@ -119,7 +119,7 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 - Kenneth Libbrecht's [SnowCrystals.com](http://www.snowcrystals.com): photographs of real
   snow crystals, and the science of why they have the shapes they do.
 - Jessica Li and Laura Schaposnik, *Interface control and snow crystal growth*,
-  Physical Review E 93, 023302 (2016);
+  Physical Review E 93, 023302 (2016),
   [arXiv:1505.02042](https://arxiv.org/abs/1505.02042). Reiter's model with two variables
   added, growth latency and growth direction, which make it realistic for plates as well
   as dendrites.

@@ -254,7 +254,7 @@ impl SandpileApp {
             r.row("grains", ca_core::grouped(self.pile.grains));
             r.row("lost off the edge", ca_core::grouped(self.pile.lost));
             r.row("topples", ca_core::grouped(self.pile.topples));
-            r.row("sweeps", ca_core::grouped(self.pile.sweeps));
+            r.row("sweep", ca_core::grouped(self.pile.sweeps));
             r.row(
                 "state",
                 if self.pile.is_stable() {

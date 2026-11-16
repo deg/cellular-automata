@@ -92,7 +92,7 @@ later, and the Adam loop has four offspring and then dies.
 - **The colony.** Raise the speed to a few hundred and let the colony spread, with
   *Follow the colony* zooming out as it grows. The dead loops inside keep only their teal
   core and indigo sheath; the signals live in the fringe.
-- **Interfere.** Pause, pick a state under *Draw*, and paint over part of a loop: erase a
+- **Interfere.** *Pause*, pick a state under *Draw*, and paint over part of a loop: erase a
   piece of sheath, add a signal to the genome, or change a gold 7 into a coral 4. Then run
   and see whether it still reproduces, and what its offspring look like.
 - **The edge.** On the smallest world the colony reaches the edge after about 1,800
@@ -115,7 +115,8 @@ later, and the Adam loop has four offspring and then dies.
   Y. Peng, *Simple systems that exhibit self-directed replication*, Science 259, 1282–1287
   (1993), remove the sheath altogether.
 - Loops that die and evolve: H. Sayama, *Introduction of structural dissolution into
-  Langton's self-reproducing loop*, Artificial Life VI, 114–122 (1998), adds a state that
+  Langton's self-reproducing loop*, in Artificial Life VI, MIT Press, pp. 114–122 (1998),
+  adds a state that
   dissolves loops, and his *evoloops* (1999) evolve. H. Sayama and C. L. Nehaniv,
   *Self-reproduction and evolution in cellular automata: 25 years after evoloops*,
   Artificial Life 31, 81–95 (2025),

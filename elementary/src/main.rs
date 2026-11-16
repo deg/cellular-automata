@@ -176,10 +176,11 @@ impl ElementaryApp {
             match a.generation_of_row(y) {
                 Some(g) if x < history.width() => {
                     let state = if history.get(x, y) { "on" } else { "off" };
-                    // Short, so a seven-digit generation still fits the panel's width.
-                    format!("cell {x}, gen. {}: {state}", ca_core::grouped(g))
+                    // (cell, generation), as the 2D demos write (x, y).
+                    format!("({x}, {g}): {state}")
                 }
-                _ => format!("cell {x}: not reached yet"),
+                // Only while the diagram is still filling, when row y will hold generation y.
+                _ => format!("({x}, {y}): not reached yet"),
             }
         });
         ca_core::readout(ui, |r| {
