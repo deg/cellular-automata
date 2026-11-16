@@ -35,13 +35,93 @@
 //! **Speed.** A node's six particle bits, a wall bit and a random bit fit in one byte. A
 //! collision is one lookup in a 256-entry table, and streaming gathers each row's new bits
 //! from the old rows at fixed offsets, a loop the compiler vectorises.
+//!
+//! **HPP.** For contrast, the same machinery runs the earlier model of Hardy, Pomeau and de
+//! Pazzis (1973) on a square lattice ([`Kind::Square`]): four directions, and one collision,
+//! a head-on pair turning through 90° (Frisch et al. 1987, §2.1 and equation (3.3)). Its
+//! flaw is visible: it conserves the momentum along every row and column separately, "far
+//! too many conserved quantities for physical modeling" (ibid.), so momentum never spreads
+//! from one row to the next.
 
 use ca_core::Rng;
 
 /// Bits 0 to 5 of a node: a particle moving in direction `i`, at angle `i * 60°`
 /// counter-clockwise from east (y up, as in the papers): east, north-east, north-west,
-/// west, south-west, south-east.
+/// west, south-west, south-east. On the square lattice, bits 0 to 3 are directions
+/// `i * 90°`: east, north, west, south.
 pub const DIRECTIONS: usize = 6;
+
+/// Which lattice, and so which model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// FHP-I on the triangular lattice, in offset rows.
+    Hex,
+    /// HPP on the square lattice.
+    Square,
+}
+
+impl Kind {
+    /// The number of directions a particle can move in.
+    pub fn directions(self) -> usize {
+        match self {
+            Self::Hex => 6,
+            Self::Square => 4,
+        }
+    }
+
+    /// Direction `i`'s unit vector, `(cos, sin)`, y up.
+    pub fn velocity(self, i: usize) -> (f64, f64) {
+        let a = i as f64 * std::f64::consts::TAU / self.directions() as f64;
+        (a.cos(), a.sin())
+    }
+
+    /// Each direction's momentum in exact integer units (see [`MOMENTUM`]); unused
+    /// directions are zero.
+    pub const fn momentum(self) -> &'static [(i32, i32); DIRECTIONS] {
+        match self {
+            Self::Hex => &MOMENTUM,
+            Self::Square => &MOMENTUM_SQUARE,
+        }
+    }
+
+    /// The size of [`Kind::momentum`]'s units, in node spacings per step, across and up.
+    pub fn momentum_unit(self) -> (f64, f64) {
+        match self {
+            Self::Hex => (0.5, 3f64.sqrt() / 4.0),
+            Self::Square => (1.0, 1.0),
+        }
+    }
+
+    /// The spacing of rows, in node spacings.
+    pub fn row_height(self) -> f64 {
+        match self {
+            Self::Hex => ROW_HEIGHT,
+            Self::Square => 1.0,
+        }
+    }
+
+    /// Whether odd rows sit half a node right of even rows.
+    pub fn shifted(self) -> bool {
+        self == Self::Hex
+    }
+
+    /// Where node `(x, y)` sits, in node spacings, x right and y down.
+    pub fn position(self, x: usize, y: usize) -> (f64, f64) {
+        let shift = if self.shifted() && y % 2 == 1 {
+            0.5
+        } else {
+            0.0
+        };
+        (x as f64 + shift, y as f64 * self.row_height())
+    }
+
+    pub fn collisions(self) -> &'static [u8; 256] {
+        match self {
+            Self::Hex => &COLLIDE,
+            Self::Square => &COLLIDE_SQUARE,
+        }
+    }
+}
 
 /// All six particle bits.
 pub const PARTICLES: u8 = 0b0011_1111;
@@ -60,11 +140,9 @@ pub const CHIRAL: u8 = 1 << 7;
 pub const MOMENTUM: [(i32, i32); DIRECTIONS] =
     [(2, 0), (1, 2), (-1, 2), (-2, 0), (-1, -2), (1, -2)];
 
-/// Direction `i`'s unit vector as a float, `(cos, sin)` of `i * 60°`, y up.
-pub fn velocity(i: usize) -> (f64, f64) {
-    let a = i as f64 * std::f64::consts::FRAC_PI_3;
-    (a.cos(), a.sin())
-}
+/// The square lattice's four unit vectors, east, north, west and south.
+pub const MOMENTUM_SQUARE: [(i32, i32); DIRECTIONS] =
+    [(1, 0), (0, 1), (-1, 0), (0, -1), (0, 0), (0, 0)];
 
 /// A row's vertical spacing, in node spacings: the rows of a triangular lattice are
 /// `sqrt(3) / 2` apart.
@@ -133,6 +211,31 @@ const fn collide(state: u8) -> u8 {
     }
 }
 
+/// HPP's collision of one node (Frisch et al. 1987, §2.1): exactly two particles meeting
+/// head-on, east-west or north-south, leave along the other axis; walls bounce back.
+const fn collide_square(state: u8) -> u8 {
+    let n = state & 0b1111;
+    let keep = state & (WALL | CHIRAL);
+    let turned = ((n << 1) | (n >> 3)) & 0b1111; // direction i becomes i + 1
+    if state & WALL != 0 {
+        keep | (((n << 2) | (n >> 2)) & 0b1111)
+    } else if n == 0b0101 || n == 0b1010 {
+        keep | turned
+    } else {
+        keep | n
+    }
+}
+
+pub static COLLIDE_SQUARE: [u8; 256] = {
+    let mut table = [0; 256];
+    let mut s = 0;
+    while s < 256 {
+        table[s] = collide_square(s as u8);
+        s += 1;
+    }
+    table
+};
+
 const fn collision_table() -> [u8; 256] {
     let mut table = [0; 256];
     let mut s = 0;
@@ -171,6 +274,7 @@ pub struct Inflow {
 
 /// The lattice: a `width` x `height` rectangle of nodes, wrapping around both ways.
 pub struct Lattice {
+    kind: Kind,
     width: usize,
     height: usize,
     cells: Vec<u8>,
@@ -180,23 +284,27 @@ pub struct Lattice {
     rng: Rng,
 }
 
-/// The chance of a particle in direction `i` in a gas at rest-frame density `density` (per
-/// direction) moving east at `speed`: d'Humières and Lallemand's equation (2.5), the
-/// equilibrium to first order in the velocity, `d (1 + 2 c_i . u)` for FHP-I.
-pub fn equilibrium(density: f64, speed: f64, i: usize) -> f64 {
-    (density * (1.0 + 2.0 * velocity(i).0 * speed)).clamp(0.0, 1.0)
+/// The chance of a particle in direction `i` in a gas at density `density` (per direction)
+/// moving east at `speed`: d'Humières and Lallemand's equation (2.5), the equilibrium to
+/// first order in the velocity, `d (1 + 2 c_i . u)` for FHP-I. The same form gives the
+/// square lattice's gas mean velocity `u` too (see the tests).
+pub fn equilibrium(kind: Kind, density: f64, speed: f64, i: usize) -> f64 {
+    if i >= kind.directions() {
+        return 0.0;
+    }
+    (density * (1.0 + 2.0 * kind.velocity(i).0 * speed)).clamp(0.0, 1.0)
 }
 
 impl Lattice {
-    /// An empty lattice. `height` must be even, so that rows still alternate when the world
-    /// wraps from the bottom row to the top.
-    pub fn new(width: usize, height: usize, seed: u64) -> Self {
+    /// An empty lattice. On the hex lattice `height` must be even, so that rows still
+    /// alternate when the world wraps from the bottom row to the top.
+    pub fn new(kind: Kind, width: usize, height: usize, seed: u64) -> Self {
         assert!(
             width >= 3 && height >= 2,
             "a world needs at least 3 x 2 nodes"
         );
         assert!(
-            height.is_multiple_of(2),
+            kind == Kind::Square || height.is_multiple_of(2),
             "a wrapping hex world needs an even number of rows"
         );
         let mut rng = Rng::new(seed);
@@ -204,6 +312,7 @@ impl Lattice {
             .map(|_| if rng.chance(0.5) { CHIRAL } else { 0 })
             .collect();
         Self {
+            kind,
             width,
             height,
             cells,
@@ -212,6 +321,10 @@ impl Lattice {
             steps: 0,
             rng,
         }
+    }
+
+    pub fn kind(&self) -> Kind {
+        self.kind
     }
 
     pub fn width(&self) -> usize {
@@ -250,7 +363,7 @@ impl Lattice {
     pub fn wall_where(&mut self, inside: impl Fn(f64, f64) -> bool) {
         for y in 0..self.height {
             for x in 0..self.width {
-                let (px, py) = Self::position(x, y);
+                let (px, py) = self.kind.position(x, y);
                 if inside(px, py) {
                     self.set_wall(x, y, true);
                 }
@@ -262,10 +375,10 @@ impl Lattice {
         self.get(x, y) & WALL != 0
     }
 
-    /// Where node `(x, y)` sits, in node spacings, x right and y down: odd rows are shifted
-    /// half a node right.
-    pub fn position(x: usize, y: usize) -> (f64, f64) {
-        (x as f64 + 0.5 * (y % 2) as f64, y as f64 * ROW_HEIGHT)
+    /// Where node `(x, y)` sits, in node spacings, x right and y down: on the hex lattice,
+    /// odd rows are shifted half a node right.
+    pub fn position(&self, x: usize, y: usize) -> (f64, f64) {
+        self.kind.position(x, y)
     }
 
     /// The neighbour of `(x, y)` in direction `i`, wrapping around the edges: the plain
@@ -273,6 +386,14 @@ impl Lattice {
     #[cfg(test)]
     pub fn neighbour(&self, x: usize, y: usize, i: usize) -> (usize, usize) {
         let (w, h) = (self.width, self.height);
+        if self.kind == Kind::Square {
+            return match i % 4 {
+                0 => ((x + 1) % w, y),
+                1 => (x, (y + h - 1) % h),
+                2 => ((x + w - 1) % w, y),
+                _ => (x, (y + 1) % h),
+            };
+        }
         let p = y % 2; // odd rows sit half a node right, so their diagonals lean right
         let (left, right) = ((x + w - 1) % w, (x + 1) % w);
         let (up, down) = ((y + h - 1) % h, (y + 1) % h);
@@ -291,7 +412,8 @@ impl Lattice {
     /// Fill every open node with a gas at `density` particles per direction (between 0
     /// and 1), moving east at `speed`, drawn at random from the equilibrium.
     pub fn fill(&mut self, density: f64, speed: f64) {
-        let p: [f64; DIRECTIONS] = std::array::from_fn(|i| equilibrium(density, speed, i));
+        let p: [f64; DIRECTIONS] =
+            std::array::from_fn(|i| equilibrium(self.kind, density, speed, i));
         for c in &mut self.cells {
             if *c & WALL == 0 {
                 *c = (*c & CHIRAL) | random_node(&mut self.rng, &p);
@@ -302,10 +424,10 @@ impl Lattice {
     /// Fill the open nodes within `radius` (node spacings) of the point `(cx, cy)` (as in
     /// [`Lattice::position`]) with a gas at rest at `density`.
     pub fn fill_disc(&mut self, cx: f64, cy: f64, radius: f64, density: f64) {
-        let p = [density.clamp(0.0, 1.0); DIRECTIONS];
+        let p: [f64; DIRECTIONS] = std::array::from_fn(|i| equilibrium(self.kind, density, 0.0, i));
         for y in 0..self.height {
             for x in 0..self.width {
-                let (px, py) = Self::position(x, y);
+                let (px, py) = self.kind.position(x, y);
                 if (px - cx).hypot(py - cy) <= radius && !self.is_wall(x, y) {
                     let bits = random_node(&mut self.rng, &p);
                     self.set_particles(x, y, bits);
@@ -322,13 +444,19 @@ impl Lattice {
             .sum()
     }
 
-    /// Total momentum in [`MOMENTUM`]'s integer units, walls included (for the conservation
-    /// tests).
+    /// Total momentum in [`Kind::momentum`]'s integer units, walls included (for the
+    /// conservation tests).
     #[cfg(test)]
     pub fn momentum(&self) -> (i64, i64) {
+        self.momentum_of(0..self.cells.len())
+    }
+
+    /// The momentum of the nodes at the given indices.
+    #[cfg(test)]
+    pub fn momentum_of(&self, nodes: impl Iterator<Item = usize>) -> (i64, i64) {
         let (mut px, mut py) = (0, 0);
-        for &c in &self.cells {
-            for (i, &(mx, my)) in MOMENTUM.iter().enumerate() {
+        for c in nodes.map(|k| self.cells[k]) {
+            for (i, &(mx, my)) in self.kind.momentum().iter().enumerate() {
                 if c & (1 << i) != 0 {
                     px += i64::from(mx);
                     py += i64::from(my);
@@ -341,8 +469,9 @@ impl Lattice {
     /// One step: collide at every node, stream every particle to its neighbour, then
     /// refill the inflow band, if any.
     pub fn step(&mut self) {
+        let table = self.kind.collisions();
         for c in &mut self.cells {
-            *c = COLLIDE[*c as usize];
+            *c = table[*c as usize];
         }
         self.stream();
         if let Some(inflow) = self.inflow {
@@ -364,14 +493,17 @@ impl Lattice {
             let row = &self.cells[y * w..][..w];
             let down = &self.cells[((y + 1) % h) * w..][..w];
             let out = &mut self.next[y * w..][..w];
-            stream_row(out, up, row, down, p);
+            match self.kind {
+                Kind::Hex => stream_row(out, up, row, down, p),
+                Kind::Square => stream_row_square(out, up, row, down),
+            }
         }
         std::mem::swap(&mut self.cells, &mut self.next);
     }
 
     fn refill(&mut self, inflow: Inflow) {
         let p: [f64; DIRECTIONS] =
-            std::array::from_fn(|i| equilibrium(inflow.density, inflow.speed, i));
+            std::array::from_fn(|i| equilibrium(self.kind, inflow.density, inflow.speed, i));
         let w = self.width;
         for y in 0..self.height {
             for c in &mut self.cells[y * w..y * w + inflow.width.min(w)] {
@@ -438,6 +570,22 @@ fn stream_row(out: &mut [u8], up: &[u8], row: &[u8], down: &[u8], p: usize) {
             | (down[lean_right] & NW)
             | (up[lean_right] & SW)
             | (up[lean] & SE);
+    }
+}
+
+/// One row of streaming on the square lattice: east from the west, north from below,
+/// west from the east, south from above.
+fn stream_row_square(out: &mut [u8], up: &[u8], row: &[u8], down: &[u8]) {
+    const N: u8 = 1 << 1;
+    const W: u8 = 1 << 2;
+    const S: u8 = 1 << 3;
+    let w = row.len();
+    for x in 0..w {
+        let (left, right) = (
+            if x == 0 { w - 1 } else { x - 1 },
+            if x + 1 == w { 0 } else { x + 1 },
+        );
+        out[x] = (row[x] & STAY) | (row[left] & E) | (down[x] & N) | (row[right] & W) | (up[x] & S);
     }
 }
 
@@ -545,14 +693,14 @@ mod tests {
     /// of row: the offset-row layout is a true triangular lattice.
     #[test]
     fn neighbours_are_at_unit_distance_and_sixty_degrees() {
-        let l = Lattice::new(10, 8, 1);
+        let l = Lattice::new(Kind::Hex, 10, 8, 1);
         for (x, y) in [(4, 4), (4, 5)] {
-            let (px, py) = Lattice::position(x, y);
+            let (px, py) = Kind::Hex.position(x, y);
             for i in 0..6 {
                 let (nx, ny) = l.neighbour(x, y, i);
-                let (qx, qy) = Lattice::position(nx, ny);
+                let (qx, qy) = Kind::Hex.position(nx, ny);
                 let (dx, dy) = (qx - px, -(qy - py));
-                let (cx, cy) = velocity(i);
+                let (cx, cy) = Kind::Hex.velocity(i);
                 assert!(
                     (dx - cx).abs() < 1e-12 && (dy - cy).abs() < 1e-12,
                     "({x}, {y}) i {i}"
@@ -569,7 +717,7 @@ mod tests {
         for y in 0..h {
             for x in 0..w {
                 for i in 0..6 {
-                    let mut l = Lattice::new(w, h, 3);
+                    let mut l = Lattice::new(Kind::Hex, w, h, 3);
                     l.set_particles(x, y, 1 << i);
                     let (nx, ny) = l.neighbour(x, y, i);
                     l.step();
@@ -581,7 +729,7 @@ mod tests {
     }
 
     fn random_gas(w: usize, h: usize, density: f64, seed: u64) -> Lattice {
-        let mut l = Lattice::new(w, h, seed);
+        let mut l = Lattice::new(Kind::Hex, w, h, seed);
         l.fill(density, 0.0);
         l
     }
@@ -613,7 +761,7 @@ mod tests {
     #[test]
     fn steps_conserve_mass_and_momentum() {
         for (density, speed, seed) in [(0.2, 0.0, 1), (0.5, 0.0, 2), (0.3, 0.3, 3), (0.8, 0.1, 4)] {
-            let mut l = Lattice::new(40, 30, seed);
+            let mut l = Lattice::new(Kind::Hex, 40, 30, seed);
             l.fill(density, speed);
             let (mass, mom) = (l.particles(), l.momentum());
             for _ in 0..50 {
@@ -642,7 +790,7 @@ mod tests {
     /// after 4 steps.
     #[test]
     fn a_particle_bounces_back_off_a_wall() {
-        let mut l = Lattice::new(8, 4, 1);
+        let mut l = Lattice::new(Kind::Hex, 8, 4, 1);
         l.set_wall(4, 2, true);
         l.set_particles(2, 2, E);
         l.step();
@@ -663,7 +811,7 @@ mod tests {
     #[test]
     fn a_head_on_pair_turns_sixty_degrees() {
         for chiral in [false, true] {
-            let mut l = Lattice::new(8, 6, 1);
+            let mut l = Lattice::new(Kind::Hex, 8, 6, 1);
             l.set_particles(2, 2, E);
             l.set_particles(4, 2, W);
             // Fix the middle node's random bit.
@@ -687,7 +835,7 @@ mod tests {
     /// 120° apart, moving in directions 0, 2 and 4, leave it in directions 1, 3 and 5.
     #[test]
     fn a_triple_collision_turns_the_triple() {
-        let mut l = Lattice::new(8, 6, 1);
+        let mut l = Lattice::new(Kind::Hex, 8, 6, 1);
         let (cx, cy) = (4, 3);
         for i in [0, 2, 4] {
             // Start one node behind the centre, moving towards it.
@@ -713,7 +861,7 @@ mod tests {
     #[test]
     fn a_gas_relaxes_to_equal_populations() {
         let n = 128;
-        let mut l = Lattice::new(n, n, 11);
+        let mut l = Lattice::new(Kind::Hex, n, n, 11);
         let mut rng = Rng::new(4);
         for y in 0..n {
             for x in 0..n {
@@ -739,11 +887,117 @@ mod tests {
     /// per particle is u.
     #[test]
     fn the_inflow_band_carries_its_speed() {
-        let mut l = Lattice::new(400, 200, 2);
+        let mut l = Lattice::new(Kind::Hex, 400, 200, 2);
         l.fill(0.2, 0.25);
         let (px, py) = l.momentum();
         let ux = px as f64 / 2.0 / l.particles() as f64;
         let uy = py as f64 * 3f64.sqrt() / 4.0 / l.particles() as f64;
+        assert!(
+            (ux - 0.25).abs() < 0.01 && uy.abs() < 0.01,
+            "u = ({ux}, {uy})"
+        );
+    }
+
+    /// HPP's table must be Frisch et al.'s microdynamical equation (3.3), for all 16
+    /// states: `Delta_i = n_{i+1} n_{i+3} (1 - n_i)(1 - n_{i+2})
+    /// - n_i n_{i+2} (1 - n_{i+1})(1 - n_{i+3})`, indices modulo 4.
+    #[test]
+    fn hpp_collisions_follow_equation_3_3() {
+        let n = |s: u8, i: usize| i32::from(s >> (i % 4) & 1);
+        for s in 0..16u8 {
+            let out = COLLIDE_SQUARE[s as usize];
+            for i in 0..4 {
+                let m = |j: usize| n(s, i + j);
+                let e = |j: usize| 1 - m(j);
+                let delta = m(1) * m(3) * e(0) * e(2) - m(0) * m(2) * e(1) * e(3);
+                assert_eq!(n(out, i), n(s, i) + delta, "state {s:04b}");
+            }
+        }
+    }
+
+    /// HPP's collisions keep each node's particle count and momentum; walls reverse it.
+    #[test]
+    fn hpp_collisions_conserve_mass_and_momentum() {
+        let mom = |s: u8| {
+            (0..4)
+                .filter(|&i| s >> i & 1 == 1)
+                .fold((0, 0), |(x, y), i| {
+                    (x + MOMENTUM_SQUARE[i].0, y + MOMENTUM_SQUARE[i].1)
+                })
+        };
+        for s in (0..=255u8).filter(|s| s & 0b11_0000 == 0) {
+            let out = COLLIDE_SQUARE[s as usize];
+            assert_eq!((s & 15).count_ones(), (out & 15).count_ones(), "{s:08b}");
+            assert_eq!(out & 0b11_0000, 0, "no hex bits appear");
+            let (m, m2) = (mom(s), mom(out));
+            if s & WALL != 0 {
+                assert_eq!(m2, (-m.0, -m.1));
+            } else {
+                assert_eq!(m2, m, "{s:08b}");
+            }
+        }
+    }
+
+    /// On the square lattice, streaming moves a lone particle to its neighbour, across
+    /// every edge of the wrapping world.
+    #[test]
+    fn hpp_a_lone_particle_moves_to_its_neighbour_everywhere() {
+        let (w, h) = (4, 3);
+        for y in 0..h {
+            for x in 0..w {
+                for i in 0..4 {
+                    let mut l = Lattice::new(Kind::Square, w, h, 3);
+                    l.set_particles(x, y, 1 << i);
+                    let (nx, ny) = l.neighbour(x, y, i);
+                    l.step();
+                    assert_eq!(l.get(nx, ny) & PARTICLES, 1 << i, "({x}, {y}) dir {i}");
+                }
+            }
+        }
+    }
+
+    /// Frisch et al. (1987, §2.1): in HPP, "momentum is conserved along each horizontal and
+    /// vertical line, resulting in far too many conserved quantities for physical modeling".
+    /// Every row's x-momentum and every column's y-momentum stay exactly as they were. FHP
+    /// has no such invariant: its rows trade momentum.
+    #[test]
+    fn hpp_keeps_each_rows_momentum_and_fhp_does_not() {
+        let (w, h) = (30, 20);
+        let rows = |l: &Lattice| -> Vec<i64> {
+            (0..h)
+                .map(|y| l.momentum_of(y * w..(y + 1) * w).0)
+                .collect()
+        };
+        let columns = |l: &Lattice| -> Vec<i64> {
+            (0..w)
+                .map(|x| l.momentum_of((0..h).map(|y| y * w + x)).1)
+                .collect()
+        };
+        let mut hpp = Lattice::new(Kind::Square, w, h, 5);
+        hpp.fill(0.3, 0.2);
+        let (r0, c0) = (rows(&hpp), columns(&hpp));
+        for _ in 0..50 {
+            hpp.step();
+            assert_eq!((rows(&hpp), columns(&hpp)), (r0.clone(), c0.clone()));
+        }
+        let mut fhp = Lattice::new(Kind::Hex, w, h, 5);
+        fhp.fill(0.3, 0.2);
+        let r0 = rows(&fhp);
+        for _ in 0..5 {
+            fhp.step();
+        }
+        assert_ne!(rows(&fhp), r0);
+    }
+
+    /// The square lattice's equilibrium fill moves at the speed asked for, as the hex one
+    /// does.
+    #[test]
+    fn hpp_fill_carries_its_speed() {
+        let mut l = Lattice::new(Kind::Square, 300, 300, 2);
+        l.fill(0.2, 0.25);
+        let (px, py) = l.momentum();
+        let n = l.particles() as f64;
+        let (ux, uy) = (px as f64 / n, py as f64 / n);
         assert!(
             (ux - 0.25).abs() < 0.01 && uy.abs() < 0.01,
             "u = ({ux}, {uy})"

@@ -5,9 +5,9 @@ mod sim;
 mod view;
 
 use ca_core::egui::{self, Color32, RichText, Stroke, vec2};
-use ca_core::{About, Advance, Pace, Playback, eframe, generations_per_frame};
+use ca_core::{About, Advance, Pace, PaintStroke, Playback, eframe, generations_per_frame};
 use flow::{Blocks, Field};
-use sim::{Inflow, Lattice, PARTICLES, ROW_HEIGHT, SOUND_SPEED, WALL};
+use sim::{Inflow, Kind, Lattice, PARTICLES, SOUND_SPEED, WALL};
 use view::{LatticeView, Shown};
 
 fn main() {
@@ -77,8 +77,8 @@ impl Preset {
     }
 
     /// The obstacle's width across the wind, in node spacings, for the Reynolds number.
-    fn obstacle_width(self, h: usize) -> Option<f64> {
-        let side = h as f64 * ROW_HEIGHT;
+    fn obstacle_width(self, kind: Kind, h: usize) -> Option<f64> {
+        let side = h as f64 * kind.row_height();
         match self {
             Self::Plate => Some(side / 3.0),
             Self::Cylinder => Some(side / 4.0),
@@ -123,6 +123,7 @@ impl Show {
 
 struct GasApp {
     lattice: Lattice,
+    kind: Kind,
     blocks: Blocks,
     field: Field,
     view: LatticeView,
@@ -142,6 +143,7 @@ struct GasApp {
     /// The wind's speed, in node spacings per step.
     speed: f64,
     brush: f64,
+    stroke: PaintStroke,
     hovered: Option<(usize, usize)>,
     seed: u64,
     dirty: bool,
@@ -159,7 +161,8 @@ impl eframe::App for GasApp {
             self.blocks.clear();
             let image = self.image();
             let l = &self.lattice;
-            self.view.set_image(ui.ctx(), l.width(), l.height(), image);
+            let size = (l.width(), l.height());
+            self.view.set_image(ui.ctx(), l.kind(), size, image);
             self.dirty = false;
         }
 
@@ -169,8 +172,8 @@ impl eframe::App for GasApp {
                 self.draw_arrows(ui, &shown);
             }
             self.hovered = shown.hovered;
-            if let Some((x, y)) = shown.pressed {
-                let erase = ui.input(|i| i.modifiers.shift);
+            let erase = ui.input(|i| i.modifiers.shift);
+            for (x, y) in self.stroke.cells(shown.pressed) {
                 self.paint(x, y, !erase);
             }
         });
@@ -185,9 +188,10 @@ impl GasApp {
     fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let size = SIZES[1];
         let block = 16;
-        let blocks = blocks(size, block);
+        let blocks = blocks(Kind::Hex, size, block);
         let mut app = Self {
-            lattice: Lattice::new(size.0, size.1, 1986),
+            lattice: Lattice::new(Kind::Hex, size.0, size.1, 1986),
+            kind: Kind::Hex,
             field: Field::new(&blocks),
             blocks,
             view: LatticeView::new(),
@@ -203,6 +207,7 @@ impl GasApp {
             density: 0.2,
             speed: 0.3,
             brush: 3.0,
+            stroke: PaintStroke::default(),
             hovered: None,
             seed: 1986,
             dirty: true,
@@ -238,12 +243,29 @@ impl GasApp {
         ui.checkbox(&mut self.arrows, "Arrows: the averaged velocity");
         ui.label("Average over blocks of (nodes across)");
         if ui.add(egui::Slider::new(&mut self.block, 6..=40)).changed() {
-            self.blocks = blocks(self.size, self.block);
+            self.blocks = blocks(self.kind, self.size, self.block);
             self.field = Field::new(&self.blocks);
             self.dirty = true;
         }
         ui.label("and over about (steps)");
         ui.add(egui::Slider::new(&mut self.window, 1.0..=1_000.0).logarithmic(true));
+        ui.separator();
+
+        ui.label(RichText::new("Lattice").strong());
+        ui.horizontal_wrapped(|ui| {
+            for (kind, label, hint) in [
+                (Kind::Hex, "Hexagonal (FHP)", "Six directions: FHP-I, which flows like a real fluid."),
+                (Kind::Square, "Square (HPP)", "Four directions: the earlier HPP model, which doesn't. Each row keeps its own momentum, so the flow never spreads from row to row."),
+            ] {
+                if ui.selectable_label(self.kind == kind, label).on_hover_text(hint).clicked()
+                    && self.kind != kind
+                {
+                    self.kind = kind;
+                    self.blocks = blocks(kind, self.size, self.block);
+                    self.restart();
+                }
+            }
+        });
         ui.separator();
 
         ui.label(RichText::new("Start").strong());
@@ -278,7 +300,7 @@ impl GasApp {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
-                    self.blocks = blocks(size, self.block);
+                    self.blocks = blocks(self.kind, size, self.block);
                     self.restart();
                 }
             }
@@ -299,13 +321,14 @@ impl GasApp {
             ui.label("particles");
             ui.label(n.to_string());
             ui.end_row();
-            if l.inflow.is_some() {
+            if l.inflow.is_some() && l.kind() == Kind::Hex {
                 ui.label("Mach number");
                 ui.label(format!("{:.2}", self.speed / SOUND_SPEED))
                     .on_hover_text("The wind's speed over the speed of sound, 1/√2 node spacings per step.");
                 ui.end_row();
             }
-            if let (Some(_), Some(width)) = (l.inflow, self.preset.obstacle_width(l.height())) {
+            let width = self.preset.obstacle_width(l.kind(), l.height());
+            if let (Some(_), Some(width), Kind::Hex) = (l.inflow, width, l.kind()) {
                 ui.label("Reynolds number");
                 ui.label(format!("{:.0}", sim::reynolds(self.speed, width, self.density)))
                     .on_hover_text("Speed x obstacle width x g / viscosity, with FHP's g and viscosity for this density (Frisch et al. 1987). Higher means more eddies; this lattice gas can't go far.");
@@ -320,7 +343,7 @@ impl GasApp {
                     format!("{} particles", (c & PARTICLES).count_ones())
                 });
                 ui.end_row();
-                let (px, py) = Lattice::position(x, y);
+                let (px, py) = l.position(x, y);
                 let f = &self.field;
                 let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
                 let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
@@ -373,7 +396,7 @@ impl GasApp {
             })
             .collect();
         let value = |bx: usize, by: usize| values[by * f.nx + bx];
-        view::image(w, h, |x, y| {
+        view::image(l.kind(), w, h, |x, y| {
             let c = cells[y * w + x];
             if c & WALL != 0 {
                 return STONE;
@@ -381,7 +404,7 @@ impl GasApp {
             if self.show == Show::Particles {
                 return BY_COUNT[(c & PARTICLES).count_ones() as usize];
             }
-            let (px, py) = Lattice::position(x, y);
+            let (px, py) = l.position(x, y);
             let v = f.at(px, py, value);
             match self.show {
                 Show::Speed => ramp(&SPEED_RAMP, v),
@@ -422,15 +445,16 @@ impl GasApp {
     fn restart(&mut self) {
         let (w, h) = self.size;
         self.seed += 1;
-        let mut l = Lattice::new(w, h, self.seed);
-        let mid_y = h as f64 * ROW_HEIGHT / 2.0;
+        let mut l = Lattice::new(self.kind, w, h, self.seed);
+        let row_height = self.kind.row_height();
+        let mid_y = h as f64 * row_height / 2.0;
         let wind = Some(Inflow {
             width: INFLOW_WIDTH,
             density: self.density,
             speed: self.speed,
         });
         let x0 = w as f64 / 4.0;
-        let across = self.preset.obstacle_width(h).unwrap_or(0.0);
+        let across = self.preset.obstacle_width(self.kind, h).unwrap_or(0.0);
         match self.preset {
             Preset::Plate => {
                 l.wall_where(|px, py| (px - x0).abs() <= 1.0 && (py - mid_y).abs() <= across / 2.0);
@@ -452,7 +476,7 @@ impl GasApp {
             }
             Preset::Pulse => {
                 l.fill(self.density, 0.0);
-                let r = h as f64 * ROW_HEIGHT / 12.0;
+                let r = h as f64 * row_height / 12.0;
                 l.fill_disc(w as f64 / 2.0, mid_y, r, (self.density * 2.5).min(1.0));
             }
         }
@@ -465,10 +489,10 @@ impl GasApp {
 
     /// Draw (or erase) walls in a disc around node `(x, y)`.
     fn paint(&mut self, x: usize, y: usize, wall: bool) {
-        let (cx, cy) = Lattice::position(x, y);
+        let (cx, cy) = self.lattice.position(x, y);
         let r = self.brush;
         let l = &mut self.lattice;
-        let rows = (r / ROW_HEIGHT).ceil() as isize + 1;
+        let rows = (r / l.kind().row_height()).ceil() as isize + 1;
         for dy in -rows..=rows {
             let ny = y as isize + dy;
             if ny < 0 || ny >= l.height() as isize {
@@ -480,7 +504,7 @@ impl GasApp {
                     continue;
                 }
                 let (nx, ny) = (nx as usize, ny as usize);
-                let (px, py) = Lattice::position(nx, ny);
+                let (px, py) = l.position(nx, ny);
                 if (px - cx).hypot(py - cy) <= r && l.is_wall(nx, ny) != wall {
                     l.set_wall(nx, ny, wall);
                 }
@@ -490,11 +514,14 @@ impl GasApp {
     }
 }
 
-/// Averaging blocks `block` nodes across and about as tall (an even number of rows, so
-/// each block holds as many odd rows as even).
-fn blocks(size: (usize, usize), block: usize) -> Blocks {
-    let rows = ((block as f64 / ROW_HEIGHT / 2.0).round() as usize * 2).max(2);
-    Blocks::new(size.0, size.1, block, rows)
+/// Averaging blocks `block` nodes across and about as tall (on the hex lattice, an even
+/// number of rows, so each block holds as many odd rows as even).
+fn blocks(kind: Kind, size: (usize, usize), block: usize) -> Blocks {
+    let rows = match kind {
+        Kind::Hex => ((block as f64 / kind.row_height() / 2.0).round() as usize * 2).max(2),
+        Kind::Square => block,
+    };
+    Blocks::new(kind, size.0, size.1, block, rows)
 }
 
 /// `t` from 0 to 1 along a ramp of colours, clamped.

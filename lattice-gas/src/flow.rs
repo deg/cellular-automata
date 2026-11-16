@@ -5,18 +5,20 @@
 //! 1 (1987) 599–632, §3.3) obtained "macroscopic quantities ... by averaging ... over
 //! rectangular regions", and over time steps; this does both.
 
-use crate::sim::{Lattice, MOMENTUM, PARTICLES, ROW_HEIGHT, WALL};
+use crate::sim::{Kind, Lattice, PARTICLES, WALL};
 
 /// Per node byte, four counts packed into 16-bit lanes of a `u64`, so summing a block is one
 /// lookup and one addition per node: its particles, its momentum's x and y in
-/// [`MOMENTUM`]'s integer units (each offset by 4 to keep it positive), and 1 if it is open.
+/// [`Kind::momentum`]'s integer units (each offset by 4 to keep it positive), and 1 if it is
+/// open. One table per lattice.
 /// Walls count as empty: the particles they hold for a step are being turned round, not
 /// flowing. A block of up to 8,000 nodes fits: no lane passes 8 per node.
-static PACKED: [u64; 256] = packed_table();
+static PACKED: [u64; 256] = packed_table(Kind::Hex.momentum());
+static PACKED_SQUARE: [u64; 256] = packed_table(Kind::Square.momentum());
 
 const OFFSET: i64 = 4;
 
-const fn packed_table() -> [u64; 256] {
+const fn packed_table(momentum: &[(i32, i32); 6]) -> [u64; 256] {
     let mut table = [0; 256];
     let mut s = 0;
     while s < 256 {
@@ -27,8 +29,8 @@ const fn packed_table() -> [u64; 256] {
             while i < 6 {
                 if (s as u8 & PARTICLES) >> i & 1 == 1 {
                     n += 1;
-                    jx += MOMENTUM[i].0 as i64;
-                    jy += MOMENTUM[i].1 as i64;
+                    jx += momentum[i].0 as i64;
+                    jy += momentum[i].1 as i64;
                 }
                 i += 1;
             }
@@ -42,6 +44,7 @@ const fn packed_table() -> [u64; 256] {
 /// Sums of particles and momentum over blocks of `bw` x `bh` nodes, accumulated over any
 /// number of steps.
 pub struct Blocks {
+    kind: Kind,
     pub bw: usize,
     pub bh: usize,
     /// Blocks across and down. Nodes beyond the last whole block are left out. A block may
@@ -67,13 +70,14 @@ pub struct Average {
 }
 
 impl Blocks {
-    pub fn new(width: usize, height: usize, bw: usize, bh: usize) -> Self {
+    pub fn new(kind: Kind, width: usize, height: usize, bw: usize, bh: usize) -> Self {
         assert!(
             bw * bh <= 8_000,
             "a block's sums would overflow their lanes"
         );
         let (nx, ny) = (width / bw, height / bh);
         Self {
+            kind,
             bw,
             bh,
             nx,
@@ -96,13 +100,17 @@ impl Blocks {
     /// Add one step's particles.
     pub fn add(&mut self, lattice: &Lattice) {
         let (w, cells) = (lattice.width(), lattice.cells());
+        let table = match self.kind {
+            Kind::Hex => &PACKED,
+            Kind::Square => &PACKED_SQUARE,
+        };
         let nodes = (self.bw * self.bh) as i64;
         for by in 0..self.ny {
             for bx in 0..self.nx {
                 let mut sum = 0u64;
                 for y in by * self.bh..(by + 1) * self.bh {
                     for &c in &cells[y * w + bx * self.bw..][..self.bw] {
-                        sum += PACKED[c as usize];
+                        sum += table[c as usize];
                     }
                 }
                 let lane = |i: u32| (sum >> (16 * i) & 0xffff) as i64;
@@ -124,27 +132,36 @@ impl Blocks {
         if mass == 0.0 || open == 0.0 {
             return Average::default();
         }
+        let (ux, uy) = self.kind.momentum_unit();
         Average {
             density: mass / open,
-            ux: f64::from(self.jx[k]) / 2.0 / mass,
-            uy: f64::from(self.jy[k]) * 3f64.sqrt() / 4.0 / mass,
+            ux: f64::from(self.jx[k]) * ux / mass,
+            uy: f64::from(self.jy[k]) * uy / mass,
         }
     }
 
     /// The centre of block `(bx, by)`: the mean of its nodes' positions (as
-    /// `Lattice::position` gives them, y down). Half its rows are odd, shifted half a node.
+    /// `Lattice::position` gives them, y down).
     pub fn centre(&self, bx: usize, by: usize) -> (f64, f64) {
-        let (bw, bh) = (self.bw as f64, self.bh as f64);
-        (
-            bx as f64 * bw + (bw - 1.0) / 2.0 + 0.25,
-            (by as f64 * bh + (bh - 1.0) / 2.0) * ROW_HEIGHT,
-        )
+        block_centre(self.kind, self.bw, self.bh, bx, by)
     }
+}
+
+/// The mean position of the nodes of block `(bx, by)`, `bw` x `bh` nodes. On the hex
+/// lattice half its rows are odd, shifted half a node.
+fn block_centre(kind: Kind, bw: usize, bh: usize, bx: usize, by: usize) -> (f64, f64) {
+    let (bw, bh) = (bw as f64, bh as f64);
+    let shift = if kind.shifted() { 0.25 } else { 0.0 };
+    (
+        bx as f64 * bw + (bw - 1.0) / 2.0 + shift,
+        (by as f64 * bh + (bh - 1.0) / 2.0) * kind.row_height(),
+    )
 }
 
 /// The flow as drawn: each block's averages, smoothed over time, with the vorticity and
 /// values between block centres worked out from them.
 pub struct Field {
+    kind: Kind,
     pub nx: usize,
     pub ny: usize,
     bw: usize,
@@ -157,6 +174,7 @@ pub struct Field {
 impl Field {
     pub fn new(blocks: &Blocks) -> Self {
         Self {
+            kind: blocks.kind,
             nx: blocks.nx,
             ny: blocks.ny,
             bw: blocks.bw,
@@ -195,7 +213,7 @@ impl Field {
 
     /// The spacing of block centres, across and down, in node spacings.
     fn spacing(&self) -> (f64, f64) {
-        (self.bw as f64, self.bh as f64 * ROW_HEIGHT)
+        (self.bw as f64, self.bh as f64 * self.kind.row_height())
     }
 
     /// The vorticity at block `(bx, by)`: how fast the flow there spins, counter-clockwise
@@ -225,10 +243,7 @@ impl Field {
     pub fn at(&self, px: f64, py: f64, value: impl Fn(usize, usize) -> f64) -> f64 {
         let (dx, dy) = self.spacing();
         // Block (0, 0)'s centre (see `Blocks::centre`).
-        let (cx, cy) = (
-            (dx - 1.0) / 2.0 + 0.25,
-            (self.bh as f64 - 1.0) / 2.0 * ROW_HEIGHT,
-        );
+        let (cx, cy) = block_centre(self.kind, self.bw, self.bh, 0, 0);
         let fx = ((px - cx) / dx).clamp(0.0, (self.nx - 1) as f64);
         let fy = ((py - cy) / dy).clamp(0.0, (self.ny - 1) as f64);
         let (x0, y0) = (fx as usize, fy as usize);
@@ -243,20 +258,20 @@ impl Field {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::{E, Inflow, SOUND_SPEED};
+    use crate::sim::{E, Inflow, Kind, ROW_HEIGHT, SOUND_SPEED};
 
     /// A gas with exactly one particle moving east at every node has density 1 and velocity
     /// exactly (1, 0) in every block; walls don't count towards either.
     #[test]
     fn a_uniform_stream_averages_exactly() {
-        let mut l = Lattice::new(24, 12, 1);
+        let mut l = Lattice::new(Kind::Hex, 24, 12, 1);
         for y in 0..12 {
             for x in 0..24 {
                 l.set_particles(x, y, E);
             }
         }
         l.set_wall(0, 0, true);
-        let mut b = Blocks::new(24, 12, 8, 6);
+        let mut b = Blocks::new(Kind::Hex, 24, 12, 8, 6);
         b.add(&l);
         b.add(&l);
         assert_eq!((b.nx, b.ny, b.samples), (3, 2, 2));
@@ -279,9 +294,9 @@ mod tests {
     /// (d'Humières and Lallemand's equilibrium (2.5)).
     #[test]
     fn an_equilibrium_gas_averages_to_its_density_and_speed() {
-        let mut l = Lattice::new(96, 96, 7);
+        let mut l = Lattice::new(Kind::Hex, 96, 96, 7);
         l.fill(0.2, 0.25);
-        let mut b = Blocks::new(96, 96, 48, 48);
+        let mut b = Blocks::new(Kind::Hex, 96, 96, 48, 48);
         b.add(&l);
         for by in 0..2 {
             for bx in 0..2 {
@@ -299,7 +314,7 @@ mod tests {
         bh: usize,
         f: impl Fn(f64, f64) -> Average,
     ) -> Field {
-        let blocks = Blocks::new(nx * bw, ny * bh, bw, bh);
+        let blocks = Blocks::new(Kind::Hex, nx * bw, ny * bh, bw, bh);
         let mut field = Field::new(&blocks);
         for by in 0..ny {
             for bx in 0..nx {
@@ -339,7 +354,7 @@ mod tests {
             ux: 0.0,
             uy: 0.0,
         });
-        let blocks = Blocks::new(48, 50, 8, 10);
+        let blocks = Blocks::new(Kind::Hex, 48, 50, 8, 10);
         let density = |bx: usize, by: usize| f.get(bx, by).density;
         for (bx, by) in [(0, 0), (3, 2), (5, 4)] {
             let (x, y) = blocks.centre(bx, by);
@@ -362,7 +377,7 @@ mod tests {
         let (mut sum, mut count) = (vec![0.0f64; rings], vec![0.0f64; rings]);
         for y in 0..l.height() {
             for x in 0..l.width() {
-                let (px, py) = Lattice::position(x, y);
+                let (px, py) = Kind::Hex.position(x, y);
                 let k = ((px - cx).hypot(py - cy) / width) as usize;
                 if k < rings && angle((cy - py).atan2(px - cx).to_degrees()) {
                     sum[k] += f64::from((l.get(x, y) & PARTICLES).count_ones());
@@ -414,7 +429,7 @@ mod tests {
             vec![0.0; rings],
         ];
         for seed in 0..runs {
-            let mut l = Lattice::new(w, h, seed);
+            let mut l = Lattice::new(Kind::Hex, w, h, seed);
             l.fill(0.2, 0.0);
             l.fill_disc(centre.0, centre.1, 15.0, 0.35);
             while l.steps < 100 {
@@ -449,10 +464,10 @@ mod tests {
         } else {
             (40, nodes, nodes as f64 * ROW_HEIGHT)
         };
-        let mut l = Lattice::new(w, h, seed);
+        let mut l = Lattice::new(Kind::Hex, w, h, seed);
         let k = 2.0 * std::f64::consts::PI / wavelength;
         let phase = |x: usize, y: usize| {
-            let (px, py) = Lattice::position(x, y);
+            let (px, py) = Kind::Hex.position(x, y);
             k * if along_x { px } else { py }
         };
         let mut rng = ca_core::Rng::new(seed);
@@ -512,14 +527,14 @@ mod tests {
     #[ignore]
     fn timing_steps() {
         let (w, h) = (800, 400);
-        let mut l = Lattice::new(w, h, 1);
+        let mut l = Lattice::new(Kind::Hex, w, h, 1);
         l.fill(0.2, 0.3);
         l.inflow = Some(Inflow {
             width: 4,
             density: 0.2,
             speed: 0.3,
         });
-        let mut b = Blocks::new(w, h, 16, 18);
+        let mut b = Blocks::new(Kind::Hex, w, h, 16, 18);
         let steps = 500;
         let t = std::time::Instant::now();
         for _ in 0..steps {
@@ -544,7 +559,7 @@ mod tests {
     #[ignore]
     fn a_plate_has_a_recirculating_wake() {
         let (w, h) = (800, 400);
-        let mut l = Lattice::new(w, h, 3);
+        let mut l = Lattice::new(Kind::Hex, w, h, 3);
         let mid = h as f64 * ROW_HEIGHT / 2.0;
         let half = h as f64 * ROW_HEIGHT / 6.0;
         l.wall_where(|px, py| (px - 200.0).abs() <= 1.0 && (py - mid).abs() <= half);
@@ -555,7 +570,7 @@ mod tests {
             speed: 0.3,
         });
         let (bw, bh) = (16, 18);
-        let mut b = Blocks::new(w, h, bw, bh);
+        let mut b = Blocks::new(Kind::Hex, w, h, bw, bh);
         for _ in 0..1500 {
             l.step();
         }
@@ -572,5 +587,47 @@ mod tests {
         let ahead = b.average(4, row).ux;
         assert!(behind < -0.03, "lowest u_x behind the plate: {behind}");
         assert!(ahead > 0.2, "u_x ahead of the plate: {ahead}");
+    }
+
+    /// The mean u_x on the centre line, `behind` nodes downstream of a plate, over steps
+    /// 2,500 to 3,000 of a wind of 0.25 past it.
+    fn centre_line_flow_behind_a_plate(kind: Kind, behind: f64) -> f64 {
+        let (w, h) = (800, 400);
+        let mut l = Lattice::new(kind, w, h, 3);
+        let tall = h as f64 * kind.row_height();
+        l.wall_where(|px, py| (px - 200.0).abs() <= 1.0 && (py - tall / 2.0).abs() <= tall / 6.0);
+        l.fill(0.2, 0.25);
+        l.inflow = Some(Inflow {
+            width: 4,
+            density: 0.2,
+            speed: 0.25,
+        });
+        let bw = 16;
+        let bh = if kind == Kind::Hex { 18 } else { 16 };
+        let mut b = Blocks::new(kind, w, h, bw, bh);
+        for t in 0..3000 {
+            l.step();
+            if t >= 2500 {
+                b.add(&l);
+            }
+        }
+        b.average(((200.0 + behind) / bw as f64) as usize, b.ny / 2)
+            .ux
+    }
+
+    /// The wake shows HPP's flaw. Each row of HPP keeps its own momentum (see
+    /// `hpp_keeps_each_rows_momentum_and_fhp_does_not`), so rows stopped by the plate are
+    /// never set moving again by their neighbours: 400 nodes behind it, the centre line is
+    /// still almost still. On FHP's lattice momentum spreads between rows, as viscosity
+    /// does in a real fluid, and the wake fills in. (Measured: about 0.2 for FHP, under
+    /// 0.05 for HPP, against a wind of 0.25.)
+    #[test]
+    #[ignore]
+    fn hpp_wake_never_fills_in() {
+        let fhp = centre_line_flow_behind_a_plate(Kind::Hex, 400.0);
+        let hpp = centre_line_flow_behind_a_plate(Kind::Square, 400.0);
+        println!("u_x 400 behind the plate: FHP {fhp:.3}, HPP {hpp:.3}");
+        assert!(fhp > 0.15, "FHP {fhp}");
+        assert!(hpp < 0.08, "HPP {hpp}");
     }
 }

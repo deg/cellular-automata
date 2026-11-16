@@ -28,6 +28,9 @@ directions have a particle. Every step has two phases.
 **Walls** send every particle back the way it came ("bounce-back"), so the gas next to a
 wall has no average velocity: it sticks to the wall, as a real fluid does.
 
+The demo also runs the older **HPP** model on a square lattice, for comparison: four
+directions, and one collision, a head-on pair leaving at 90°.
+
 **The wind** comes in at the left edge: every step, the first few columns are refilled with
 fresh gas moving right. The world wraps around, so the same columns also swallow the gas
 leaving at the right edge: a wind tunnel.
@@ -107,7 +110,15 @@ lattice is symmetric enough. That is where the hexagon matters.
   invisible in the raw automaton. The arrows still show it.
 - **A pulse of gas at rest.** A dense disc spreads as a ring at the speed of sound,
   1/√2 node spacings per step. The ring stays round, though the particles move in only
-  six directions: that roundness is the symmetry that the square HPP lattice lacks.
+  six directions. (On the square lattice a pulse spreads nearly round too: sound alone
+  doesn't show HPP's flaw. Flow does; see the next item.)
+- **The square lattice (HPP).** Switch the lattice to **Square** and run the flat plate
+  again. HPP keeps the momentum of every row, and of every column, separately: "far too
+  many conserved quantities for physical modeling" (Frisch et al. 1987). So momentum
+  never passes from one row to the next, and nothing like viscosity acts across the flow.
+  The plate's shadow runs straight downstream with razor-sharp edges and never fills in,
+  and there are no eddies. On the hexagonal lattice the same wake has almost filled in
+  400 nodes behind the plate.
 - **Draw your own obstacle.** Drag on the lattice to draw walls, shift-drag to erase. A
   wall across the whole channel blocks the wind; a gap in it makes a jet.
 - **Flow down a channel.** Walls along the top and bottom. The gas sticks to them, and the
