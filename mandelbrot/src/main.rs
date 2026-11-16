@@ -16,6 +16,7 @@ use ca_core::{About, Advance, Pace, Playback, eframe};
 use colour::{Colours, Palette};
 use pane::Pane;
 use sim::{Family, Fate, Orbit, Pixel, orbit};
+use web_time::Instant;
 
 fn main() {
     ca_core::run("The Mandelbrot set", MandelbrotApp::new);
@@ -29,15 +30,20 @@ const JULIA_HOME: ([f64; 2], [f64; 2]) = ([0.0, 0.0], [3.4, 3.4]);
 /// settles into a cycle of three (see the tests in sim.rs).
 const FIRST_JULIA: [f64; 2] = [-0.1226, 0.7449];
 
-/// Iterations of z -> z² + c one frame can afford for the main picture (with each pixel's
-/// overhead counted as a few more: see `sim::PIXEL_COST`). Measured natively at about
-/// 4.6 ns each (`cargo test --release -p mandelbrot timing -- --ignored --nocapture`), so
-/// this is about 11 ms, leaving room in a 16 ms frame for the inset and for building and
-/// drawing the pictures. The browser is slower, and there a big job takes more frames.
-const ITERATIONS_PER_FRAME: u64 = 2_500_000;
+/// Milliseconds of each frame given to computing the main picture, the Julia inset and the
+/// overview map, leaving the rest of a 16 ms frame for building and drawing the pictures.
+/// They are turned into iterations by [`Budget`], from the speed measured as it goes: the
+/// browser runs at a different speed from a native build, and machines differ.
+const MAIN_MS: f64 = 7.0;
+const INSET_MS: f64 = 2.0;
+const MAP_MS: f64 = 1.0;
 
-/// The Julia inset's share, on top: about 4 ms more.
-const INSET_ITERATIONS: u64 = 800_000;
+/// Running speeds up as the steps add up: each step's rate is at least the step count
+/// times this, per second, as well as at least the speed slider's. Later steps change the
+/// picture less and less, and at a constant 15 a second the first 500 took over half a
+/// minute. With this the count grows e-fold each second once past the slider's speed: 500
+/// in about 5 seconds.
+const SPEED_UP: f64 = 1.0;
 
 /// The inset's limit stops here even when the main picture's goes higher: its set is
 /// recomputed every time the pointer moves, and needs to keep up.
@@ -56,10 +62,38 @@ const ORBIT_DRAWN: usize = 1_000;
 /// The dots on the cycle an orbit settles into, and the pinned point: the site's gold.
 const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
-/// The overview map's share of each frame's work, and its limit: it is computed once (until
-/// the window or the limit changes), so it can be slow to start.
-const MAP_ITERATIONS: u64 = 400_000;
+/// The overview map's limit: it is computed once (until the window or the limit changes),
+/// so it needn't go deep.
 const MAP_MOST_STEPS: u32 = 1_000;
+
+/// How many iterations a frame can afford, from the speed measured as the pictures are
+/// computed. A fixed count, measured natively, made frames of 60 ms and more in the browser.
+struct Budget {
+    /// Iterations (each pixel's overhead counted as a few more: see `sim::PIXEL_COST`) a
+    /// second, smoothed.
+    per_second: f64,
+}
+
+impl Budget {
+    fn new() -> Self {
+        // A guess at a browser's speed, about 10 ns an iteration; measured from the first
+        // frame on.
+        Self { per_second: 1e8 }
+    }
+
+    /// The iterations that fit in `ms` milliseconds.
+    fn for_ms(&self, ms: f64) -> u64 {
+        ((self.per_second * ms / 1000.0) as u64).max(20_000)
+    }
+
+    /// Learn from `spent` iterations taking `seconds`. Small amounts are timed too coarsely
+    /// to learn from.
+    fn record(&mut self, spent: u64, seconds: f64) {
+        if spent >= 50_000 && seconds > 0.0005 {
+            self.per_second = 0.8 * self.per_second + 0.2 * (spent as f64 / seconds);
+        }
+    }
+}
 
 /// The small pictures drawn over the main one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,6 +134,7 @@ struct MandelbrotApp {
     show_orbit: bool,
     show_map: bool,
     hover: Option<Hover>,
+    budget: Budget,
 }
 
 impl eframe::App for MandelbrotApp {
@@ -139,6 +174,7 @@ impl MandelbrotApp {
             show_orbit: true,
             show_map: true,
             hover: None,
+            budget: Budget::new(),
         }
     }
 
@@ -239,12 +275,18 @@ impl MandelbrotApp {
 
         let ctx = ui.ctx().clone();
         let painter = ui.painter().with_clip_rect(rect);
+        let budget = self.budget.for_ms(MAIN_MS);
+        let started = Instant::now();
+        let active = if self.julia_full {
+            &mut self.julia
+        } else {
+            &mut self.mandelbrot
+        };
+        let spent = active.update(&ctx, &self.colours, budget);
+        self.budget.record(spent, started.elapsed().as_secs_f64());
         if self.julia_full {
-            self.julia.update(&ctx, &self.colours, ITERATIONS_PER_FRAME);
             self.julia.paint(&painter, rect);
         } else {
-            self.mandelbrot
-                .update(&ctx, &self.colours, ITERATIONS_PER_FRAME);
             self.mandelbrot.paint(&painter, rect);
             if self.pinned {
                 let at = self.mandelbrot.to_screen(self.julia_c, rect);
@@ -307,7 +349,8 @@ impl MandelbrotApp {
         scale: f32,
     ) {
         self.julia.fit(inset, scale);
-        self.julia.update(ctx, &self.colours, INSET_ITERATIONS);
+        self.julia
+            .update(ctx, &self.colours, self.budget.for_ms(INSET_MS));
         self.julia.paint(painter, inset);
         if self.show_orbit {
             // The whole of a bounded orbit is always in view here, however far the main
@@ -329,7 +372,8 @@ impl MandelbrotApp {
         self.map.fit(inner, scale);
         self.map
             .raise_limit(self.active().picture().limit().min(MAP_MOST_STEPS));
-        self.map.update(ctx, &self.colours, MAP_ITERATIONS);
+        self.map
+            .update(ctx, &self.colours, self.budget.for_ms(MAP_MS));
         self.map.paint(painter, inner);
 
         let view = self.active().picture().view();
@@ -405,7 +449,7 @@ impl MandelbrotApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("Each step lets every point take one more turn of z → z² + c. Restart goes back to step 0.");
+        ui.small("Each step lets every point take one more turn of z → z² + c. Running speeds up as it goes, since later steps change less. Restart goes back to step 0.");
         let limit = self.active().picture().limit();
         ui.label(format!("Steps so far: {limit}"));
         ui.horizontal_wrapped(|ui| {
@@ -596,7 +640,8 @@ impl MandelbrotApp {
                 } else if self.active().picture().is_done() {
                     // Only once the last step is drawn: a slow picture holds the limit back
                     // rather than falling ever further behind it.
-                    let steps = self.pace.steps(per_second as f64, dt, MOST_STEPS as usize);
+                    let rate = (per_second as f64).max(limit as f64 * SPEED_UP);
+                    let steps = self.pace.steps(rate, dt, MOST_STEPS as usize);
                     let target = limit.saturating_add(steps as u32).min(self.stop_at);
                     self.raise_limits(target);
                 }

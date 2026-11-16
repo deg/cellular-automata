@@ -132,8 +132,9 @@ impl Pane {
         self.redraw = true;
     }
 
-    /// Do up to `budget` iterations of work, and upload the picture if it changed.
-    pub fn update(&mut self, ctx: &egui::Context, colours: &Colours, budget: u64) {
+    /// Do up to `budget` iterations of work, and upload the picture if it changed. Returns
+    /// the work done.
+    pub fn update(&mut self, ctx: &egui::Context, colours: &Colours, budget: u64) -> u64 {
         let spent = self.picture.work(budget);
         if spent > 0 || self.redraw {
             self.view.set_picture(ctx, &self.picture, colours);
@@ -142,6 +143,7 @@ impl Pane {
         if self.picture.is_done() {
             self.view.drop_backdrop();
         }
+        spent
     }
 
     pub fn paint(&self, painter: &egui::Painter, rect: Rect) {

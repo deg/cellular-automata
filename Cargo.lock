@@ -1057,6 +1057,7 @@ name = "mandelbrot"
 version = "0.1.0"
 dependencies = [
  "ca_core",
+ "web-time",
 ]
 
 [[package]]

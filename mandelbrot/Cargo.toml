@@ -6,3 +6,6 @@ description = "Repeat z → z² + c and see which points stay near 0: the most f
 
 [dependencies]
 ca_core = { path = "../ca_core" }
+# std::time::Instant panics in the browser; this is the same, there and natively. eframe
+# already depends on it.
+web-time = "1.1"
