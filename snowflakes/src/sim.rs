@@ -216,10 +216,12 @@ impl Crystal {
         self.receptive[self.water.index_of(x, y)]
     }
 
-    /// Make a cell ice (water 1, or more if it already held more). Cells outside the
-    /// boundary circle are left alone.
+    /// Make a cell ice (water 1, or more if it already held more). Only cells short of the
+    /// circle where growth stops can be frozen, so a stray click near the edge of the field
+    /// can't end the growth.
     pub fn freeze(&mut self, x: usize, y: usize) {
-        if self.is_inside(x, y) {
+        let limit = (self.radius - MARGIN) as i64;
+        if self.is_inside(x, y) && distance2(x, y, self.water.width() / 2) < limit * limit {
             let w = self.water.get(x, y).max(1.0);
             self.set(x, y, w);
         }
@@ -592,6 +594,19 @@ mod tests {
         let ice = crystal.ice_cells();
         assert!(!crystal.step());
         assert_eq!(crystal.ice_cells(), ice);
+    }
+
+    /// Freezing a cell where growth would stop must do nothing; just inside, it must work.
+    #[test]
+    fn freezing_near_the_edge_is_refused() {
+        let mut crystal = Crystal::new(20, STANDARD);
+        let stop = (crystal.radius() - MARGIN) as isize;
+        let (x, y) = at(&crystal, stop, 0);
+        crystal.freeze(x, y);
+        assert_eq!((crystal.ice_cells(), crystal.finished()), (1, false));
+        let (x, y) = at(&crystal, stop - 1, 0);
+        crystal.freeze(x, y);
+        assert_eq!((crystal.ice_cells(), crystal.finished()), (2, false));
     }
 
     /// Reiter's Figure 4 (beta = 0.3, gamma = 0.0001) and his text: at low beta and low
