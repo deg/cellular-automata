@@ -3,14 +3,14 @@
 mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
-use ca_core::{About, Advance, GridView, Pace, PaintStroke, Playback, eframe};
+use ca_core::{About, Advance, GridView, NAVY, Pace, PaintStroke, Playback, eframe, grouped};
 use sim::{Cell, PATTERNS, Wireworld};
 
 fn main() {
     ca_core::run("Wireworld", WireworldApp::new);
 }
 
-const EMPTY: Color32 = Color32::from_rgb(0x10, 0x10, 0x14);
+const EMPTY: Color32 = NAVY;
 const WIRE: Color32 = Color32::from_rgb(0xd9, 0x8c, 0x2b);
 const HEAD: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
 const TAIL: Color32 = Color32::from_rgb(0xe0, 0x45, 0x3a);
@@ -27,6 +27,8 @@ struct WireworldApp {
     brush: Cell,
     pattern: usize,
     stroke: PaintStroke,
+    /// The cell under the pointer, for the readout.
+    pointer: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -56,6 +58,10 @@ impl eframe::App for WireworldApp {
                 }
                 self.dirty = true;
             }
+            if shown.hovered != self.pointer {
+                self.pointer = shown.hovered;
+                ui.ctx().request_repaint(); // the controls were drawn before this
+            }
         });
 
         if self.playback.running || self.dirty {
@@ -77,9 +83,10 @@ impl WireworldApp {
             brush: Cell::Conductor,
             pattern: 2, // the OR gate shows the most at once
             stroke: PaintStroke::default(),
+            pointer: None,
             dirty: true,
         };
-        app.place_pattern();
+        app.restart();
         app
     }
 
@@ -90,15 +97,17 @@ impl WireworldApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("Restart clears the board.");
-        if ui
-            .button("Remove all electrons")
-            .on_hover_text("Turn every head and tail back into wire, keeping the circuit.")
-            .clicked()
-        {
-            self.world.remove_electrons();
-            self.dirty = true;
-        }
+        ui.horizontal_wrapped(|ui| {
+            if ui.button("Clear").clicked() {
+                self.world = Wireworld::new(self.size.0, self.size.1);
+                self.dirty = true;
+            }
+            if ui.button("Remove all electrons").clicked() {
+                self.world.remove_electrons();
+                self.dirty = true;
+            }
+        });
+        ui.small("Restart puts the chosen circuit back as it started; Clear empties the board; Remove all electrons turns every head and tail back into wire, keeping the circuit.");
         ui.separator();
 
         ui.label(RichText::new("Draw").strong());
@@ -117,10 +126,11 @@ impl WireworldApp {
                 ui.selectable_value(&mut self.brush, cell, text);
             }
         });
-        ui.small("Drag on the board to draw; shift-drag erases. An electron is a head with a tail just behind it: it moves away from its tail.");
+        ui.small("An electron is a head with a tail just behind it: it moves away from its tail. Drag on the board to draw; shift-drag to erase.");
         ui.separator();
 
         ui.label(RichText::new("Circuits").strong());
+        let chosen = self.pattern;
         egui::ComboBox::from_id_salt("pattern")
             .selected_text(PATTERNS[self.pattern].name)
             .show_ui(ui, |ui| {
@@ -128,11 +138,11 @@ impl WireworldApp {
                     ui.selectable_value(&mut self.pattern, i, p.name);
                 }
             });
-        ui.small(PATTERNS[self.pattern].note);
-        if ui.button("Place on a clear board").clicked() {
-            self.world = Wireworld::new(self.size.0, self.size.1);
-            self.place_pattern();
+        if self.pattern != chosen {
+            self.restart();
         }
+        ui.small(PATTERNS[self.pattern].note);
+        ui.small("Choosing a circuit puts it on a clear board.");
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
@@ -141,27 +151,33 @@ impl WireworldApp {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
-                    self.world = Wireworld::new(size.0, size.1);
-                    self.place_pattern();
+                    self.pointer = None;
+                    self.restart();
                 }
             }
         });
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("generation");
-            ui.label(self.world.generation.to_string());
-            ui.end_row();
-            ui.label("electrons");
-            ui.label(self.world.count(Cell::Head).to_string());
-            ui.end_row();
+        let (w, h) = self.size;
+        let pointer = self.pointer.filter(|&(x, y)| x < w && y < h).map(|(x, y)| {
+            let cell = match self.world.grid().get(x, y) {
+                Cell::Empty => "empty",
+                Cell::Conductor => "wire",
+                Cell::Head => "head",
+                Cell::Tail => "tail",
+            };
+            format!("({x}, {y}): {cell}")
+        });
+        ca_core::readout(ui, |r| {
+            r.row("generation", grouped(self.world.generation));
+            r.row("electrons", grouped(self.world.count(Cell::Head) as u64));
+            r.pointer(pointer);
         });
     }
 
     fn advance(&mut self, dt: f64) {
         if self.playback.take_restart() {
-            self.world = Wireworld::new(self.size.0, self.size.1);
-            self.dirty = true;
+            self.restart();
         }
         let steps = match self.playback.advance() {
             Advance::Idle => 0,
@@ -174,8 +190,9 @@ impl WireworldApp {
         self.dirty |= steps > 0;
     }
 
-    /// Put the chosen circuit in the middle of the board.
-    fn place_pattern(&mut self) {
+    /// Back to the opening: the chosen circuit in the middle of a clear board.
+    fn restart(&mut self) {
+        self.world = Wireworld::new(self.size.0, self.size.1);
         let p = &PATTERNS[self.pattern];
         let (pw, ph) = p.size();
         let x0 = self.size.0.saturating_sub(pw) / 2;

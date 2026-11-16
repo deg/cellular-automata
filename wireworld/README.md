@@ -2,7 +2,7 @@
 
 A cellular automaton designed for building circuits. Each cell is one of four things:
 
-- **Empty** (black): nothing happens here, ever.
+- **Empty** (dark): nothing happens here, ever.
 - **Wire** (copper): a conductor that electrons can run along.
 - **Electron head** (blue) and **electron tail** (red): an electron is a head with a tail
   just behind it.
@@ -24,9 +24,9 @@ computers.
 - **1987.** Brian Silverman proposed Wireworld as part of his program *Phantom Fish
   Tank*. Silverman also invented Brian's Brain, another demo in this
   project.
-- **1990.** Wireworld became widely known through A. K. Dewdney's *Computer
-  Recreations* column in **Scientific American, January 1990**, which also introduced a
-  rule called Rugworld.
+- **1990.** Wireworld became widely known through A. K. Dewdney's *Computer Recreations*
+  column in Scientific American, January 1990, which also introduced a rule called
+  Rugworld.
 - **2004: a Wireworld computer.** David Moore and Mark Owen released a working computer
   built entirely of Wireworld cells, with its results shown on seven-segment displays
   made of electrons. Wireworld is Turing-complete: with enough cells, it can carry out any
