@@ -43,7 +43,8 @@ minutes, not a rebuild.
 | 18:20 | First three branches merged onto `integration`, before their reviews, to find conflicts early. |
 | 18:30-19:00 | Reviews come back (12-14 minutes each); fixes relayed to the builders; fixes merged. |
 | 19:20 | Shared code moved into `ca_core`. |
-| 19:50 | Last fixes (lattice gas) merged; `main`'s one new commit merged in; `make check`, `make slow` and `make site` run on `integration`. |
+| 19:50 | Last fixes (lattice gas) merged; `main`'s one new commit merged in; `make check`, `make slow` and `make site` run on `integration`. Reported as done. |
+| 20:00 | David: "'Choices' is not an excuse for bugs or inconsistencies." A second round begins (below). |
 
 The building took about two hours of wall-clock time for all four. One after another it
 would have taken roughly eight, though that is an estimate: nobody built them in sequence
@@ -215,6 +216,28 @@ the conflicts early; the fixes came in as later merges.
   sentence case ("Langton's ant"). The brief said to copy the style of other demos'
   descriptions but not their titles. A line in the brief would have prevented it; the
   coordinator caught it on the rendered index page.
+- **"Choices" passed on unchecked.** Each builder ended its report with "design choices
+  David might want to revisit", and I relayed those lists to David as they were. David's
+  answer: "'Choices' is not an excuse for bugs or inconsistencies." Checked against the
+  other demos, most were defects:
+  - Two demos started paused where the project's own rule (elementary and Mandelbrot start
+    running, each with a comment: a fixed start best seen emerging) says they should run.
+  - The lattice gas's controls panel was the only one of eleven that scrolled at laptop
+    size (found by rendering every demo's panel side by side), and its readout was prose
+    where every other demo uses a label/value grid.
+  - The cyclic "Turbulent phase" preset froze on the default world, on every one of 10
+    seeds. No world size we offer fixed it, so the builder switched to the paper's other
+    example of turbulence, and gave every preset a minimum world size checked by test.
+  - A painting fix had never been tried; trying it by a headless drag showed it was not
+    enough.
+  - A misplaced tooltip had been noticed and left. Its cause, egui anchoring a tooltip to
+    the widget rather than the pointer, turned out to affect three demos already on `main`
+    (Life, Langton's ant, the sandpile); those were fixed too.
+
+  One item I had called inconsistent (snowflakes starting to run) was in fact the house
+  rule. The lesson: a builder's list of choices is the coordinator's review queue, to be
+  checked against the existing code before anything is reported, not an item for the
+  report.
 - **Shared code was planned but didn't fit.** The plan was to move the hex neighbour offsets
   into `ca_core` for the snowflakes and the lattice gas. The lattice gas used offset rows
   (as its source paper does), not axial coordinates, so only the sandpile and the
@@ -233,8 +256,12 @@ the conflicts early; the fixes came in as later merges.
 6. An ownership check by script before every merge.
 7. A fresh, read-only reviewer per piece, told to check against the primary source and to
    use mutation testing; fixes back to the original builder, who verifies before applying.
-8. Merge early, merge often, with a script that refuses to commit markers or a failing build.
-9. One full build and one rendered check of the whole site at the end.
+8. Brief the house conventions explicitly (title case, start running or paused, the
+   readout grid, panels that fit the laptop screen), and check each builder's "choices"
+   against the other demos before reporting. Render every demo side by side to see
+   inconsistencies.
+9. Merge early, merge often, with a script that refuses to commit markers or a failing build.
+10. One full build and one rendered check of the whole site at the end.
 
 ## Cost
 
