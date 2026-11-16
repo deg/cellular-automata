@@ -761,7 +761,7 @@ grid). Your job is the differences BETWEEN demos.
 ## Hard rules
 
 - **Read-only.** Work in `/Users/deg/Documents/degel/cellular-automata-wt/integration`
-  (`<wt>`), commit 19482b7. Do not edit, commit, or create files there. Notes, scripts and
+  (`<wt>`), commit 390ee70. Do not edit, commit, or create files there. Notes, scripts and
   screenshots go in
   `<scratchpad>/consistency-<your area>/`.
 - The Bash tool's working directory resets to `/Users/deg/Documents/degel/cellular-automata`,
@@ -839,7 +839,7 @@ their findings. This brief has the rules and the conventions themselves.
   checked (WebSearch is deferred: load it with ToolSearch `select:WebSearch`; read pages with
   the `web-fetch` agent type). Don't fill gaps from memory.
 
-## Shared pieces in ca_core (use them; commit e8bc199)
+## Shared pieces in ca_core (use them; commit f8937f6)
 
 - `ca_core::readout(ui, |r| { r.row("generation", ...); r.pointer(...); })`: the readout
   grid at the bottom of the panel. `r.row` returns the label's response (for a hover text).
