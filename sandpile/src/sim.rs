@@ -348,8 +348,8 @@ impl Sandpile {
             return false;
         }
         if self.patch.as_ref().is_some_and(Patch::needs_room) {
-            // Grains are near the patch's edge: the plain sweep below grows the grid if it
-            // must, and the next sweep starts a bigger patch.
+            // Grains are near the patch's edge: below, the grid grows if it must, and a
+            // bigger patch starts.
             self.leave_jacobi();
         }
         if self.patch.is_some() {
@@ -1280,13 +1280,19 @@ mod tests {
         pile
     }
 
-    /// Dropping more grains at the centre while the Jacobi stage runs must hand its heights
-    /// back first, so nothing is lost or double-counted: the result matches a plain run.
+    /// Dropping more grains at the centre while the Jacobi stage runs must go straight into
+    /// its quarter (leaving and restarting the stage for every drip would copy the pile out
+    /// and back each time), with nothing lost or double-counted: the result matches a plain
+    /// run.
     #[test]
     fn a_centre_drop_during_the_jacobi_stage_matches_the_plain_sweep() {
         let mut fast = mid_jacobi(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
         let (cx, cy) = fast.center();
         fast.add(cx, cy, 3_000);
+        assert!(
+            fast.quarter.is_some(),
+            "the drop should go into the quarter"
+        );
         fast.relax_fully();
         let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain();
         let (cx, cy) = plain.center();
@@ -1490,6 +1496,32 @@ mod tests {
         fast.relax_fully();
         plain.relax_fully();
         assert_same_pile(&fast, &plain, "drips");
+    }
+
+    /// A drip into the patch straight after a sync, just beyond the pile, then at once a drop
+    /// outside the patch, which ends the stage before any sweep. The grid was up to date, so
+    /// ending the stage writes nothing back: the drip must already be in the grid and in its
+    /// occupied box, or the plain sweep never topples it, or it is dropped from the next
+    /// patch, while still counted in `grains`.
+    #[test]
+    fn a_drip_then_a_drop_outside_the_patch_keeps_the_drip() {
+        let mut fast = mid_patch(Sandpile::new(3, &ORTHOGONAL, Boundary::Grow));
+        assert!(fast.patch.is_some() && !fast.grid_stale);
+        let c = fast.center().0;
+        let beyond_pile = (fast.occupied.unwrap().x1 + 3 - c) as isize;
+        let mut plain = Sandpile::new(3, &ORTHOGONAL, Boundary::Grow).plain();
+        plain.add_relative(4, 1, 20_000);
+        for pile in [&mut fast, &mut plain] {
+            pile.add_relative(beyond_pile, 0, 5);
+        }
+        assert!(fast.patch.is_some(), "the drip should go into the patch");
+        for pile in [&mut fast, &mut plain] {
+            pile.add_relative(-(c as isize) - 1, 0, 9);
+        }
+        assert!(fast.patch.is_none(), "the far drop should end the stage");
+        fast.relax_fully();
+        plain.relax_fully();
+        assert_same_pile(&fast, &plain, "drip, then far drop");
     }
 
     /// A drop just beyond the grid while the patch runs: the grid grows before the drop

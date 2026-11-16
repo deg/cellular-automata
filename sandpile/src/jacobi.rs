@@ -11,7 +11,7 @@
 //! Toppling every unstable cell at once is a legal order of topplings, so by the abelian
 //! property the final pile is the same.
 //!
-//! Two shapes share one row loop, [`topple_row`]:
+//! Two shapes share the same passes ([`pass`]):
 //! - [`Quarter`], for a symmetric pile (every grain dropped on the centre of a growing square
 //!   grid): one quarter of it, with *ghost* cells mirroring its neighbours across the axes.
 //! - [`Patch`], for any other pile: a rectangle of the grid holding every grain.
@@ -25,95 +25,6 @@ use ca_core::Grid;
 /// while the cell stays below it. A sweep never pushes the largest height above
 /// `N * floor(max / N) + N - 1`, so heights stay far below `u16::MAX`.
 pub const LIMIT: u32 = 16_000;
-
-/// One Jacobi pass: topple, all at once, every cell of the rectangle `r` of `now`, a grid
-/// `width` cells wide, writing the new heights to the same cells of `next`. The cells
-/// around `r` are read as neighbours but not written. Returns how many cells toppled.
-///
-/// `neighbours` is 4 (orthogonal), 8 (with the diagonals), or 6 (a hex grid in axial
-/// coordinates, `sim::HEX`: up-and-right and down-and-left as well as the orthogonal 4).
-/// Each is its own mirror image (with each offset, its negative), so a cell receives one
-/// grain from each neighbour for each time that neighbour topples.
-fn pass(
-    now: &[u16],
-    next: &mut [u16],
-    width: usize,
-    r: Rect,
-    neighbours: usize,
-    scratch: &mut Scratch,
-) -> u64 {
-    match neighbours {
-        4 => pass_shift::<4>(now, next, width, r),
-        6 => pass_hex(now, next, width, r, scratch),
-        8 => pass_shift::<8>(now, next, width, r),
-        n => unreachable!("no 16-bit stage for {n} neighbours"),
-    }
-}
-
-/// [`pass`] for 4 or 8 neighbours, where a cell's topplings, `height / N`, are a shift:
-/// cheap enough to work out again for each neighbour that reads them. (Working them out
-/// once, as [`pass_hex`] does, measured 15% slower here.)
-fn pass_shift<const N: usize>(now: &[u16], next: &mut [u16], w: usize, r: Rect) -> u64 {
-    let t = N as u16;
-    let mut toppled = 0u64;
-    for y in r.y0..=r.y1 {
-        let row = |y: usize| &now[y * w + r.x0 - 1..=y * w + r.x1 + 1];
-        let (up, mid, dn) = (row(y - 1), row(y), row(y + 1));
-        let out = &mut next[y * w + r.x0..=y * w + r.x1];
-        // `out[i]` is the cell at `mid[i + 1]`.
-        let n = out.len();
-        let (up, mid, dn) = (&up[..n + 2], &mid[..n + 2], &dn[..n + 2]);
-        for i in 0..n {
-            let v = mid[i + 1];
-            toppled += (v >= t) as u64;
-            let mut h = v % t + mid[i] / t + mid[i + 2] / t + up[i + 1] / t + dn[i + 1] / t;
-            if N == 8 {
-                h += up[i] / t + up[i + 2] / t + dn[i] / t + dn[i + 2] / t;
-            }
-            out[i] = h;
-        }
-    }
-    toppled
-}
-
-/// Three rows of each cell's topplings, `height / 6`, reused from sweep to sweep, for
-/// [`pass_hex`].
-#[derive(Default)]
-pub struct Scratch([Vec<u16>; 3]);
-
-/// [`pass`] on a hex grid. Dividing by 6 costs a multiplication, so each cell's topplings
-/// are worked out once, into three rolling rows of [`Scratch`], not once for each of the 7
-/// cells that read them: 0.43 ns a cell against 0.69 ns, measured natively.
-fn pass_hex(now: &[u16], next: &mut [u16], w: usize, r: Rect, scratch: &mut Scratch) -> u64 {
-    const N: usize = 6;
-    let t = N as u16;
-    // Topplings are needed one cell beyond `r` on every side.
-    let (x0, x1) = (r.x0 - 1, r.x1 + 1);
-    let topplings = |k: &mut Vec<u16>, y: usize| {
-        k.clear();
-        k.extend(now[y * w + x0..=y * w + x1].iter().map(|&h| h / t));
-    };
-    let [up, mid, dn] = &mut scratch.0;
-    topplings(up, r.y0 - 1);
-    topplings(mid, r.y0);
-    let mut toppled = 0u64;
-    for y in r.y0..=r.y1 {
-        topplings(dn, y + 1);
-        let heights = &now[y * w + r.x0..=y * w + r.x1];
-        let out = &mut next[y * w + r.x0..=y * w + r.x1];
-        // `out[i]` is the cell whose topplings are `mid[i + 1]`.
-        let n = out.len();
-        let (u, m, d) = (&up[..n + 2], &mid[..n + 2], &dn[..n + 2]);
-        for i in 0..n {
-            let v = heights[i];
-            toppled += (v >= t) as u64;
-            out[i] = v - m[i + 1] * t + m[i] + m[i + 2] + u[i + 1] + d[i + 1] + u[i + 2] + d[i];
-        }
-        std::mem::swap(up, mid);
-        std::mem::swap(mid, dn);
-    }
-    toppled
-}
 
 /// One quarter of a symmetric pile.
 pub struct Quarter {
@@ -129,7 +40,6 @@ pub struct Quarter {
     extent: usize,
     /// 4 or 8.
     neighbours: usize,
-    scratch: Scratch,
 }
 
 impl Quarter {
@@ -158,7 +68,6 @@ impl Quarter {
             q,
             extent,
             neighbours,
-            scratch: Scratch::default(),
         };
         quarter.refresh_ghosts(extent + 2);
         quarter
@@ -186,7 +95,8 @@ impl Quarter {
         let e = (self.extent + 1).min(self.q - 1);
         let (s, t) = (self.side, self.neighbours as u16);
         // A cell stands for 4 mirror images, one on an axis for 2, the centre for 1: count
-        // every toppling 4 times, then take back the extra ones on the axes.
+        // every toppling 4 times, then take back the extra ones on the axes. The x axis is
+        // the first row, the y axis the first column, and the centre is on both.
         let unstable = |h: &u16| *h >= t;
         let on_x_axis = self.now[s + 1..=s + e + 1]
             .iter()
@@ -195,22 +105,17 @@ impl Quarter {
         let on_y_axis = (1..=e + 1)
             .filter(|&y| unstable(&self.now[y * s + 1]))
             .count();
-        let centre = usize::from(unstable(&self.now[s + 1]));
+        let centre = u64::from(unstable(&self.now[s + 1]));
         let r = Rect {
             x0: 1,
             y0: 1,
             x1: e + 1,
             y1: e + 1,
         };
-        let all = pass(
-            &self.now,
-            &mut self.next,
-            s,
-            r,
-            self.neighbours,
-            &mut self.scratch,
-        );
-        let toppled = 4 * all - 2 * (on_x_axis + on_y_axis) as u64 + centre as u64;
+        // Never hex, so the scratch rows `pass` wants are never used.
+        let scratch = &mut Scratch::default();
+        let all = pass(&self.now, &mut self.next, s, r, self.neighbours, scratch);
+        let toppled = 4 * all - 2 * (on_x_axis + on_y_axis) as u64 + centre;
         std::mem::swap(&mut self.now, &mut self.next);
         self.refresh_ghosts(e + 2);
         if e > self.extent
@@ -438,6 +343,104 @@ impl Patch {
         grains
     }
 }
+
+/// One Jacobi pass: topple, all at once, every cell of the rectangle `r` of `now`, a grid
+/// `width` cells wide, writing the new heights to the same cells of `next`. The cells
+/// around `r` are read as neighbours but not written. Returns how many cells toppled.
+///
+/// `neighbours` is 4 (orthogonal), 8 (with the diagonals), or 6 (a hex grid in axial
+/// coordinates, `sim::HEX`: up-and-right and down-and-left as well as the orthogonal 4).
+/// Each is its own mirror image (with each offset, its negative), so a cell receives one
+/// grain from each neighbour for each time that neighbour topples.
+fn pass(
+    now: &[u16],
+    next: &mut [u16],
+    width: usize,
+    r: Rect,
+    neighbours: usize,
+    scratch: &mut Scratch,
+) -> u64 {
+    match neighbours {
+        4 => pass_shift::<4>(now, next, width, r),
+        6 => pass_hex(now, next, width, r, scratch),
+        8 => pass_shift::<8>(now, next, width, r),
+        n => unreachable!("no 16-bit stage for {n} neighbours"),
+    }
+}
+
+/// [`pass`] for 4 or 8 neighbours, where a cell's topplings, `height / N`, are a shift:
+/// cheap enough to work out again for each neighbour that reads them. (Working them out
+/// once, as [`pass_hex`] does, measured 15% slower here.)
+fn pass_shift<const N: usize>(now: &[u16], next: &mut [u16], w: usize, r: Rect) -> u64 {
+    let t = N as u16;
+    let mut toppled = 0u64;
+    for y in r.y0..=r.y1 {
+        let row = |y: usize| &now[y * w + r.x0 - 1..=y * w + r.x1 + 1];
+        let (up, mid, dn) = (row(y - 1), row(y), row(y + 1));
+        let out = &mut next[y * w + r.x0..=y * w + r.x1];
+        // `out[x - 1]` is the cell at `mid[x]`. Slicing all four to matching lengths up
+        // front lets the compiler drop the bounds checks and vectorise the loop.
+        let n = out.len();
+        let (up, mid, dn) = (&up[..n + 2], &mid[..n + 2], &dn[..n + 2]);
+        // Written with an explicit shift and mask, indexed from 1, and counted per row: the
+        // same arithmetic written as `v % t`, `v / t` and `mid[i + 1]` measured 4% slower
+        // for a whole centred pile (6.7 s against 6.4 s), and the off-centre one 4% too.
+        let (shift, mask) = (N.trailing_zeros(), t - 1);
+        let mut row = 0u64;
+        for x in 1..=n {
+            let v = mid[x];
+            row += (v >> shift != 0) as u64;
+            let mut h = (v & mask) + (mid[x - 1] >> shift) + (mid[x + 1] >> shift);
+            h += (up[x] >> shift) + (dn[x] >> shift);
+            if N == 8 {
+                h += (up[x - 1] >> shift) + (up[x + 1] >> shift);
+                h += (dn[x - 1] >> shift) + (dn[x + 1] >> shift);
+            }
+            out[x - 1] = h;
+        }
+        toppled += row;
+    }
+    toppled
+}
+
+/// [`pass`] on a hex grid. Dividing by 6 costs a multiplication, so each cell's topplings
+/// are worked out once, into three rolling rows of [`Scratch`], not once for each of the 7
+/// cells that read them: 0.43 ns a cell against 0.69 ns, measured natively.
+fn pass_hex(now: &[u16], next: &mut [u16], w: usize, r: Rect, scratch: &mut Scratch) -> u64 {
+    const N: usize = 6;
+    let t = N as u16;
+    // Topplings are needed one cell beyond `r` on every side.
+    let (x0, x1) = (r.x0 - 1, r.x1 + 1);
+    let topplings = |k: &mut Vec<u16>, y: usize| {
+        k.clear();
+        k.extend(now[y * w + x0..=y * w + x1].iter().map(|&h| h / t));
+    };
+    let [up, mid, dn] = &mut scratch.0;
+    topplings(up, r.y0 - 1);
+    topplings(mid, r.y0);
+    let mut toppled = 0u64;
+    for y in r.y0..=r.y1 {
+        topplings(dn, y + 1);
+        let heights = &now[y * w + r.x0..=y * w + r.x1];
+        let out = &mut next[y * w + r.x0..=y * w + r.x1];
+        // `out[i]` is the cell whose topplings are `mid[i + 1]`.
+        let n = out.len();
+        let (u, m, d) = (&up[..n + 2], &mid[..n + 2], &dn[..n + 2]);
+        for i in 0..n {
+            let v = heights[i];
+            toppled += (v >= t) as u64;
+            out[i] = v - m[i + 1] * t + m[i] + m[i + 2] + u[i + 1] + d[i + 1] + u[i + 2] + d[i];
+        }
+        std::mem::swap(up, mid);
+        std::mem::swap(mid, dn);
+    }
+    toppled
+}
+
+/// Three rows of each cell's topplings, `height / 6`, reused from sweep to sweep by
+/// [`pass_hex`], so a sweep allocates nothing.
+#[derive(Default)]
+pub struct Scratch([Vec<u16>; 3]);
 
 #[cfg(test)]
 mod tests {

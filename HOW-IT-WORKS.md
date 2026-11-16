@@ -237,7 +237,7 @@ by 4 or 8, costs a multiplication. A million grains, measured on one day on one 
 
 | Pile | Plain | Fast |
 |---|---|---|
-| Off the centre | 132 s | 25 s |
+| Off the centre | 132 s | 24 s |
 | Hex grid | 65 s | 17 s |
 | Sink edge, 501 cells wide | 76 s | 12 s |
 
