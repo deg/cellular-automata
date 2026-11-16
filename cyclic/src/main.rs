@@ -74,7 +74,7 @@ struct CyclicApp {
     playback: Playback,
     pace: Pace,
     colours: Vec<Color32>,
-    /// The seed of the random colours the world starts from; Restart goes back to them.
+    /// The seed of the current random start; Restart moves on to the next.
     seed: u64,
     size: (usize, usize),
     brush: usize,
@@ -159,7 +159,7 @@ impl CyclicApp {
 
         self.playback.ui(ui);
         ca_core::speed_cap_note(ui, "world");
-        ui.small("Restart goes back to the random colours of the current seed.");
+        ui.small("Restart starts again from fresh random colours.");
         ui.separator();
 
         ui.label(RichText::new("Presets").strong());
@@ -196,10 +196,6 @@ impl CyclicApp {
                 .add(egui::DragValue::new(&mut self.seed).range(0..=1_000_000_000))
                 .changed()
             {
-                self.restart();
-            }
-            if ui.button("New colours").clicked() {
-                self.seed += 1;
                 self.restart();
             }
         });
@@ -281,6 +277,7 @@ impl CyclicApp {
 
     fn advance(&mut self, dt: f64) {
         if self.playback.take_restart() {
+            self.seed += 1;
             self.restart();
         }
         let steps = match self.playback.advance() {
