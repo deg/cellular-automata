@@ -1,7 +1,7 @@
 //! Clifford Reiter's local cellular model of snow crystal growth.
 //!
 //! Source: C. A. Reiter, "A local cellular model for snow crystal growth", Chaos, Solitons &
-//! Fractals 23(4) (2005) 1111-1119, doi:10.1016/j.chaos.2004.06.071. The rule, the figures
+//! Fractals 23(4) (2005) 1111-1119, doi:10.1016/S0960-0779(04)00374-1. The rule, the figures
 //! and the parameter values quoted below are from the author's preprint,
 //! <https://webbox.lafayette.edu/~reiterc/mvp/sfn/sfn_pp.pdf>, and his J script on the
 //! paper's auxiliary page, <https://webbox.lafayette.edu/~reiterc/mvp/sfn/sfn.html>.
@@ -165,6 +165,7 @@ impl Crystal {
     }
 
     /// The seed's cell.
+    #[cfg(test)]
     pub fn center(&self) -> (usize, usize) {
         let c = self.water.width() / 2;
         (c, c)
@@ -210,6 +211,7 @@ impl Crystal {
     }
 
     /// Whether cell `(x, y)` was receptive in the last step (false before the first).
+    #[cfg(test)]
     pub fn was_receptive(&self, x: usize, y: usize) -> bool {
         self.receptive[self.water.index_of(x, y)]
     }
@@ -239,6 +241,7 @@ impl Crystal {
     }
 
     /// The total water inside the boundary circle.
+    #[cfg(test)]
     pub fn total_water(&self) -> f64 {
         self.rows
             .iter()
@@ -249,6 +252,7 @@ impl Crystal {
     }
 
     /// Cells that were receptive in the last step.
+    #[cfg(test)]
     pub fn receptive_cells(&self) -> usize {
         self.receptive.iter().filter(|&&r| r).count()
     }
@@ -260,8 +264,11 @@ impl Crystal {
         }
         let n = self.water.width();
         let water = self.water.cells();
-        // Neighbour offsets in the flat array, in opposite pairs (see `pair_sum`).
-        let (e, s, ne) = (1, n, n - 1); // (1, 0), (0, 1), (-1, 1); opposites subtract
+        // The neighbours' offsets in the flat array. HEX lists them in opposite pairs, so
+        // one of each pair is enough: the other is its negative.
+        let off = HEX.map(|(dx, dy)| dy * n as isize + dx);
+        debug_assert!(off[0] == -off[1] && off[2] == -off[3] && off[4] == -off[5]);
+        let (e, s, ne) = (off[0] as usize, off[2] as usize, off[5] as usize);
 
         for (y, r) in self.rows.iter().enumerate() {
             let row = y * n;
