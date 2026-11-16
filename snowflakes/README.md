@@ -57,8 +57,8 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   foresight, given today's understanding of the hexagonal molecular packing of ice.
 - **1931: Bentley and Humphreys.** Wilson Bentley, a Vermont farmer, assembled the most
   extensive early collection of photographs of snow crystals, published as *Snow
-  Crystals*, with W. J. Humphreys (McGraw-Hill, 1931). Gravner and Griffeath credit him
-  with making the idealised snowflake an icon of winter.
+  Crystals*, with W. J. Humphreys (McGraw-Hill, 1931). Gravner and Griffeath note that
+  he is widely credited with making the idealised snowflake an icon of winter.
 - **1954: Nakaya.** Ukichiro Nakaya studied snow crystals scientifically, both natural and
   grown in the laboratory: *Snow Crystals: Natural and Artificial* (Harvard University
   Press, 1954). He was the first to grow them artificially, on the end of a rabbit hair.
@@ -95,12 +95,16 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 - **The presets** are Reiter's own examples: his Figure 4's thin dendrite, thick dendrite,
   stellar and sector forms; a plate; and *Many levels*, his Figure 5's α = 2.003, "a
   pretty growth pattern with many levels of dendrites". Each starts again from a seed.
+  The sector here grows more like a plate, with small gaps, than in Reiter's picture,
+  whose edges are scalloped.
 - **Change conditions as it grows.** A real crystal falls through air of changing
   temperature and humidity. γ and α take effect at once, so you can do the same. Reiter's
   Figure 7 grew a plate with β = 0.4 and γ = 0.5, then lowered γ to 0.001 to grow
-  dendrites from it. Set those, press Restart, let a small plate form, then drag γ down.
-- **Explore β and γ.** At β = 0.4, raise γ from 0 to 1 a step at a time: the dendrites
-  thicken into stars, then become a plate.
+  dendrites from it. A plate grows fast, so choose radius 100 and set the speed to about
+  10 steps a second. Set β and γ, press Restart, and when the plate is a fifth of the
+  way out, drag γ down to 0.001 and raise the speed again.
+- **Explore β and γ.** At β = 0.4, raise γ from 0 to 1 a step at a time, pressing
+  Restart each time: the dendrites thicken into stars, then become a plate.
 - **Nudge α** a little away from 1, or above 2, and compare.
 - **Break the symmetry.** The model is deterministic and treats all six directions alike,
   so a single seed grows a perfectly symmetric crystal. Drag on the field to freeze a few
@@ -118,4 +122,5 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 - Jessica Li and Laura Schaposnik, *Interface control and snow crystal growth*
   (Physical Review E 93, 023302, 2016;
   [arXiv:1505.02042](https://arxiv.org/abs/1505.02042)): Reiter's model with two variables
-  added, growth latency and growth direction, which extend it to plate-shaped crystals.
+  added, growth latency and growth direction, which make it realistic for plates as well
+  as dendrites.

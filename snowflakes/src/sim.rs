@@ -81,7 +81,10 @@ pub const PRESETS: &[Preset] = &[
     },
     Preset {
         name: "Sector",
-        note: "Figure 4: a somewhat abstract sector form, with small gaps.",
+        // Reiter's picture of these parameters has scalloped edges; here the crystal stays
+        // closer to a plate, with the small gaps. The growth rate matches: his table for
+        // radius 200 records 171 steps for every beta = 0.9 crystal, one ring a step.
+        note: "Figure 4's sector form. Here it grows more like a plate, with small gaps.",
         params: params(1.0, 0.9, 0.05),
     },
     Preset {
