@@ -25,6 +25,11 @@ impl Frame {
         }
     }
 
+    /// The world cell shown at cell `(x, y)` of the frame.
+    pub fn to_world(self, (x, y): (usize, usize)) -> (usize, usize) {
+        (self.x + x, self.y + y)
+    }
+
     fn contains(&self, b: &Bounds) -> bool {
         b.x0 >= self.x && b.y0 >= self.y && b.x1 <= self.x + self.w && b.y1 <= self.y + self.h
     }
@@ -73,6 +78,24 @@ pub fn follow(
     Frame { x, y, w, h }
 }
 
+/// The frame for the next picture when following the colony. While a paint stroke is held
+/// it stays put: a frame that zoomed out under a moving pointer would change which cell the
+/// pointer is over, and a straight drag would paint a crooked line. It catches up once the
+/// stroke ends.
+pub fn next(
+    current: Frame,
+    bounds: Option<Bounds>,
+    world: (usize, usize),
+    min_width: usize,
+    painting: bool,
+) -> Frame {
+    if painting {
+        current
+    } else {
+        follow(Some(current), bounds, world, min_width)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,5 +138,23 @@ mod tests {
         assert_eq!(f, Frame::whole(world));
         let f = follow(None, bounds(280, 240, 300, 260), world, 60);
         assert_eq!((f.x + f.w, f.y + f.h), (300, 260));
+    }
+
+    /// Painting into the margin while a stroke is held must not move the frame, or the
+    /// pointer would land on other cells mid-stroke; once released, the frame grows to take
+    /// in what was painted. A straight drag across the frame then maps to a straight row of
+    /// world cells, however far it reaches.
+    #[test]
+    fn the_frame_holds_still_while_painting() {
+        let world = (600, 520);
+        let f = follow(None, bounds(295, 255, 310, 265), world, 60);
+        // A stroke along the frame's top row, from edge to edge, painted into the margin.
+        let row: Vec<_> = (0..f.w).map(|x| f.to_world((x, 0))).collect();
+        assert!(row.iter().all(|&(_, y)| y == f.y));
+        assert!(row.windows(2).all(|p| p[1].0 == p[0].0 + 1));
+        let painted = bounds(f.x, f.y, f.x + f.w, 265);
+        assert_eq!(next(f, painted, world, 60, true), f);
+        let after = next(f, painted, world, 60, false);
+        assert!(after.w > f.w && after.contains(&painted.unwrap()));
     }
 }

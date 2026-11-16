@@ -59,6 +59,8 @@ struct LoopsApp {
     brush: u8,
     stroke: PaintStroke,
     hovered: Option<(usize, usize)>,
+    /// Whether a paint stroke is held: the frame holds still meanwhile.
+    painting: bool,
     dirty: bool,
 }
 
@@ -71,8 +73,13 @@ impl eframe::App for LoopsApp {
         self.advance(dt);
         if self.dirty {
             if self.follow {
-                self.frame =
-                    framing::follow(Some(self.frame), self.loops.bounds(), self.size, MIN_VIEW);
+                self.frame = framing::next(
+                    self.frame,
+                    self.loops.bounds(),
+                    self.size,
+                    MIN_VIEW,
+                    self.painting,
+                );
             }
             let shown = self.shown();
             self.view
@@ -83,12 +90,12 @@ impl eframe::App for LoopsApp {
         egui::CentralPanel::default().show(ui, |ui| {
             let shown = self.view.show(ui);
             let frame = self.frame;
-            let to_world = |(x, y): (usize, usize)| (x + frame.x, y + frame.y);
-            self.hovered = shown.hovered.map(to_world);
-            // The stroke is kept in world cells: the frame can move mid-stroke (painting
-            // near its margin, or the colony growing while it runs), and a stroke kept in
-            // view cells would then jump.
-            let cells = self.stroke.cells(shown.pressed.map(to_world));
+            self.hovered = shown.hovered.map(|c| frame.to_world(c));
+            // Once the stroke ends, let the frame catch up with what was painted.
+            self.dirty |= self.painting && shown.pressed.is_none();
+            self.painting = shown.pressed.is_some();
+            // In world cells, so the stroke stays joined up even if the frame does move.
+            let cells = self.stroke.cells(shown.pressed.map(|c| frame.to_world(c)));
             if !cells.is_empty() {
                 let state = if ui.input(|i| i.modifiers.shift) {
                     0
@@ -123,9 +130,11 @@ impl LoopsApp {
             brush: 7,
             stroke: PaintStroke::default(),
             hovered: None,
+            painting: false,
             dirty: true,
         };
         app.restart();
+        app.playback.running = true; // the loop is best seen copying itself
         app
     }
 
