@@ -128,9 +128,9 @@ inset shatter.
   between two points (gold). Each bulb round the edge has its own cycle length. Outside
   the set, the path flies off.
 - **Period doubling.** Move left along the real axis: z settles on a single point at
-  −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (raise the stop
-  limit for the longer ones). The doublings come faster and faster, and pile up at the
-  *Feigenbaum point*, −1.401155. Beyond it lies the spike.
+  −0.5, on a cycle of 2 at −1, 4 at −1.3, 8 at −1.38 and 16 at −1.3995 (zoom in to
+  reach those, and raise the stop limit for the longer cycles). The doublings come faster
+  and faster, and pile up at the *Feigenbaum point*, −1.401155. Beyond it lies the spike.
 - **Cross the edge with the Julia inset showing.** Inside the set, the Julia set is one
   piece; step outside and it breaks into dust. Pin c in the bulb above the main cardioid,
   enlarge the Julia set, and hover inside it: its orbits settle into the same cycle of
@@ -144,7 +144,8 @@ inset shatter.
 - **Find π.** Points just above the pinch at −0.75 take longer and longer to escape as you
   approach it: −0.75 + 0.001i escapes at step 3,143, and −0.75 + 0.0001i at step 31,417.
   The count times the distance tends to π. Many people noticed this independently in the
-  early 1990s.
+  early 1990s. To see it, zoom in on the pinch until the pointer can sit that close, raise
+  the stop limit past the count you expect, and hover.
 - **Raise the stop limit as you zoom.** Deep in, the edge is made of points that take
   hundreds or thousands of steps to escape. With too low a limit they all look inside, and
   the picture goes blobby. "Go there now" jumps straight to the limit.
