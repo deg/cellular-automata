@@ -32,7 +32,7 @@ cycle.
 
 ## History
 
-- **1989: random cyclic competition.** The automaton grew out of a random version, in
+- **1988-89: random cyclic competition.** The automaton grew out of a random version, in
   which each site picks a neighbour at random and eats it if it can. Bramson and
   Griffeath proved that in one dimension it settles into fixed colours when there are 5
   or more colours, but forms ever-growing patches of one colour with 3 or 4 (1989). In
@@ -93,8 +93,10 @@ Neumann). The panel shows each rule in this notation.
   droplets of waves eat it, then spirals appear and grow. Leave it running: the
   *changed last step* count climbs until every cell changes every generation.
 - **More colours.** Fisch, Gravner and Griffeath found that with 20 colours the droplets
-  become distinct and "drop-like". Set *Colours* to 20 with the CCA rule. With still
-  more colours, droplets get rarer, and a small world may never get one: it fixates.
+  become distinct and "drop-like". Set *Colours* to 20 with the CCA rule, on the largest
+  world. They expected a 256 x 256 world to fixate once there are more than about 20
+  colours, because droplets that survive get too rare to appear: on the middle-sized
+  world, some random starts already freeze with 20.
 - **Perfect spirals.** Choose *Perfect* on the largest world. It churns for a while (MCell
   says "often after more than one hundred updates") before perfect spiral cores appear and
   slowly take over.
