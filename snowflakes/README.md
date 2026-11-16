@@ -1,12 +1,9 @@
 # Snowflakes
 
-A snow crystal grows from a single seed of ice in a field of water vapour. This demo runs
-**Clifford Reiter's local cellular model** of that growth. With a very simple rule and just
-two parameters, it grows the main flat forms of real snow crystals: six-sided plates, stars,
-and fern-like dendrites, with branches on their branches.
-
-The name: snow crystals are commonly known as snowflakes. Reiter titled his paper's
-companion web page "Snowflake Automaton".
+A snow crystal, commonly known as a snowflake, grows from a single seed of ice in a field of
+water vapour. This demo runs **Clifford Reiter's local cellular model** of that growth. With
+a very simple rule and just two parameters, it grows the main flat forms of real snow
+crystals: six-sided plates, stars, and fern-like dendrites, with branches on their branches.
 
 ## The rule
 
@@ -73,9 +70,9 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   one of its neighbours is ice. Stephen Wolfram popularised it in *A New Kind of Science*
   (2002). It makes plates and sectors, but not dendrites or stars.
 - **2005: Reiter.** Clifford A. Reiter, *A local cellular model for snow crystal growth*,
-  Chaos, Solitons & Fractals 23, 1111–1119
-  ([doi](https://doi.org/10.1016/S0960-0779(04)00374-1),
-  [preprint](https://webbox.lafayette.edu/~reiterc/mvp/sfn/sfn_pp.pdf)). Following Nakaya,
+  Chaos, Solitons & Fractals 23, 1111–1119 (2005);
+  [doi:10.1016/S0960-0779(04)00374-1](https://doi.org/10.1016/S0960-0779(04)00374-1),
+  [preprint](https://webbox.lafayette.edu/~reiterc/mvp/sfn/sfn_pp.pdf). Following Nakaya,
   he aimed for a simple local model with just two parameters, β and γ, and did not try to
   fit the equations of the physics. His dendrites appear remarkably natural. The model is
   flat, so it cannot make the three-dimensional forms, such as needles and capped columns.
@@ -86,11 +83,11 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   idealised quasi-liquid layer, using eight parameters. It captures the tip instabilities
   and faceted branches of real crystals, which Reiter's lacks. They call its crystals
   *snowfakes*: *Modeling snow crystal growth II: A mesoscopic lattice map with plausible
-  dynamics*, Physica D 237, 385–404, 2008
-  ([doi](https://doi.org/10.1016/j.physd.2007.09.008)). They extended it to three
-  dimensions in *Modeling snow-crystal growth: A three-dimensional mesoscopic approach*,
-  Physical Review E 79, 011601, 2009
-  ([doi](https://doi.org/10.1103/PhysRevE.79.011601)).
+  dynamics*, Physica D: Nonlinear Phenomena 237, 385–404 (2008);
+  [doi:10.1016/j.physd.2007.09.008](https://doi.org/10.1016/j.physd.2007.09.008). They
+  extended it to three dimensions in *Modeling snow-crystal growth: A three-dimensional
+  mesoscopic approach*, Physical Review E 79, 011601 (2009);
+  [doi:10.1103/PhysRevE.79.011601](https://doi.org/10.1103/PhysRevE.79.011601).
 
 ## Things to try
 
@@ -101,10 +98,10 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   temperature and humidity. γ and α take effect at once, so you can do the same. Reiter's
   Figure 7 grew a plate with β = 0.4 and γ = 0.5, then lowered γ to 0.001 to grow
   dendrites from it. A plate grows fast, so choose radius 100 and set the speed to about
-  10 steps a second. Set β and γ, press Restart, and when the plate is a fifth of the
+  10 steps a second. Set β and γ, press *Restart*, and when the plate is a fifth of the
   way out, drag γ down to 0.001 and raise the speed again.
 - **Explore β and γ.** At β = 0.4, raise γ from 0 to 1 a step at a time, pressing
-  Restart each time: the dendrites thicken into stars, then become a plate.
+  *Restart* each time: the dendrites thicken into stars, then become a plate.
 - **Nudge α** a little away from 1, or above 2, and compare.
 - **Break the symmetry.** The model is deterministic and treats all six directions alike,
   so a single seed grows a perfectly symmetric crystal. Drag on the field to freeze a few
@@ -115,12 +112,14 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
 
 ## Further reading
 
+- The Wikipedia article [Snowflake](https://en.wikipedia.org/wiki/Snowflake): real snow
+  crystals, how they form, and Nakaya's diagram of their shapes by temperature and moisture.
 - Reiter's [auxiliary page](https://webbox.lafayette.edu/~reiterc/mvp/sfn/index.html) for
   the paper: tables of forms over β and γ, animations of the growth, and his program.
 - Kenneth Libbrecht's [SnowCrystals.com](http://www.snowcrystals.com): photographs of real
   snow crystals, and the science of why they have the shapes they do.
-- Jessica Li and Laura Schaposnik, *Interface control and snow crystal growth*
-  (Physical Review E 93, 023302, 2016;
-  [arXiv:1505.02042](https://arxiv.org/abs/1505.02042)): Reiter's model with two variables
+- Jessica Li and Laura Schaposnik, *Interface control and snow crystal growth*,
+  Physical Review E 93, 023302 (2016);
+  [arXiv:1505.02042](https://arxiv.org/abs/1505.02042). Reiter's model with two variables
   added, growth latency and growth direction, which make it realistic for plates as well
   as dendrites.
