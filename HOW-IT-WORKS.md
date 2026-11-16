@@ -58,8 +58,7 @@ in `main.rs` only reads the simulation's state and calls its methods.
   formats. `make check` runs all three.
 
 The costs are real too. Rust is harder to learn than most languages, compiling takes
-longer, and each demo's WebAssembly file is about 4.5 MB, so the first load takes a moment. This project was also, in part, a chance to
-learn Rust.
+longer, and each demo's WebAssembly file is about 4.5 MB, so the first load takes a moment.
 
 ## What WebAssembly is
 
@@ -96,11 +95,54 @@ A few things are different inside the browser, and the code allows for them:
 - **Texture size limits.** Browsers limit how large a texture can be, and the limit varies;
   4,096 pixels is a safe ceiling, so grids are capped at sizes whose picture fits within it.
 
+## egui and eframe
+
+The user interface is built with [egui](https://github.com/emilk/egui), a GUI library
+written in Rust by Emil Ernerfeldt, together with **eframe**, its companion framework.
+
+- **egui** draws the interface: panels, buttons, sliders, drop-down menus, text boxes,
+  scroll areas, hover tips and images (textures). It is pure Rust, with no JavaScript or
+  HTML involved, even in the browser.
+- **eframe** gives egui somewhere to draw. It opens the native window or takes over the
+  web page's canvas, runs the event loop and renders egui's output with a graphics
+  backend; this project uses *glow*, which speaks OpenGL natively and WebGL in the
+  browser. Because eframe hides that difference, the same `App::ui` function serves
+  both. `ca_core::run()` is the one place that sets eframe up, either way.
+
+egui is an **immediate-mode** UI. There are no button objects kept around, and no
+callbacks. Instead, every frame, the program describes the whole interface again, and
+each call reports what happened to it at once (simplified from `ca_core/src/playback.rs`):
+
+```rust
+if ui.button("Restart").clicked() {
+    self.restart_requested = true;
+}
+ui.add(egui::Slider::new(&mut self.speed, 1..=1_000).text("generations / second"));
+```
+
+The state lives only in the demo's own structs (`Playback`, the simulation), and the
+interface is redrawn from them every frame, so the screen can never fall out of step with
+the model. The cost is redrawing the interface every frame, which is small next to the
+simulation, and egui sleeps while nothing changes.
+
+The grid itself is not made of egui widgets. It is one picture (a texture), which egui
+scales and places. Anything drawn over it, such as the sandpile's drip-point rings, the
+ants and the elementary rule table, is drawn with egui's `Painter`, its low-level drawing
+API. The in-app explanations use `egui_commonmark`, a Markdown renderer built on egui.
+
+Why egui rather than a web framework: it keeps the whole project in one language, and the
+same code runs natively and in the browser. It suits controls like these: sliders,
+buttons, number fields. The trade-off is looks. An egui app looks like a tool rather than
+a styled web page, and doesn't use the browser's own text and form controls.
+
+egui changes its API between releases. This project uses 0.37, where `App::ui` receives a
+`Ui` (older code used `update` with a `Context`), and panels are `egui::Panel::left(..)`.
+Examples written for older versions often won't compile as they are.
+
 ## The frame loop
 
-egui is an *immediate-mode* UI: there are no button objects kept around. Instead, every
-frame, the program describes the whole interface again, and egui works out what was
-clicked. Each demo's `main.rs` does this once per frame, in `App::ui`:
+Following the immediate-mode pattern, each demo's `main.rs` describes and runs one frame
+at a time, in `App::ui`:
 
 1. **Controls.** Draw the left panel (`ca_core::controls_panel`): buttons, sliders, stats.
    A click is noticed here and recorded (say, "Step was pressed").
