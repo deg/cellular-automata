@@ -36,7 +36,7 @@ them all at once.
 
 ## History
 
-- **1987: self-organized criticality.** The physicists Per Bak, Chao Tang and Kurt
+- **1987: self-organised criticality.** The physicists Per Bak, Chao Tang and Kurt
   Wiesenfeld introduced the sandpile in *Self-organized criticality: an explanation of the
   1/f noise*, Physical Review Letters 59, 381–384 (1987),
   [PDF](https://courses.physics.ucsd.edu/2016/Spring/physics235/BTW-PRL.pdf). They were
