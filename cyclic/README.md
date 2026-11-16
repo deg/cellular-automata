@@ -71,8 +71,8 @@ cycle.
 
   When there are many colours, it is mostly the threshold divided by the square of the
   range that decides which of these happens. Their colour plates include the rules here
-  named *Perfect* (perfect spirals appearing out of a churning soup), *Turbulent phase*,
-  and *Bootstrap fixation*. The rule named *Lava lamp* here they called the "lava light".
+  named *Perfect* (perfect spirals appearing out of a churning soup) and *Bootstrap
+  fixation*, and *Turbulence* is one of their two representative turbulent rules. The rule named *Lava lamp* here they called the "lava light".
 - **Why it mattered.** These rules are simple mathematical stand-ins for *excitable media*,
   through which waves of activity travel and turn into spirals. The papers list spiral
   waves in oscillating chemical reactions (the Belousov-Zhabotinsky reaction), in heart
@@ -81,12 +81,12 @@ cycle.
   things about. A closely related rule, the *Greenberg-Hastings model*, differs only in
   that every colour except 0 advances automatically.
 
-Every preset is in the rule list of **MCell**, Mirek Wójtowicz's program for exploring
-cellular automata, and most take their names from it (*Bootstrap fixation* is MCell's
-*Cubism*). MCell credits each rule to a person, but several were published first by
-Fisch, Gravner and Griffeath (1991b): *Perfect*, *Turbulent phase* and *Bootstrap
-fixation* are their Plates H, F and G, *Imperfect* and *Lava lamp* come from their section
-10, and *313* from section 7. The panel gives both credits. MCell writes a rule as, for
+Every preset but *Turbulence* is in the rule list of **MCell**, Mirek Wójtowicz's program
+for exploring cellular automata, and most take their names from it (*Bootstrap fixation*
+is MCell's *Cubism*). MCell credits each rule to a person, but several were published
+first by Fisch, Gravner and Griffeath (1991b): *Perfect* and *Bootstrap fixation* are
+their Plates H and G, *Turbulence* comes from their section 8, *Imperfect* and *Lava lamp*
+from section 10, and *313* from section 7. The panel gives both credits. MCell writes a rule as, for
 example, `R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box) neighbourhood (`NN`
 is von Neumann). The panel shows each rule in this notation.
 
@@ -100,9 +100,9 @@ is von Neumann). The panel shows each rule in this notation.
   world. They expected a 256 x 256 world to fixate once there are more than about 20
   colours, because droplets that survive get too rare to appear: on the middle-sized
   world, some random starts already freeze with 20.
-- **Perfect spirals.** Choose *Perfect* on the largest world. It churns for a while (MCell
-  says "often after more than one hundred updates") before perfect spiral cores appear and
-  slowly take over.
+- **Perfect spirals.** Choose *Perfect*, which switches to the largest world. It churns
+  for a while (MCell says "often after more than one hundred updates") before perfect
+  spiral cores appear and slowly take over. On smaller worlds they seldom appear.
 - **Turn up the threshold.** Shalizi and Shalizi describe four colours on the range-1 box:
   threshold 1 gives a jumble of small oscillations, 2 gives spiral waves, 3 turbulence (in
   which spirals may still win in the end), and 4 or more fixation. Choose *Imperfect*
@@ -113,10 +113,15 @@ is von Neumann). The panel shows each rule in this notation.
   that cycles on its own suddenly appears, and quickly takes over from the spirals. Watch
   *changed last step*: while spirals rule it stays well below the whole world; once the
   new structures have taken over, every cell changes every generation.
-- **Turbulence.** Choose *Turbulent phase* on the largest world. Fisch, Gravner and
-  Griffeath found that this rule often fixates on a 256 x 256 grid, only because the grid is
-  too small: it kept going on 512 x 512. This demo's largest world is 640 x 400, so it may
-  freeze here too.
+- **Turbulence.** Choose *Turbulence*: waves form, break up, and leave debris that starts
+  new ones, forever. Fisch, Gravner and Griffeath gave two representative turbulent rules:
+  this one (range 2, diamond, threshold 4, 5 colours) and range 2, box, threshold 5, 8
+  colours (MCell's *Turbulent phase*, their Plate F). Turbulence works on large length
+  scales, so a world that is too small freezes: they found the second rule often fixates
+  on a 256 x 256 grid but kept going on 512 x 512. In this demo it froze on 2 of 10 random
+  starts even at 640 x 400, so the preset is the first rule, which keeps going from
+  320 x 200 up (on 160 x 100 it freezes too). Set the second by hand on the largest world
+  to compare.
 - **Freezing.** Choose *Bootstrap fixation* and watch the noise freeze. Then drag across
   it to paint fresh noise and see whether anything starts up again.
 - **Paint.** Drag on any running world to paint random colours; shift-drag paints a patch

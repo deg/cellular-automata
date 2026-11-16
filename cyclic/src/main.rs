@@ -22,6 +22,20 @@ const WHEEL: [[u8; 3]; 4] = [
 
 const SIZES: &[(usize, usize)] = &[(160, 100), (320, 200), (640, 400)];
 
+/// The world size to use for a preset needing at least `min`: the current one if it is big
+/// enough, otherwise the smallest offered that is.
+fn size_for(current: (usize, usize), min: (usize, usize)) -> (usize, usize) {
+    let fits = |s: &(usize, usize)| s.0 >= min.0 && s.1 >= min.1;
+    if fits(&current) {
+        current
+    } else {
+        *SIZES
+            .iter()
+            .find(|s| fits(s))
+            .unwrap_or(&SIZES[SIZES.len() - 1])
+    }
+}
+
 /// `n` colours evenly spaced along a closed loop through the palette, so colour k + 1 is
 /// always a similar small step on from colour k, and the last colour leads back to the
 /// first. Spaced by distance along the loop, not by keyframe: blue to teal is a much
@@ -148,6 +162,7 @@ impl CyclicApp {
                     .clicked()
                 {
                     self.ca.rule = p.rule;
+                    self.size = size_for(self.size, p.min_size);
                     self.restart();
                 }
             }
@@ -278,6 +293,19 @@ impl CyclicApp {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A preset that needs a bigger world gets the smallest one that fits, and every
+    /// preset's minimum is one of the sizes offered, so none is quietly run too small.
+    #[test]
+    fn presets_get_a_big_enough_world() {
+        assert_eq!(size_for((160, 100), (320, 200)), (320, 200));
+        assert_eq!(size_for((640, 400), (320, 200)), (640, 400));
+        assert_eq!(size_for((160, 100), (0, 0)), (160, 100));
+        for p in PRESETS {
+            let s = size_for(SIZES[0], p.min_size);
+            assert!(s.0 >= p.min_size.0 && s.1 >= p.min_size.1, "{}", p.name);
+        }
+    }
 
     /// The colours must read as a cycle: all different, starting on the palette's blue, and
     /// evenly spaced all the way round, the step from the last colour back to the first

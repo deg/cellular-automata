@@ -93,73 +93,86 @@ pub struct Preset {
     /// Where the rule was published first, if before MCell, and whom MCell's list credits
     /// it to ("A rule by X"), which is not always who found it.
     pub credit: &'static str,
+    /// The smallest world, (width, height), on which it shows what `note` says: on smaller
+    /// ones it freezes, or never gets past its first stage. (0, 0) for any world.
+    pub min_size: (usize, usize),
     /// What to look for.
     pub note: &'static str,
 }
 
 use Neighbourhood::{Moore, VonNeumann};
 
-/// Named rules. Every one is in MCell's rule list (<https://mcell.ca/app/data/rules.txt>),
-/// whose names they mostly use. "FGG 1991b" is Fisch, Gravner and Griffeath,
+/// Named rules. All but *Turbulence* are in MCell's rule list
+/// (<https://mcell.ca/app/data/rules.txt>), whose names they mostly use. "FGG 1991b" is Fisch, Gravner and Griffeath,
 /// "Threshold-range scaling of excitable cellular automata", where several appeared first.
 pub const PRESETS: &[Preset] = &[
     Preset {
         name: "CCA",
         rule: Rule::new(1, 1, 14, VonNeumann),
+        min_size: (0, 0),
         credit: "Fisch, Gravner and Griffeath (1989-91). MCell's \"CCA\", credited to David Griffeath.",
         note: "The basic rule. Droplets of waves eat the noise, then spirals appear and slowly take over.",
     },
     Preset {
         name: "Perfect",
         rule: Rule::new(1, 3, 4, Moore),
+        min_size: (640, 400),
         credit: "FGG 1991b, Plate H. MCell's \"Perfect\", credited to David Griffeath.",
-        note: "A long, churning soup first; then perfect spiral cores appear and take over. Use a big world.",
+        note: "A long, churning soup first; then, usually within a few thousand generations, perfect spiral cores appear and take over. It runs on the largest world: on smaller ones they seldom appear.",
     },
     Preset {
         name: "Imperfect",
         rule: Rule::new(1, 2, 4, Moore),
+        min_size: (0, 0),
         credit: "FGG 1991b, section 10.3. MCell's \"Imperfect\", credited to John Elliott.",
         note: "Spirals form quickly. Later, a small structure that cycles on its own may appear and suddenly take over.",
     },
     Preset {
         name: "313",
         rule: Rule::new(1, 3, 3, Moore),
+        min_size: (0, 0),
         credit: "FGG 1991b, section 7, as a rule that makes spirals. MCell's \"313\", credited to David Griffeath.",
         note: "Only three colours, and still spirals.",
     },
     Preset {
         name: "Cyclic spirals",
         rule: Rule::new(3, 5, 8, Moore),
+        min_size: (0, 0),
         credit: "MCell's \"Cyclic spirals\", credited to David Griffeath.",
         note: "A larger range: broad, smooth spirals.",
     },
     Preset {
-        name: "Turbulent phase",
-        rule: Rule::new(2, 5, 8, Moore),
-        credit: "FGG 1991b, Plate F. MCell's \"Turbulent phase\", credited to David Griffeath.",
-        note: "Would-be spirals keep unravelling. On small worlds it often freezes instead.",
+        name: "Turbulence",
+        rule: Rule::new(2, 4, 5, VonNeumann),
+        min_size: (320, 200),
+        credit: "FGG 1991b, section 8, one of their two representative turbulent rules. Not in MCell's list.",
+        note: "Would-be spirals keep unravelling into debris that starts new waves, and it never settles. It needs at least the middle world: on the smallest it freezes.",
     },
     Preset {
         name: "Lava lamp",
         rule: Rule::new(2, 10, 3, Moore),
+        min_size: (0, 0),
         credit: "FGG 1991b, section 10.2, the \"lava light\". MCell's \"LavaLamp\", credited to Jason Rampe.",
         note: "Blobs that separate and join, like a lava lamp.",
     },
     Preset {
         name: "Stripes",
         rule: Rule::new(3, 4, 5, VonNeumann),
+        min_size: (0, 0),
         credit: "MCell's \"Stripes\", credited to Mirek Wójtowicz.",
         note: "As the name says: the waves line up in stripes.",
     },
     Preset {
         name: "Fossil debris",
         rule: Rule::new(2, 9, 4, Moore),
+        min_size: (0, 0),
         credit: "MCell's \"Fossil debris\", credited to David Griffeath.",
         note: "Range 2, threshold 9, four colours.",
     },
     Preset {
         name: "Bootstrap fixation",
         rule: Rule::new(2, 5, 3, VonNeumann),
+        min_size: (0, 0),
         credit: "FGG 1991b, Plate G. MCell's \"Cubism\", credited to Jason Rampe.",
         note: "The threshold is too high to keep going: the world freezes.",
     },
@@ -733,6 +746,44 @@ mod tests {
             let mut ca = soup(200, 200, Rule::new(2, 5, 3, VonNeumann), true, seed);
             assert!(fixation_time(&mut ca, 2_000).is_some(), "seed {seed}");
         }
+    }
+
+    /// Fisch, Gravner and Griffeath (1991b), section 8: (2D, 4, 5) is one of their two
+    /// "representative examples" of turbulence, "a remarkably exotic self-organized
+    /// equilibrium (stationary distribution) not concentrated on periodic orbits", whose
+    /// length scales are so large that small arrays fixate. So on the world the *Turbulence*
+    /// preset runs on (320 x 200 at least), every seed tried must keep going for 5,000
+    /// generations, with a few percent of cells changing, and must not be periodic: no
+    /// world repeats in the last 1,000 generations. (Measured: 2.3 to 5.1% changing in the
+    /// second half, seeds 0 to 9. The other representative, MCell's "Turbulent phase"
+    /// (2B, 5, 8), fixated on 2 of these 10 seeds even at 640 x 400.) Slow: `make slow`.
+    #[test]
+    #[ignore]
+    fn turbulence_keeps_going_on_the_middle_world() {
+        use std::hash::{Hash, Hasher};
+        let preset = PRESETS.iter().find(|p| p.name == "Turbulence").unwrap();
+        let (w, h) = preset.min_size;
+        std::thread::scope(|s| {
+            for seed in 0..10 {
+                s.spawn(move || {
+                    let mut ca = soup(w, h, preset.rule, true, seed);
+                    let mut seen = std::collections::HashSet::new();
+                    while ca.generation < 5_000 {
+                        let changed = ca.step();
+                        assert!(changed > 0, "seed {seed}: fixated at {}", ca.generation);
+                        if ca.generation > 2_500 {
+                            let share = changed as f64 / (w * h) as f64;
+                            assert!((0.01..0.2).contains(&share), "seed {seed}: {share}");
+                        }
+                        if ca.generation > 4_000 {
+                            let mut hash = std::collections::hash_map::DefaultHasher::new();
+                            ca.grid().cells().hash(&mut hash);
+                            assert!(seen.insert(hash.finish()), "seed {seed}: periodic");
+                        }
+                    }
+                });
+            }
+        });
     }
 
     /// Fisch, Gravner and Griffeath, "Cyclic cellular automata in two dimensions" (1991):
