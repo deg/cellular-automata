@@ -327,6 +327,9 @@ pub struct Picture {
     saved: Vec<[f64; 2]>,
     /// [`SETTLE_TOLERANCE`], or less in a view whose pixels are narrower than it.
     tolerance: f64,
+    /// For a deep picture, each pixel's place on the reference orbit when `saved` was saved
+    /// (`saved` then holds its dz, not its z).
+    saved_places: Vec<u32>,
 }
 
 /// Perturbation, for views too deep for f64. A pixel's point c is not representable in f64
@@ -344,23 +347,78 @@ pub struct Picture {
 /// is what Z_0 + dz must then be). The same is done when an escaping reference runs out.
 struct Reference {
     c: [Dd; 2],
-    /// Z_0 = 0, Z_1 = C, Z_2, ..., as far as the limit, or to where the reference escaped.
+    /// Z_0 = 0, Z_1 = C, Z_2, ..., as far as the limit, or to where the reference escaped,
+    /// or round its cycle once.
     orbit: Vec<[f64; 2]>,
     /// The last Z, in full, to carry on from when the limit is raised.
     z: [Dd; 2],
     escaped: bool,
+    /// Z at the last index that was a power of two, in full, and that index: to tell when
+    /// the reference has settled into a cycle (as pixels do, see [`SETTLE_TOLERANCE`]).
+    saved: [Dd; 2],
+    saved_index: usize,
+    /// Once settled: the earlier index its last Z matches. A pixel reaching the end of the
+    /// orbit carries on from there, so the orbit never needs extending again, and a pixel's
+    /// place along it repeats, which its own cycle check relies on.
+    cycle_from: Option<usize>,
+    /// How close two Zs must be to count as the same: a thousandth of a pixel, so carrying
+    /// on from the earlier one moves no pixel visibly.
+    tolerance: f64,
 }
+
+/// How far a reference's orbit is searched for a cycle when a picture starts (a few
+/// milliseconds of double-double arithmetic in the browser). Past this it is extended
+/// without searching.
+const CYCLE_SEARCH: usize = 4096;
 
 /// What a double-double step of the reference costs, counted in plain iterations.
 const REFERENCE_COST: u64 = 6;
 
 impl Reference {
-    fn new(c: [Dd; 2]) -> Self {
-        Self {
+    fn new(c: [Dd; 2], step: f64) -> Self {
+        let mut reference = Self {
             c,
             orbit: vec![[0.0, 0.0]],
             z: [Dd::ZERO, Dd::ZERO],
             escaped: false,
+            saved: [Dd::ZERO, Dd::ZERO],
+            saved_index: 0,
+            cycle_from: None,
+            tolerance: (step * 1e-3).min(1e-20),
+        };
+        // Look for a cycle now, over a fixed number of steps, not as the limit rises: which
+        // loop the pixels run depends on it (see `advance_perturbed`), and a picture must
+        // come out the same however its limit was raised.
+        while !reference.escaped
+            && reference.cycle_from.is_none()
+            && reference.orbit.len() <= CYCLE_SEARCH
+        {
+            reference.step(true);
+        }
+        reference
+    }
+
+    /// One more Z, looking for a cycle if `search`.
+    fn step(&mut self, search: bool) {
+        let [zr, zi] = self.z;
+        let next = [
+            zr * zr - zi * zi + self.c[0],
+            (zr * zi).scale(2.0) + self.c[1],
+        ];
+        let rounded = [next[0].to_f64(), next[1].to_f64()];
+        self.z = next;
+        self.orbit.push(rounded);
+        self.escaped = rounded[0] * rounded[0] + rounded[1] * rounded[1] > 4.0;
+        if !search {
+            return;
+        }
+        let index = self.orbit.len() - 1;
+        let apart =
+            (next[0] - self.saved[0]).to_f64().abs() + (next[1] - self.saved[1]).to_f64().abs();
+        if self.saved_index > 0 && apart < self.tolerance {
+            self.cycle_from = Some(self.saved_index);
+        } else if index.is_power_of_two() {
+            (self.saved, self.saved_index) = (next, index);
         }
     }
 
@@ -369,16 +427,8 @@ impl Reference {
     /// pictures rely on that to come out the same however the limit was raised.
     fn extend(&mut self, limit: u32) -> u64 {
         let mut work = 0;
-        while !self.escaped && self.orbit.len() <= limit as usize {
-            let [zr, zi] = self.z;
-            let next = [
-                zr * zr - zi * zi + self.c[0],
-                (zr * zi).scale(2.0) + self.c[1],
-            ];
-            let rounded = [next[0].to_f64(), next[1].to_f64()];
-            self.z = next;
-            self.orbit.push(rounded);
-            self.escaped = rounded[0] * rounded[0] + rounded[1] * rounded[1] > 4.0;
+        while !self.escaped && self.cycle_from.is_none() && self.orbit.len() <= limit as usize {
+            self.step(false);
             work += REFERENCE_COST;
         }
         work
@@ -403,10 +453,12 @@ impl Picture {
             places: Vec::new(),
             saved: vec![[0.0; 2]; n],
             tolerance: SETTLE_TOLERANCE.min(view.step() * SETTLE_PER_STEP),
+            saved_places: Vec::new(),
         };
         if family == Family::Mandelbrot && view.perturbed() {
-            picture.reference = Some(Reference::new(view.reference_point()));
+            picture.reference = Some(Reference::new(view.reference_point(), view.step()));
             picture.places = vec![0; n];
+            picture.saved_places = vec![0; n];
         }
         picture.rebuild_queue();
         picture
@@ -588,6 +640,9 @@ impl Picture {
             return (1, true);
         }
         let reference = self.reference.as_ref().expect("a deep picture");
+        if reference.cycle_from.is_some() {
+            return self.advance_cycling(i, dc, allowance);
+        }
         let orbit = &reference.orbit;
         let last = orbit.len() - 1;
         let start = self.steps[i];
@@ -636,6 +691,86 @@ impl Picture {
         (cost, finished)
     }
 
+    /// [`Picture::advance_perturbed`] when the reference has settled into a cycle: as there,
+    /// plus a check that stops pixels settling too. Inside a small copy of the set, the
+    /// case a cycling reference usually means, most pixels stop long before the limit
+    /// (the timing test's deep view, mostly inside: 32 s down to 3.6 s natively).
+    ///
+    /// A deep pixel can't compare its z with a saved one in f64, which is far too coarse
+    /// there. But at the same place on the reference orbit as when its dz was saved, the
+    /// reference values are the same f64s and cancel exactly, so z - z_saved is exactly
+    /// dz - dz_saved. The wrap round the reference's cycle makes the places repeat, so such
+    /// steps come. And the check runs only while dz is small enough for f64 to resolve it
+    /// far below the tolerance (`DZ_RESOLVED`): otherwise two different values could round
+    /// alike, so the check is skipped, which is slower but never wrong.
+    fn advance_cycling(&mut self, i: usize, dc: [f64; 2], allowance: u64) -> (u64, bool) {
+        let (x, y) = (i % self.view.width, i / self.view.width);
+        let reference = self.reference.as_ref().expect("a deep picture");
+        let orbit = &reference.orbit;
+        let last = orbit.len() - 1;
+        let cycle_from = reference.cycle_from.expect("a cycling reference");
+        let tolerance = self.tolerance;
+        let start = self.steps[i];
+        let stop = self
+            .limit
+            .min(start.saturating_add(allowance.min(u32::MAX as u64) as u32));
+        let [mut dr, mut di] = self.z[i];
+        let [mut sr, mut si] = self.saved[i];
+        let mut sm = self.saved_places[i] as usize;
+        let mut m = self.places[i] as usize;
+        let mut k = start;
+        loop {
+            let [zr0, zi0] = orbit[m];
+            let (zr, zi) = (zr0 + dr, zi0 + di);
+            let size = zr * zr + zi * zi;
+            if size > 4.0 {
+                let c = self.view.point(x, y); // only to finish the smooth count
+                self.smooth[i] = smooth_count(c, [zr, zi], k);
+                break;
+            }
+            if k >= stop {
+                break;
+            }
+            if k > 0
+                && m == sm
+                && dr.abs() + di.abs() < tolerance * DZ_RESOLVED
+                && (dr - sr).abs() + (di - si).abs() < tolerance
+            {
+                self.smooth[i] = SETTLED;
+                break;
+            }
+            if k.is_power_of_two() {
+                (sr, si, sm) = (dr, di, m);
+            }
+            // The end of the orbit matches where its cycle began (to a thousandth of a
+            // pixel), so carry on from there; then m + 1 is always there.
+            if m == last {
+                m = cycle_from;
+            }
+            let rebase = size < dr * dr + di * di;
+            dr = if rebase { zr } else { dr };
+            di = if rebase { zi } else { di };
+            m = if rebase { 0 } else { m };
+            let (ar, ai) = if rebase { (0.0, 0.0) } else { (zr0, zi0) };
+            let (tr, ti) = (2.0 * ar + dr, 2.0 * ai + di);
+            (dr, di) = (tr * dr - ti * di + dc[0], tr * di + ti * dr + dc[1]);
+            m += 1;
+            k += 1;
+        }
+        self.z[i] = [dr, di];
+        self.places[i] = m as u32;
+        self.saved[i] = [sr, si];
+        self.saved_places[i] = sm as u32;
+        self.steps[i] = k;
+        let finished = !self.smooth[i].is_nan() || k >= self.limit;
+        let cost = if k == start {
+            1
+        } else {
+            (k - start) as u64 + PIXEL_COST
+        };
+        (cost, finished)
+    }
+
     /// Move the picture `dx` pixels right and `dy` down, keeping every pixel still in view
     /// as it is. Only the strips uncovered at the edges start afresh.
     pub fn pan(&mut self, dx: i64, dy: i64) {
@@ -648,6 +783,7 @@ impl Picture {
         shift(&mut self.smooth, w, h, dx, dy, FRESH);
         if !self.places.is_empty() {
             shift(&mut self.places, w, h, dx, dy, 0);
+            shift(&mut self.saved_places, w, h, dx, dy, 0);
         }
         shift(&mut self.saved, w, h, dx, dy, [0.0; 2]);
         self.view = self.view.panned(dx, dy);
@@ -781,6 +917,11 @@ fn known_inside_dd(c: [Dd; 2]) -> bool {
     let disc = (b * b + y2 - Dd::new(1.0 / 16.0)).to_f64() <= 0.0;
     cardioid || disc
 }
+
+/// A deep pixel's cycle check needs its dz no bigger than this many times the tolerance:
+/// f64 holds dz to about 1e-16 of itself, and a few thousand steps can grow that error a
+/// thousandfold, so this keeps the error a hundredth of the tolerance or less.
+const DZ_RESOLVED: f64 = 1e10;
 
 /// The escape radius for smoothing: far enough that z has settled into squaring.
 const SMOOTH_RADIUS_SQUARED: f64 = 4_294_967_296.0; // 65,536²
@@ -1373,6 +1514,116 @@ mod tests {
         assert!(state(&p) == state(&fresh));
     }
 
+    /// The centre of a small copy of the set of this period on the real axis, to
+    /// double-double precision: Newton's method from `guess`, z_period(c) = 0.
+    fn copy_centre_dd(period: u32, guess: f64) -> Dd {
+        let mut c = Dd::new(guess);
+        for _ in 0..60 {
+            let (mut z, mut dz) = (Dd::ZERO, Dd::ZERO);
+            for _ in 0..period {
+                dz = (z * dz).scale(2.0) + Dd::new(1.0);
+                z = z * z + c;
+            }
+            c = c - crate::dd::div(z, dz);
+        }
+        c
+    }
+
+    /// A deep view `factor` times the home view's magnification, centred on `c` (real).
+    fn deep_at(w: usize, h: usize, c: Dd, factor: f64) -> Viewport {
+        let v = deep(w, h, [c.hi, 0.0], [0.0, 0.0], factor);
+        Viewport {
+            base: [c, Dd::ZERO],
+            ..v
+        }
+    }
+
+    /// Deep pixels stopped as settled must really be inside: the plain loop in double-double
+    /// must not see them escape with ten times the steps. Checked around small copies of the
+    /// set found by Newton's method, at zooms where each copy's edge crosses the view, so
+    /// stopped and escaping pixels sit side by side; and the stopping must pay where the
+    /// view is all inside.
+    #[test]
+    fn deep_settled_pixels_never_escape() {
+        let (w, h, limit) = (60, 45, 2_000);
+        let cases = [(12, 1e12), (16, 1e14), (20, 1e16), (24, 1e18)];
+        for (period, factor) in cases {
+            let view = deep_at(w, h, copy_centre_dd(period, copy_centre(period)), factor);
+            assert!(view.perturbed());
+            let mut p = Picture::new(Family::Mandelbrot, view, limit);
+            p.work(u64::MAX);
+            let (mut settled, mut escaped) = (0, 0);
+            for y in 0..h {
+                for x in 0..w {
+                    match p.pixel(x, y) {
+                        Pixel::Settled(k) => {
+                            settled += 1;
+                            assert_eq!(
+                                escape_step_dd(view.point_dd(x, y), 10 * limit),
+                                None,
+                                "period {period} x{factor:e}: ({x}, {y}) settled at {k} but escapes"
+                            );
+                        }
+                        Pixel::Escaped { .. } => escaped += 1,
+                        _ => {}
+                    }
+                }
+            }
+            eprintln!("period {period} x{factor:e}: {settled} settled, {escaped} escaped");
+            assert!(
+                settled > 0 && escaped > 0,
+                "period {period} x{factor:e}: not an edge"
+            );
+        }
+        // All inside: in the period-3 copy, every pixel stops long before the limit.
+        let view = deep_at(w, h, copy_centre_dd(3, -1.7548776662466927), 1e20);
+        let mut p = Picture::new(Family::Mandelbrot, view, limit);
+        p.work(u64::MAX);
+        for y in 0..h {
+            for x in 0..w {
+                assert!(
+                    matches!(p.pixel(x, y), Pixel::Settled(k) if k < 100),
+                    "({x}, {y}): {:?}",
+                    p.pixel(x, y)
+                );
+            }
+        }
+    }
+
+    /// With a reference that cycles (its orbit wraps round), deep pictures must still come
+    /// out exactly the same however the limit was raised and the work cut up, and panned.
+    #[test]
+    fn deep_cycling_reference_step_by_step_and_panned_equal_all_at_once() {
+        let view = deep_at(40, 30, copy_centre_dd(12, copy_centre(12)), 1e12);
+        let mut target = Picture::new(Family::Mandelbrot, view, 400);
+        target.work(u64::MAX);
+        assert!(target.reference.as_ref().unwrap().cycle_from.is_some());
+        let mut p = Picture::new(Family::Mandelbrot, view, 0);
+        let mut budget = 1;
+        for limit in 0..=400 {
+            p.raise_limit(limit);
+            while !p.is_done() {
+                p.work(budget);
+                budget = budget * 7 % 997 + 1;
+            }
+        }
+        let same = |a: &Picture, b: &Picture| {
+            state(a) == state(b)
+                && a.places == b.places
+                && a.saved_places == b.saved_places
+                && a.saved.iter().zip(&b.saved).all(|(x, y)| {
+                    x[0].to_bits() == y[0].to_bits() && x[1].to_bits() == y[1].to_bits()
+                })
+        };
+        assert!(same(&p, &target));
+        p.pan(4, -3);
+        p.work(500);
+        let mut fresh = Picture::new(Family::Mandelbrot, *p.view(), 400);
+        fresh.work(u64::MAX);
+        p.work(u64::MAX);
+        assert!(same(&p, &fresh));
+    }
+
     /// The view's two mappings must undo each other, zooming must keep the point under the
     /// pointer where it was, and panning must move the contents by whole pixels.
     #[test]
@@ -1427,6 +1678,15 @@ mod tests {
             (
                 "deep, c = i, x1e20",
                 deep(910, 830, [0.0, 1.0], [3e-21, -2e-21], 1e20),
+                5_000,
+            ),
+            // Last: at about 10 s it heats the processor, and a case timed after it ran
+            // three times slower.
+            // Deep and mostly inside: the period-12 copy near -2 at x1e12, where the deep
+            // cycle check (comparing dz at matching places on the reference) pays.
+            (
+                "deep inside, period 12 x1e12",
+                deep_at(910, 830, copy_centre_dd(12, copy_centre(12)), 1e12),
                 5_000,
             ),
         ];

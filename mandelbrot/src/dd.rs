@@ -60,6 +60,17 @@ impl Dd {
     }
 }
 
+/// `a / b`, for the tests' Newton iterations: two rounds of long division.
+#[cfg(test)]
+pub fn div(a: Dd, b: Dd) -> Dd {
+    let q1 = a.hi / b.hi;
+    let r = a - b.scale(q1);
+    let q2 = r.hi / b.hi;
+    let r = r - b.scale(q2);
+    let q3 = r.hi / b.hi;
+    quick_two_sum(q1, q2) + Dd::new(q3)
+}
+
 /// The largest whole number not above `x`.
 fn floor(x: Dd) -> Dd {
     let hi = x.hi.floor();
