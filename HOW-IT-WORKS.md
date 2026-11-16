@@ -160,11 +160,16 @@ at a time, in `App::ui`:
 5. **Repaint.** While running, ask egui for another frame straight away. While paused,
    egui sleeps until the next mouse or keyboard event.
 
-The hex sandpile uses the same machinery with a different `Layout`. Its cells are drawn
-as offset bricks, two pixels wide, with rows squashed to the spacing of real hexagons, and
-the same layout maps clicks back to cells.
+The hex sandpile and the snowflakes use the same machinery with a different `Layout`.
+Their cells are drawn as offset bricks, two pixels wide, with rows squashed to the spacing
+of real hexagons, and the same layout maps clicks back to cells.
 
-The Mandelbrot set is the exception. It is not a cellular automaton, and its picture is a
+The lattice gas has a view of its own (`lattice-gas/src/view.rs`): its hexagonal lattice
+has alternate rows shifted half a node, so the world stays a rectangle rather than the
+rhombus `Layout::Hex` would make, and its picture is mostly an average over blocks of nodes
+rather than one pixel per cell.
+
+The Mandelbrot set is the other exception. It is not a cellular automaton, and its picture is a
 window on the plane that zooms and pans, not a grid of cells, so it draws with a view of its
 own (`mandelbrot/src/view.rs`) that maps the screen to the plane exactly, both ways. It
 still runs like the others: each pixel keeps its state (its z and its step count), so
@@ -227,8 +232,13 @@ what the automaton is **known** to do:
 - **Famous patterns.** In Life, the diehard pattern vanishes after exactly 130
   generations, and the glider gun fires a glider every 30.
 - **Hand-worked steps.** The ant's first moves, Rule 30's first rows, the Brian's Brain
-  glider.
-- **Mathematics.** Rule 90 must reproduce Pascal's triangle modulo 2. The sandpile must
+  glider, the step Reiter works by hand in his snowflake paper.
+- **Published results.** Langton's loop must make its first complete copy at generation
+  151, as his paper says; the snowflakes must take as many steps to reach the edge as
+  Reiter's own tables record; the lattice gas's sound must travel at 1/√2, its theoretical
+  speed.
+- **Mathematics.** Rule 90 must reproduce Pascal's triangle modulo 2. The lattice gas must
+  conserve particles and momentum exactly in every collision. The sandpile must
   conserve grains, keep its symmetries, and give the same pile whatever order cells
   topple in. The Mandelbrot set is its own mirror image, and the Julia set of 0 is the unit
   disc.
@@ -287,9 +297,12 @@ The centred pile took 6.7 s that day, so this machine ran about twice as slow as
    and `About`. Copy an existing demo, such as `brians-brain/src/main.rs`, as a start.
 4. Copy another demo's `index.html` and change its title and `data-bin`. Keep its
    `data-initializer="../site/loading.mjs"`, which shows the download's progress.
-5. Write `README.md`: the rule, its history (with checked sources), things to try.
-6. Optionally, add a function to `site/thumbs.js` that draws its card's picture; otherwise
-   it gets a generic one.
+5. Write `README.md`: the rule, where the name comes from, its history (with checked
+   sources), things to try, and further reading. `CLAUDE.md` has the conventions for it and
+   for the panel.
+6. Add it to `site/order.txt`, which places its card, and to the root README's table, in
+   the same place. Optionally, add a function to `site/thumbs.js` that draws its card's
+   picture; otherwise it gets a generic one.
 7. `make check`, then `make serve`. It appears on the index page by itself, and on the
    live site after the next push.
 

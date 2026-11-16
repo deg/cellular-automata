@@ -8,15 +8,15 @@ and explains itself: the rule, its history, and things to try.
 
 | Demo | What it shows |
 |---|---|
-| [Abelian sandpile](sandpile/) | Grains dropped on one cell topple onto their neighbours, on a square or hex grid, and settle into a fractal. |
 | [Conway's Game of Life](life/) | Cells live or die by counting their neighbours; gliders, guns and other rules to try. |
 | [Elementary cellular automata](elementary/) | All 256 one-dimensional rules, from the chaos of Rule 30 to the computer inside Rule 110. |
 | [Langton's ant](langtons-ant/) | An ant follows two rules, wanders for about 10,000 steps, then builds a highway. |
 | [Brian's Brain](brians-brain/) | Cells fire, rest and recover like neurons; almost every pattern sets off moving. |
 | [Wireworld](wireworld/) | Draw wires and watch electrons run through them: diodes, clocks and logic gates. |
 | [Cyclic cellular automaton](cyclic/) | Each colour can only advance to the next one round a colour wheel; random noise organises itself into turning spirals. |
-| [Snowflakes](snowflakes/) | Water freezes where the vapour reaches it first, and a seed grows into a snow crystal: plates, stars and branching dendrites. |
 | [Langton's loops](langtons-loops/) | A loop of signals builds a copy of itself, and the copies go on copying into a growing colony. |
+| [Abelian sandpile](sandpile/) | Grains dropped on one cell topple onto their neighbours, on a square or hex grid, and settle into a fractal. |
+| [Snowflakes](snowflakes/) | Water freezes where the vapour reaches it first, and a seed grows into a snow crystal: plates, stars and branching dendrites. |
 | [Lattice gas](lattice-gas/) | Particles hop and collide on a hexagonal lattice; averaged over many, they flow like a fluid around an obstacle. |
 | [The Mandelbrot set](mandelbrot/) | Not a cellular automaton but a fractal: repeat z → z² + c and see which points stay near 0, step by step, zooming in. |
 

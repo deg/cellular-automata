@@ -163,6 +163,28 @@ make siblings               # before/after a Rust update: build+test David's oth
   citations), things to try in the demo, and further reading. `main.rs` passes it to
   `ca_core::About` with `include_str!`, so the same text is shown inside the app.
 - Check facts and citations in a README before writing them; don't fill gaps from memory.
+- README conventions, so the eleven read alike: the rule; where the name comes from (one
+  sentence, or a heading only if it needs explaining); History; Things to try, with bold
+  leads; Further reading last, starting with "The Wikipedia article [...](...)." when there
+  is one. Citations: authors, *title in italics*, journal spelled out in plain text, volume,
+  pages (year), en dash for ranges, links labelled `doi:...` or `arXiv:...`. British
+  spelling, "anticlockwise", "forever", commas in numbers from 1,000, control names in
+  *italics*. Notes for editors (which file a table came from, commit hashes) go in `sim.rs`
+  doc comments, not the README.
+- Never put a paragraph after a nested list inside a list item: the About panel's renderer
+  draws it outside the bullet.
+- Panel conventions (David chose them on 2026-11-16, where the older demos disagreed):
+  - Paused at start, unless the opening is itself the show; then a comment says why.
+  - Restart returns to the demo's opening with the current settings; a demo you draw on
+    from scratch has a separate Clear. A note says what Restart (and Clear) does.
+  - The readout at the bottom is `ca_core::readout`, lowercase singular labels, numbers
+    through `grouped`, and its last row is `pointer` ("under the pointer"), not a tooltip.
+  - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
+    chosen one's note below (a drop-down only for long lists). A section's strong heading
+    on its own line; option chips in lowercase; the world/size block last before the
+    readout; "World:" for a 2D world's size.
+- The demos' order on the index page is `site/order.txt`, and the root README's table must
+  match it (`site/build.sh` checks).
 - `.cargo/config.toml` turns on WebAssembly SIMD for the browser builds; the sandpile's
   16-bit Jacobi stage (`sandpile/src/jacobi.rs`) relies on it to be fast there.
 - The sandpile has four sweeps: plain, symmetric octant, and two 16-bit Jacobi stages

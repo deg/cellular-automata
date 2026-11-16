@@ -3,7 +3,8 @@
 # render HOW-IT-WORKS.md into dist/how-it-works.html.
 #
 # A demo is any directory at the repo root holding both Cargo.toml and index.html, so a new
-# demo appears on the index without editing this script. Its card's title is the <title> of
+# demo appears on the index without editing this script (add it to site/order.txt to place
+# its card, and to the root README's table). Its card's title is the <title> of
 # its index.html, its text the `description` in its Cargo.toml, and its picture is drawn by
 # site/thumbs.js from the directory name.
 set -euo pipefail
@@ -11,13 +12,41 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-demos=()
+found=()
 for manifest in */Cargo.toml; do
   dir="${manifest%/Cargo.toml}"
-  [[ -f "$dir/index.html" ]] && demos+=("$dir")
+  [[ -f "$dir/index.html" ]] && found+=("$dir")
 done
-if [[ ${#demos[@]} -eq 0 ]]; then
+if [[ ${#found[@]} -eq 0 ]]; then
   echo "no demos found" >&2
+  exit 1
+fi
+
+# The cards' order is site/order.txt's (see it for why); a demo it doesn't list goes last.
+ordered=()
+while read -r dir; do
+  [[ -z "$dir" || "$dir" == \#* ]] && continue
+  if [[ " ${found[*]} " == *" $dir "* ]]; then
+    ordered+=("$dir")
+  else
+    echo "site/order.txt lists '$dir', which is not a demo" >&2
+    exit 1
+  fi
+done < site/order.txt
+demos=("${ordered[@]}")
+for dir in "${found[@]}"; do
+  if [[ " ${ordered[*]} " != *" $dir "* ]]; then
+    echo "warning: $dir is not in site/order.txt; its card goes last" >&2
+    demos+=("$dir")
+  fi
+done
+
+# The root README's table lists the demos too: keep it in the same order.
+readme_order="$(sed -n 's/^| \[[^]]*\](\([^/)]*\)\/) |.*/\1/p' README.md | tr '\n' ' ')"
+if [[ "$readme_order" != "${demos[*]} " ]]; then
+  echo "README.md's demo table is not in site/order.txt's order:" >&2
+  echo "  README:     $readme_order" >&2
+  echo "  order.txt:  ${demos[*]}" >&2
   exit 1
 fi
 

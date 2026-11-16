@@ -16,7 +16,9 @@
   const TAIL = [0xe0, 0x45, 0x3a];
   const ANT = [0xff, 0x30, 0x30];
 
-  // Pictures are 80 x 50 cells, matching the cards' 16 : 10 frame.
+  // Pictures are 80 x 50 cells by default, matching the cards' 16 : 10 frame. A picture
+  // that needs more room, more detail or bigger cells uses its own size in the same
+  // proportions.
   const W = 80, H = 50;
 
   // A small seeded random generator, so the pictures are the same on every visit.
