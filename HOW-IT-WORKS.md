@@ -1,6 +1,6 @@
 # How it works
 
-The six demos are separate programs built on one shared library, all written in Rust.
+The seven demos are separate programs built on one shared library, all written in Rust.
 Each runs in two places from the same source code: as a native desktop window
 (`make run DEMO=life`), and in a web page, compiled to WebAssembly
 (`make web DEMO=life`, or the live site at <https://automata.degel.com/>). This page
@@ -9,7 +9,7 @@ explains how that fits together, and why it is built this way.
 ## The big picture
 
 ```
-  one demo (e.g. life/)                          ca_core/  (shared by all six)
+  one demo (e.g. life/)                          ca_core/  (shared by all seven)
   ---------------------                          ---------------------------------
   src/sim.rs   the automaton itself:            GridView   draws a grid, maps clicks
                cells, rules, one step.           Playback   Run / Pause / Step / Restart
@@ -164,6 +164,14 @@ The hex sandpile uses the same machinery with a different `Layout`. Its cells ar
 as offset bricks, two pixels wide, with rows squashed to the spacing of real hexagons, and
 the same layout maps clicks back to cells.
 
+The Mandelbrot set is the exception. It is not a cellular automaton, and its picture is a
+window on the plane that zooms and pans, not a grid of cells, so it draws with a view of its
+own (`mandelbrot/src/view.rs`) that maps the screen to the plane exactly, both ways. It
+still runs like the others: each pixel keeps its state (its z and its step count), so
+raising the iteration limit carries on rather than starting again, and the work per frame
+is capped by iterations done. A new view is filled in coarse pixels first, with the old
+view drawn scaled underneath until it is.
+
 ## Explanations inside the app
 
 Each demo's `README.md` is compiled into the program with `include_str!` and rendered by
@@ -198,9 +206,11 @@ what the automaton is **known** to do:
   glider.
 - **Mathematics.** Rule 90 must reproduce Pascal's triangle modulo 2. The sandpile must
   conserve grains, keep its symmetries, and give the same pile whatever order cells
-  topple in.
+  topple in. The Mandelbrot set is its own mirror image, and the Julia set of 0 is the unit
+  disc.
 - **Fast against slow.** Each of the sandpile's fast paths is compared, cell for cell,
-  with the plain method.
+  with the plain method. A Mandelbrot picture computed a step at a time, in uneven slices,
+  or panned partway, must match one computed in one go, bit for bit.
 - **Designed by simulation.** Wireworld's diodes and clocks were found by simulating
   candidate shapes and keeping the ones that worked. The tests pin down that they still do.
 

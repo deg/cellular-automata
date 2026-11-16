@@ -1,7 +1,8 @@
-# Cellular automata
+# Simple rules, strange worlds
 
-Demos of famous cellular automata, written in Rust. Each runs in a native window or in
-the browser, and explains itself: the rule, its history, and things to try.
+**Cellular automata and fractals.** Demos of famous simple rules, written in Rust: six
+cellular automata and the Mandelbrot set. Each runs in a native window or in the browser,
+and explains itself: the rule, its history, and things to try.
 
 **Try them in your browser: <https://automata.degel.com/>**
 
