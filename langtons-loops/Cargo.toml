@@ -1,0 +1,8 @@
+[package]
+name = "langtons-loops"
+version = "0.1.0"
+edition = "2024"
+description = "A loop of signals builds a copy of itself, and the copies go on copying into a growing colony."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
