@@ -110,7 +110,7 @@ impl Show {
     fn hint(self) -> &'static str {
         match self {
             Self::Particles => {
-                "Each node coloured by how many particles it holds, 0 (dark) to 6 (white): the raw automaton."
+                "Each node coloured by how many particles it holds, from none (dark) to all six, or on the square lattice four (light): the raw automaton."
             }
             Self::Speed => "The averaged flow's speed: dark is still, white is fast.",
             Self::Vorticity => {
@@ -380,7 +380,7 @@ impl GasApp {
         let (w, h, cells) = (l.width(), l.height(), l.cells());
         let f = &self.field;
         let wind = self.speed.max(0.05);
-        let mean = self.density * 6.0;
+        let mean = self.density * l.kind().directions() as f64;
         // Per block, the value to draw, interpolated between blocks for each node.
         let values: Vec<f64> = (0..f.ny)
             .flat_map(|by| (0..f.nx).map(move |bx| (bx, by)))

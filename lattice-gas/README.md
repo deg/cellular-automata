@@ -74,7 +74,7 @@ lattice is symmetric enough. That is where the hexagon matters.
   they compared with experiments in water ("Numerical simulations of hydrodynamics with lattice gas automata
   in two dimensions", Complex Systems 1, 599–632). The same volume describes RAP-1, a
   cellular automaton machine built for fluid dynamics (A. Clouqueur and D. d'Humières).
-- **1988 and after: lattice Boltzmann.** G. McNamara and G. Zanetti proposed simulating
+- **1988 and after: lattice Boltzmann.** McNamara and Zanetti proposed simulating
   the gas's average populations directly, as real numbers, instead of individual
   particles ("Use of the Boltzmann equation to simulate lattice-gas automata", Phys. Rev.
   Lett. 61, 2332 (1988)). With no particles, there is none of the noise you see here.

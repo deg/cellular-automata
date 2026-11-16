@@ -734,9 +734,9 @@ mod tests {
         l
     }
 
-    /// Streaming is a permutation of particles: after one step from a random gas with
-    /// collisions turned off (only walls of nothing), each node's particles are exactly
-    /// those its neighbours sent.
+    /// Streaming is a permutation of particles: after streaming a random gas once (no
+    /// collision phase), every particle is at the neighbour in its direction of the node
+    /// it left.
     #[test]
     fn streaming_is_a_permutation() {
         let mut l = random_gas(9, 6, 0.4, 5);
@@ -882,11 +882,11 @@ mod tests {
         }
     }
 
-    /// The inflow band refills with the equilibrium of d'Humières and Lallemand's (2.5):
-    /// at density d and speed u, the populations are d(1 + 2 c_i . u), so the mean velocity
-    /// per particle is u.
+    /// Filling (and the inflow band, which refills the same way) draws from the
+    /// equilibrium of d'Humières and Lallemand's (2.5): at density d and speed u, the
+    /// populations are d(1 + 2 c_i . u), so the mean velocity per particle is u.
     #[test]
-    fn the_inflow_band_carries_its_speed() {
+    fn a_fill_carries_its_speed() {
         let mut l = Lattice::new(Kind::Hex, 400, 200, 2);
         l.fill(0.2, 0.25);
         let (px, py) = l.momentum();
