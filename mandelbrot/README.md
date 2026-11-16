@@ -156,8 +156,13 @@ inset shatter.
   the picture goes blobby. "Go there now" jumps straight to the limit.
 - **Look for small copies of the whole set**, along the spike to the left and in the
   tendrils round the edge. They are connected to the main set by threads too thin to see.
-- **Zoom as far as it goes.** At about a trillion times, the 64-bit numbers the demo uses
-  can no longer tell neighbouring pixels apart, and it stops.
+- **Zoom as far as it goes.** Ordinary 64-bit numbers can't tell neighbouring pixels
+  apart past about a trillion times, so beyond about 10^11 the demo switches to a trick
+  called *perturbation*: it follows one point's orbit in double-length numbers (about 32
+  digits) and works out every other pixel as a small difference from it. That takes it to
+  about 10^27 times, where even those run out. Raise the stop limit as you go: deep
+  pictures need thousands of steps, and take a while to fill in. (An enlarged Julia set
+  still stops at a trillion.)
 - **Try the other palettes**, and the escape bands, at the same spot.
 
 ## Further reading

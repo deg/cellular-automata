@@ -63,7 +63,7 @@ impl PlaneView {
         let painter = painter.with_clip_rect(rect);
         for (texture, view) in self.backdrop.iter().chain(self.texture.iter()) {
             let corner = |x: f64, y: f64| {
-                let [px, py] = current.pixel_of(view.at(x, y));
+                let [px, py] = current.pixel_of_view(view, x, y);
                 rect.min + egui::vec2(px as f32, py as f32) / scale
             };
             let shown = Rect::from_min_max(

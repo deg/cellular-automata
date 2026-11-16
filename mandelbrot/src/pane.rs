@@ -1,6 +1,7 @@
 //! One picture on screen with its own view of the plane: the Mandelbrot set, or a Julia set.
 
 use crate::colour::Colours;
+use crate::dd::Dd;
 use crate::sim::{Family, Picture, Pixel, Viewport};
 use crate::view::PlaneView;
 use ca_core::egui::{self, Pos2, Rect, Vec2};
@@ -21,11 +22,15 @@ pub struct Pane {
     pan_carry: Vec2,
     /// The picture must be uploaded again.
     redraw: bool,
+    /// May zoom past f64's precision: the Mandelbrot set may (see `sim::Reference`), a
+    /// Julia set may not.
+    deep: bool,
 }
 
 impl Pane {
     pub fn new(name: &'static str, family: Family, centre: [f64; 2], span: [f64; 2]) -> Self {
-        let placeholder = Viewport::fit(1, 1, centre, span);
+        let deep = family == Family::Mandelbrot;
+        let placeholder = Viewport::fit(1, 1, centre, span).with_deep(deep);
         Self {
             picture: Picture::new(family, placeholder, 0),
             view: PlaneView::new(name),
@@ -35,6 +40,7 @@ impl Pane {
             home_step: placeholder.step(),
             pan_carry: Vec2::ZERO,
             redraw: true,
+            deep,
         }
     }
 
@@ -68,7 +74,7 @@ impl Pane {
         if self.go_home {
             self.go_home = false;
             self.scale = scale;
-            let home = Viewport::fit(w, h, self.home.0, self.home.1);
+            let home = Viewport::fit(w, h, self.home.0, self.home.1).with_deep(self.deep);
             self.home_step = home.step() * scale as f64;
             self.replace(self.picture.family(), home);
             return;
@@ -167,6 +173,23 @@ impl Pane {
         let (x, y) = (at.x.floor() as usize, at.y.floor() as usize);
         (at.x >= 0.0 && at.y >= 0.0 && x < v.width && y < v.height)
             .then(|| (v.point(x, y), self.picture.pixel(x, y)))
+    }
+
+    /// The plane point at `pos` in full precision, when the view is too deep for an f64 to
+    /// hold it.
+    pub fn precise_point_at(&self, pos: Pos2, rect: Rect) -> Option<[Dd; 2]> {
+        let at = (pos - rect.min) * self.scale;
+        let v = self.picture.view();
+        let (x, y) = (at.x.floor() as usize, at.y.floor() as usize);
+        (v.perturbed() && at.x >= 0.0 && at.y >= 0.0 && x < v.width && y < v.height)
+            .then(|| v.point_dd(x, y))
+    }
+
+    /// Centre the view on `p`, keeping the zoom. (Moving there by panning would mean an
+    /// enormous number of pixels in a deep view.)
+    pub fn centre_on(&mut self, p: [f64; 2]) {
+        let view = self.picture.view().centred_on(p);
+        self.replace(self.picture.family(), view);
     }
 
     /// Where the plane point `p` is drawn, in `rect`.

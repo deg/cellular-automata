@@ -5,6 +5,11 @@
 //! Every pixel keeps its z and its step count, so raising the iteration limit carries on
 //! from where the last limit stopped rather than starting again. That is what lets the demo
 //! animate the limit one step at a time, like a generation of the other demos.
+//!
+//! Deep views of the Mandelbrot set (zoomed in past about 10^11, where f64 starts to run out
+//! of digits) are computed by *perturbation*: see [`Reference`].
+
+use crate::dd::Dd;
 
 /// A rectangle of the complex plane, cut into `width` x `height` pixels.
 ///
@@ -15,12 +20,16 @@
 pub struct Viewport {
     pub width: usize,
     pub height: usize,
-    /// The plane point at the picture's centre, before `offset`.
-    base: [f64; 2],
+    /// The plane point at the picture's centre, before `offset`, in double-double so a deep
+    /// view can be placed precisely. Flat (shallow) views use only `hi`.
+    base: [Dd; 2],
     /// Plane units per pixel.
     step: f64,
     /// Whole pixels the view has been moved by since `base` was set.
     offset: [i64; 2],
+    /// Whether this view may zoom past f64's precision, using perturbation (the Mandelbrot
+    /// set does; a Julia set doesn't).
+    deep: bool,
 }
 
 /// The smallest step allowed, relative to the size of the coordinates: below about 16 units
@@ -28,19 +37,70 @@ pub struct Viewport {
 /// would turn into blocks.
 const PRECISION: f64 = 16.0 * f64::EPSILON;
 
+/// The same for a deep view, whose coordinates are double-double: about 2^-104 a unit.
+const DEEP_PRECISION: f64 = 16.0 * f64::EPSILON * f64::EPSILON * 2.0;
+
+/// A deep view switches to perturbation once its step is below this, relative to the size of
+/// the coordinates: a few hundred times above where f64 itself gives out, so the plain
+/// path never gets near its limit.
+const PERTURB_BELOW: f64 = 1e-12;
+
 /// The widest view allowed, in plane units across its shorter side. The whole set fits in a
 /// disc of radius 2, so there is nothing to see further out.
 const WIDEST: f64 = 12.0;
 
 impl Viewport {
     pub fn new(width: usize, height: usize, centre: [f64; 2], step: f64) -> Self {
+        Self::new_dd(
+            width,
+            height,
+            [Dd::new(centre[0]), Dd::new(centre[1])],
+            step,
+        )
+    }
+
+    fn new_dd(width: usize, height: usize, centre: [Dd; 2], step: f64) -> Self {
         Self {
             width,
             height,
             base: centre,
             step,
             offset: [0, 0],
+            deep: false,
         }
+    }
+
+    /// This view, allowed to zoom past f64's precision (or not).
+    pub fn with_deep(&self, deep: bool) -> Self {
+        Self { deep, ..*self }
+    }
+
+    /// Whether pictures of this view are computed by perturbation.
+    pub fn perturbed(&self) -> bool {
+        self.deep && self.step < PERTURB_BELOW * self.scale_of(self.base_f64())
+    }
+
+    fn base_f64(&self) -> [f64; 2] {
+        [self.base[0].hi, self.base[1].hi]
+    }
+
+    /// The point perturbation is measured from: `base`, which panning leaves alone, so a
+    /// panned picture keeps its reference and its pixels' work.
+    pub fn reference_point(&self) -> [Dd; 2] {
+        self.base
+    }
+
+    /// Pixel `(x, y)`'s point less [`Viewport::reference_point`]: small, and exact in f64.
+    pub fn offset_from_reference(&self, x: usize, y: usize) -> [f64; 2] {
+        let i = (x as i64 + self.offset[0]) as f64 + 0.5 - self.width as f64 * 0.5;
+        let j = (y as i64 + self.offset[1]) as f64 + 0.5 - self.height as f64 * 0.5;
+        [i * self.step, -j * self.step]
+    }
+
+    /// Pixel `(x, y)`'s point in full, for the pointer readout of a deep view.
+    pub fn point_dd(&self, x: usize, y: usize) -> [Dd; 2] {
+        let [dx, dy] = self.offset_from_reference(x, y);
+        [self.base[0] + Dd::new(dx), self.base[1] + Dd::new(dy)]
     }
 
     /// The view centred on `centre` that just shows `span` (plane width and height).
@@ -64,7 +124,8 @@ impl Viewport {
         // view reached it.
         let i = (x as i64 + self.offset[0]) as f64 + 0.5 - self.width as f64 * 0.5;
         let j = (y as i64 + self.offset[1]) as f64 + 0.5 - self.height as f64 * 0.5;
-        [self.base[0] + i * self.step, self.base[1] - j * self.step]
+        let [b0, b1] = self.base_f64();
+        [b0 + i * self.step, b1 - j * self.step]
     }
 
     /// The plane point at `(x, y)` in pixels from the picture's top-left corner, fractions
@@ -73,15 +134,33 @@ impl Viewport {
     pub fn at(&self, x: f64, y: f64) -> [f64; 2] {
         let i = x + self.offset[0] as f64 - self.width as f64 * 0.5;
         let j = y + self.offset[1] as f64 - self.height as f64 * 0.5;
-        [self.base[0] + i * self.step, self.base[1] - j * self.step]
+        let [b0, b1] = self.base_f64();
+        [b0 + i * self.step, b1 - j * self.step]
+    }
+
+    /// Where point `(x, y)` of `other` (in its pixels) falls in this view, in pixels: like
+    /// `self.pixel_of(other.at(x, y))`, but exact enough for deep views, whose points don't
+    /// fit an f64. For drawing an older picture scaled under a newer one.
+    pub fn pixel_of_view(&self, other: &Viewport, x: f64, y: f64) -> [f64; 2] {
+        let d = [
+            (other.base[0] - self.base[0]).to_f64(),
+            (other.base[1] - self.base[1]).to_f64(),
+        ];
+        let i = x + other.offset[0] as f64 - other.width as f64 * 0.5;
+        let j = y + other.offset[1] as f64 - other.height as f64 * 0.5;
+        let (px, py) = (d[0] + i * other.step, d[1] - j * other.step);
+        [
+            px / self.step - self.offset[0] as f64 + self.width as f64 * 0.5,
+            -py / self.step - self.offset[1] as f64 + self.height as f64 * 0.5,
+        ]
     }
 
     /// Where the plane point `p` falls, in pixels from the top-left corner: the inverse of
     /// [`Viewport::at`].
     pub fn pixel_of(&self, p: [f64; 2]) -> [f64; 2] {
-        let x = (p[0] - self.base[0]) / self.step - self.offset[0] as f64 + self.width as f64 * 0.5;
-        let y =
-            (self.base[1] - p[1]) / self.step - self.offset[1] as f64 + self.height as f64 * 0.5;
+        let [b0, b1] = self.base_f64();
+        let x = (p[0] - b0) / self.step - self.offset[0] as f64 + self.width as f64 * 0.5;
+        let y = (b1 - p[1]) / self.step - self.offset[1] as f64 + self.height as f64 * 0.5;
         [x, y]
     }
 
@@ -89,11 +168,17 @@ impl Viewport {
     /// The magnification stops where f64 runs out of precision, and where the view is wide
     /// enough to show everything.
     pub fn zoomed(&self, x: f64, y: f64, factor: f64) -> Self {
-        let q = self.at(x, y);
-        let step = self.clamp_step(self.step / factor, q);
+        let step = self.clamp_step(self.step / factor, self.at(x, y));
+        // The new centre, worked out in double-double: in a deep view its digits run past
+        // f64's. It is the point under (x, y), moved back by (x, y)'s distance from the
+        // centre at the new step.
+        let (cx, cy) = (self.width as f64 * 0.5, self.height as f64 * 0.5);
+        let i = x + self.offset[0] as f64 - cx;
+        let j = y + self.offset[1] as f64 - cy;
+        let (di, dj) = ((x - cx) * step, (y - cy) * step);
         let base = [
-            q[0] - (x - self.width as f64 * 0.5) * step,
-            q[1] + (y - self.height as f64 * 0.5) * step,
+            self.base[0] + Dd::new(i * self.step) - Dd::new(di),
+            self.base[1] - Dd::new(j * self.step) + Dd::new(dj),
         ];
         Self {
             base,
@@ -113,9 +198,18 @@ impl Viewport {
 
     /// The same centre, `width` x `height` pixels of `step` plane units each.
     pub fn resized(&self, width: usize, height: usize, step: f64) -> Self {
-        let mut view = Self::new(width, height, self.centre(), step);
-        view.step = view.clamp_step(step, view.base);
+        let centre = [
+            self.base[0] + Dd::new(self.offset[0] as f64 * self.step),
+            self.base[1] - Dd::new(self.offset[1] as f64 * self.step),
+        ];
+        let mut view = Self::new_dd(width, height, centre, step).with_deep(self.deep);
+        view.step = view.clamp_step(step, view.base_f64());
         view
+    }
+
+    /// The same zoom and size, centred on `p`.
+    pub fn centred_on(&self, p: [f64; 2]) -> Self {
+        Self::new(self.width, self.height, p, self.step).with_deep(self.deep)
     }
 
     /// Whether zooming in further is blocked by f64's precision.
@@ -124,7 +218,13 @@ impl Viewport {
     }
 
     fn smallest_step(&self, near: [f64; 2]) -> f64 {
-        PRECISION * near[0].abs().max(near[1].abs()).max(1.0)
+        let precision = if self.deep { DEEP_PRECISION } else { PRECISION };
+        precision * self.scale_of(near)
+    }
+
+    /// The size of coordinates near `p`, for steps relative to it: never below 1.
+    fn scale_of(&self, p: [f64; 2]) -> f64 {
+        p[0].abs().max(p[1].abs()).max(1.0)
     }
 
     fn clamp_step(&self, step: f64, near: [f64; 2]) -> f64 {
@@ -197,6 +297,67 @@ pub struct Picture {
     read: usize,
     write: usize,
     pass_limit: u32,
+    /// For a deep picture (see [`Viewport::perturbed`]): the reference orbit its pixels are
+    /// measured from, and each pixel's place along it. Each pixel's `z` then holds its
+    /// difference from the reference's, not z itself.
+    reference: Option<Reference>,
+    places: Vec<u32>,
+}
+
+/// Perturbation, for views too deep for f64. A pixel's point c is not representable in f64
+/// there, but its difference dc from a nearby reference point C is, easily. Iterate C in
+/// double-double once, rounding each Z to f64 (|Z| <= 2, so that loses nothing that
+/// matters), and every pixel then iterates only its own difference dz = z - Z, in f64:
+///
+/// > dz -> (2 Z + dz) dz + dc
+///
+/// which is exactly what z -> z² + c becomes when z = Z + dz and c = C + dc.
+///
+/// A pixel's orbit can wander away from the reference's, after which dz is no longer small
+/// and the rounding in it no longer harmless. *Rebasing* (Zhuoran, 2021) fixes that with no
+/// second reference: whenever |z| < |dz|, carry on from Z_0 = 0 instead, with dz = z (which
+/// is what Z_0 + dz must then be). The same is done when an escaping reference runs out.
+struct Reference {
+    c: [Dd; 2],
+    /// Z_0 = 0, Z_1 = C, Z_2, ..., as far as the limit, or to where the reference escaped.
+    orbit: Vec<[f64; 2]>,
+    /// The last Z, in full, to carry on from when the limit is raised.
+    z: [Dd; 2],
+    escaped: bool,
+}
+
+/// What a double-double step of the reference costs, counted in plain iterations.
+const REFERENCE_COST: u64 = 6;
+
+impl Reference {
+    fn new(c: [Dd; 2]) -> Self {
+        Self {
+            c,
+            orbit: vec![[0.0, 0.0]],
+            z: [Dd::ZERO, Dd::ZERO],
+            escaped: false,
+        }
+    }
+
+    /// Compute the orbit on to Z_limit, unless it has escaped. Returns the work done.
+    /// Extending it later gives exactly the values computing it all at once would: the
+    /// pictures rely on that to come out the same however the limit was raised.
+    fn extend(&mut self, limit: u32) -> u64 {
+        let mut work = 0;
+        while !self.escaped && self.orbit.len() <= limit as usize {
+            let [zr, zi] = self.z;
+            let next = [
+                zr * zr - zi * zi + self.c[0],
+                (zr * zi).scale(2.0) + self.c[1],
+            ];
+            let rounded = [next[0].to_f64(), next[1].to_f64()];
+            self.z = next;
+            self.orbit.push(rounded);
+            self.escaped = rounded[0] * rounded[0] + rounded[1] * rounded[1] > 4.0;
+            work += REFERENCE_COST;
+        }
+        work
+    }
 }
 
 impl Picture {
@@ -213,7 +374,13 @@ impl Picture {
             read: 0,
             write: 0,
             pass_limit: limit,
+            reference: None,
+            places: Vec::new(),
         };
+        if family == Family::Mandelbrot && view.perturbed() {
+            picture.reference = Some(Reference::new(view.reference_point()));
+            picture.places = vec![0; n];
+        }
         picture.rebuild_queue();
         picture
     }
@@ -272,7 +439,10 @@ impl Picture {
     /// how much was done. Each pixel touched also counts a fixed cost for its overhead. A
     /// pixel can be left partway, and carries on next time.
     pub fn work(&mut self, budget: u64) -> u64 {
-        let mut spent = 0;
+        let mut spent = match &mut self.reference {
+            Some(reference) => reference.extend(self.limit),
+            None => 0,
+        };
         loop {
             if self.read >= self.queue.len() {
                 self.queue.truncate(self.write);
@@ -307,6 +477,9 @@ impl Picture {
     /// (the steps plus the pixel's overhead, or 1 if it needed none) and whether the pixel
     /// is finished: escaped, inside, or at the limit.
     fn advance(&mut self, i: usize, allowance: u64) -> (u64, bool) {
+        if self.reference.is_some() {
+            return self.advance_perturbed(i, allowance);
+        }
         let (x, y) = (i % self.view.width, i / self.view.width);
         let point = self.view.point(x, y);
         let c = match self.family {
@@ -360,6 +533,70 @@ impl Picture {
         (cost, finished)
     }
 
+    /// [`Picture::advance`] for a deep picture: the pixel's `z` holds dz, its difference from
+    /// the reference orbit at its place along that orbit (see [`Reference`]).
+    fn advance_perturbed(&mut self, i: usize, allowance: u64) -> (u64, bool) {
+        let (x, y) = (i % self.view.width, i / self.view.width);
+        let dc = self.view.offset_from_reference(x, y);
+        if self.smooth[i] == FRESH {
+            if known_inside_dd(self.view.point_dd(x, y)) {
+                self.smooth[i] = INSIDE;
+                return (1, true);
+            }
+            self.smooth[i] = f32::NAN;
+        }
+        if !self.smooth[i].is_nan() {
+            return (1, true);
+        }
+        let reference = self.reference.as_ref().expect("a deep picture");
+        let orbit = &reference.orbit;
+        let last = orbit.len() - 1;
+        let start = self.steps[i];
+        let stop = self
+            .limit
+            .min(start.saturating_add(allowance.min(u32::MAX as u64) as u32));
+        let [mut dr, mut di] = self.z[i];
+        let mut m = self.places[i] as usize;
+        let mut k = start;
+        loop {
+            let [zr0, zi0] = orbit[m];
+            let (zr, zi) = (zr0 + dr, zi0 + di);
+            let size = zr * zr + zi * zi;
+            if size > 4.0 {
+                let c = self.view.point(x, y); // only to finish the smooth count
+                self.smooth[i] = smooth_count(c, [zr, zi], k);
+                break;
+            }
+            if k >= stop {
+                break;
+            }
+            // While the reference hasn't escaped, it reaches the limit, and m <= k < limit;
+            // so m + 1 is always there, once an escaped reference's end is rebased away.
+            // Selects, not a branch: once an orbit has drifted from the reference this flips
+            // unpredictably, and a mispredicted branch every few steps cost about 15%. After
+            // a rebase the reference value is Z_0 = 0, so no second load waits on the choice.
+            let rebase = (size < dr * dr + di * di) | (reference.escaped & (m == last));
+            dr = if rebase { zr } else { dr };
+            di = if rebase { zi } else { di };
+            m = if rebase { 0 } else { m };
+            let (ar, ai) = if rebase { (0.0, 0.0) } else { (zr0, zi0) };
+            let (tr, ti) = (2.0 * ar + dr, 2.0 * ai + di);
+            (dr, di) = (tr * dr - ti * di + dc[0], tr * di + ti * dr + dc[1]);
+            m += 1;
+            k += 1;
+        }
+        self.z[i] = [dr, di];
+        self.places[i] = m as u32;
+        self.steps[i] = k;
+        let finished = !self.smooth[i].is_nan() || k >= self.limit;
+        let cost = if k == start {
+            1
+        } else {
+            (k - start) as u64 + PIXEL_COST
+        };
+        (cost, finished)
+    }
+
     /// Move the picture `dx` pixels right and `dy` down, keeping every pixel still in view
     /// as it is. Only the strips uncovered at the edges start afresh.
     pub fn pan(&mut self, dx: i64, dy: i64) {
@@ -370,6 +607,9 @@ impl Picture {
         shift(&mut self.z, w, h, dx, dy, [0.0; 2]);
         shift(&mut self.steps, w, h, dx, dy, 0);
         shift(&mut self.smooth, w, h, dx, dy, FRESH);
+        if !self.places.is_empty() {
+            shift(&mut self.places, w, h, dx, dy, 0);
+        }
         self.view = self.view.panned(dx, dy);
         self.rebuild_queue();
     }
@@ -487,6 +727,19 @@ pub fn orbit(z0: [f64; 2], c: [f64; 2], steps: u32) -> Orbit {
         })
         .map_or(Fate::Undecided(steps), |p| Fate::Cycle(p as u32));
     Orbit { points, fate }
+}
+
+/// [`known_inside`] in double-double, for deep views: there, rounding c to f64 can move it
+/// across the cardioid's edge, which would mark whole stretches of pixels inside wrongly.
+fn known_inside_dd(c: [Dd; 2]) -> bool {
+    let (x, y) = (c[0], c[1]);
+    let a = x - Dd::new(0.25);
+    let y2 = y * y;
+    let q = a * a + y2;
+    let cardioid = (q * (q + a) - y2.scale(0.25)).to_f64() <= 0.0;
+    let b = x + Dd::new(1.0);
+    let disc = (b * b + y2 - Dd::new(1.0 / 16.0)).to_f64() <= 0.0;
+    cardioid || disc
 }
 
 /// The escape radius for smoothing: far enough that z has settled into squaring.
@@ -683,6 +936,156 @@ mod tests {
         // Enough budget for the strip alone fills it.
         p.work(fresh as u64 * (300 + PIXEL_COST));
         assert!(p.smooth.iter().all(|&s| s != FRESH), "strip still blank");
+    }
+
+    /// The plain loop in double-double, for checking deep pictures: slow, but exact enough
+    /// for any view this demo can show.
+    fn escape_step_dd(c: [Dd; 2], limit: u32) -> Option<u32> {
+        let (mut zr, mut zi) = (Dd::ZERO, Dd::ZERO);
+        for n in 0..=limit {
+            let (r, i) = (zr.to_f64(), zi.to_f64());
+            if r * r + i * i > 4.0 {
+                return Some(n);
+            }
+            (zr, zi) = (zr * zr - zi * zi + c[0], (zr * zi).scale(2.0) + c[1]);
+        }
+        None
+    }
+
+    /// A deep view: `factor` times the home view's magnification, centred on `centre` plus a
+    /// nudge too small for an f64 near it.
+    fn deep(w: usize, h: usize, centre: [f64; 2], nudge: [f64; 2], factor: f64) -> Viewport {
+        let v = Viewport::fit(w, h, centre, [3.2, 2.6]).with_deep(true);
+        let v = v.zoomed(w as f64 / 2.0, h as f64 / 2.0, factor);
+        Viewport {
+            base: [v.base[0] + Dd::new(nudge[0]), v.base[1] + Dd::new(nudge[1])],
+            ..v
+        }
+    }
+
+    /// Deep pictures, computed by perturbation from one reference, must agree with the
+    /// plain loop in double-double, pixel by pixel: at a zoom f64 could still manage, and
+    /// far past it, around a point of the boundary (c = i; nudged off it at x1e20, so the
+    /// reference escapes and its pixels must rebase off its end), and at the antenna's tip,
+    /// c = -2.
+    /// Near the boundary, rounding can shift a chaotic orbit's escape by a step or two, so
+    /// a few pixels may differ; most must match exactly.
+    #[test]
+    fn deep_pictures_match_the_plain_loop_in_double_double() {
+        let (w, h, limit) = (40, 30, 2_000);
+        let cases = [
+            ("c = i, x1e12", deep(w, h, [0.0, 1.0], [0.0, 0.0], 1e12)),
+            (
+                "c = i, x1e20",
+                deep(w, h, [0.0, 1.0], [3e-21, -2e-21], 1e20),
+            ),
+            (
+                "c = -2, x1e18",
+                deep(w, h, [-2.0, 0.0], [1e-19, 3e-20], 1e18),
+            ),
+        ];
+        for (what, view) in cases {
+            assert!(view.perturbed(), "{what} should be deep");
+            let mut p = Picture::new(Family::Mandelbrot, view, limit);
+            p.work(u64::MAX);
+            let escaped = p.reference.as_ref().is_some_and(|r| r.escaped);
+            if what == "c = i, x1e20" {
+                // Nudged just off the boundary, its reference escapes: this is the case
+                // where pixels must rebase off the end of the reference.
+                assert!(escaped, "{what}: meant to test a reference that escapes");
+            }
+            let (mut exact, mut near, mut total) = (0, 0, 0);
+            let mut steps = std::collections::BTreeSet::new();
+            for y in 0..h {
+                for x in 0..w {
+                    let expect = escape_step_dd(view.point_dd(x, y), limit);
+                    let got = match p.pixel(x, y) {
+                        Pixel::Escaped { step, .. } => Some(step),
+                        Pixel::Running(_) | Pixel::Inside => None,
+                        Pixel::Fresh => panic!("{what}: ({x}, {y}) never computed"),
+                    };
+                    steps.insert(got);
+                    total += 1;
+                    match (got, expect) {
+                        (a, b) if a == b => exact += 1,
+                        (Some(a), Some(b)) if a.abs_diff(b) <= 2 => near += 1,
+                        _ => {}
+                    }
+                }
+            }
+            eprintln!(
+                "{what}: {exact} exact, {near} within 2, of {total}; {} distinct; reference escaped: {escaped}",
+                steps.len()
+            );
+            // At the tip, the reference's orbit lands on z = 2, a repelling fixed point lying
+            // exactly on the escape circle, so pixels there are decided by rounding at the
+            // boundary, which the two methods do differently; neither is the truer.
+            let needed = if what.starts_with("c = -2") { 90 } else { 97 };
+            assert!(
+                exact * 100 >= total * needed,
+                "{what}: only {exact} of {total} exact"
+            );
+            assert_eq!(exact + near, total, "{what}: some pixels far off");
+            assert!(steps.len() > 3, "{what}: a flat picture tests nothing");
+        }
+    }
+
+    /// The deep path must keep the shallow path's exactness: raising the limit step by step,
+    /// in uneven slices, and panning, must leave every pixel as computing in one go does.
+    #[test]
+    fn deep_step_by_step_and_panned_equal_all_at_once() {
+        let view = deep(36, 28, [0.0, 1.0], [3e-21, -2e-21], 1e20);
+        let mut target = Picture::new(Family::Mandelbrot, view, 300);
+        target.work(u64::MAX);
+        let mut p = Picture::new(Family::Mandelbrot, view, 0);
+        let mut budget = 1;
+        for limit in 0..=300 {
+            p.raise_limit(limit);
+            while !p.is_done() {
+                p.work(budget);
+                budget = budget * 7 % 997 + 1;
+            }
+        }
+        assert!(state(&p) == state(&target) && p.places == target.places);
+        p.pan(5, -3);
+        p.work(700); // partway
+        let mut fresh = Picture::new(Family::Mandelbrot, *p.view(), 300);
+        fresh.work(u64::MAX);
+        p.work(u64::MAX);
+        assert!(state(&p) == state(&fresh) && p.places == fresh.places);
+    }
+
+    /// A deep view may zoom far past f64's limit, to about 10^28, and still tell
+    /// neighbouring pixels apart; a view that isn't deep still stops near 10^12.
+    #[test]
+    fn deep_views_zoom_past_f64() {
+        let mut v = home(300, 200).with_deep(true);
+        for _ in 0..40 {
+            v = v.zoomed(150.0, 100.0, 10.0);
+        }
+        assert!(v.at_precision_limit());
+        let magnification = home(300, 200).step() / v.step();
+        assert!(magnification > 1e26, "only x{magnification:e}");
+        let (a, b) = (v.point_dd(0, 0), v.point_dd(1, 0));
+        assert!((b[0] - a[0]).to_f64() > 0.0);
+        assert!(!home(300, 200).with_deep(true).perturbed());
+    }
+
+    /// Drawing an older picture under a newer one maps one view's pixels into another's.
+    /// Deep, that must be done relative to the views' bases, or f64 rounding of the points
+    /// would put it hundreds of pixels off.
+    #[test]
+    fn pixel_of_view_is_exact_deep() {
+        let a = deep(300, 200, [0.0, 1.0], [3e-21, 0.0], 1e20);
+        let b = a.zoomed(70.0, 40.0, 2.0);
+        let [x, y] = b.pixel_of_view(&a, 70.0, 40.0);
+        assert!(
+            (x - 70.0).abs() < 1e-3 && (y - 40.0).abs() < 1e-3,
+            "({x}, {y})"
+        );
+        let shallow = home(300, 200);
+        let moved = shallow.panned(5, -3);
+        assert_eq!(moved.pixel_of_view(&shallow, 10.0, 20.0), [15.0, 17.0]);
     }
 
     /// The pixels the shortcut skips must be ones plain iteration never sees escape.
@@ -883,6 +1286,12 @@ mod tests {
             (
                 "seahorse",
                 Viewport::fit(910, 830, [-0.7436, 0.1318], [0.01, 0.01]),
+                5_000,
+            ),
+            // Perturbation: one double-double reference, every pixel in f64 against it.
+            (
+                "deep, c = i, x1e20",
+                deep(910, 830, [0.0, 1.0], [3e-21, -2e-21], 1e20),
                 5_000,
             ),
         ];

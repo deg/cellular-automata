@@ -4,6 +4,7 @@
 //! inset shows the Julia set of the point under the pointer, and can be enlarged.
 
 mod colour;
+mod dd;
 mod pane;
 mod sim;
 mod view;
@@ -14,6 +15,7 @@ use ca_core::egui::{
 };
 use ca_core::{About, Advance, Pace, Playback, eframe};
 use colour::{Colours, Palette};
+use dd::Dd;
 use pane::Pane;
 use sim::{Family, Fate, Orbit, Pixel, orbit};
 
@@ -117,6 +119,8 @@ enum Overlay {
 /// What is under the pointer: its plane point, what its pixel knows, and its orbit.
 struct Hover {
     point: [f64; 2],
+    /// The point in full, in a view too deep for `point` to hold all its digits.
+    precise: Option<[Dd; 2]>,
     pixel: Pixel,
     orbit: Orbit,
 }
@@ -271,6 +275,7 @@ impl MandelbrotApp {
             };
             Some(Hover {
                 point,
+                precise: self.active().precise_point_at(pos, rect),
                 pixel,
                 orbit,
             })
@@ -429,8 +434,7 @@ impl MandelbrotApp {
                 let (_, span) = self.map_home();
                 let inner = map_rect(rect, span);
                 if let Some((point, _)) = pos.and_then(|p| self.map.pixel_at(p, inner)) {
-                    let at = self.active().to_screen(point, rect);
-                    self.active_mut().pan(rect.center() - at);
+                    self.active_mut().centre_on(point);
                 }
             }
             None => {
@@ -511,7 +515,11 @@ impl MandelbrotApp {
             ));
         });
         if self.active().picture().view().at_precision_limit() {
-            ui.small("This is as far as the demo can zoom: closer in, 64-bit numbers can't tell neighbouring pixels apart.");
+            ui.small(if self.julia_full {
+                "This is as far as the demo can zoom into a Julia set: closer in, 64-bit numbers can't tell neighbouring pixels apart."
+            } else {
+                "This is as far as the demo can zoom: closer in, even its double-length numbers can't tell neighbouring pixels apart."
+            });
         }
         ui.checkbox(&mut self.sharp, "Sharp: a point for every screen pixel")
             .on_hover_text("On a high-density screen, four times the work for a crisper picture.");
@@ -600,10 +608,11 @@ impl MandelbrotApp {
         let step = self.active().picture().view().step();
         let digits = (-(step.log10())).ceil().max(2.0) as usize + 1;
         let name = if self.julia_full { "z₀" } else { "c" };
-        ui.label(format!(
-            "Pointer at {name} = {}",
-            complex(hover.point, digits)
-        ));
+        let shown = match hover.precise {
+            Some(p) => complex_dd(p, digits),
+            None => complex(hover.point, digits),
+        };
+        ui.label(format!("Pointer at {name} = {}", shown));
         ui.label(match hover.pixel {
             Pixel::Fresh => "not computed yet".to_string(),
             Pixel::Inside => {
@@ -813,6 +822,14 @@ fn magnification(m: f64) -> String {
     } else {
         format!("×{m:.1e}")
     }
+}
+
+/// [`complex`] for a point held in double-double, with all its digits.
+fn complex_dd(c: [Dd; 2], digits: usize) -> String {
+    let sign = if c[1].to_f64() < 0.0 { '−' } else { '+' };
+    let re = c[0].to_decimal(digits).replace('-', "−");
+    let im = if c[1].to_f64() < 0.0 { -c[1] } else { c[1] };
+    format!("{re} {sign} {}i", im.to_decimal(digits))
 }
 
 /// `c` as "a + bi", to `digits` decimal places.
