@@ -46,13 +46,13 @@ pair *without* the recovering pair behind it behaves quite differently: try draw
 
 - **A small seed.** Press Run. The random patch in the middle throws off gliders and
   waves in all directions.
-- **Gliders.** Restart, press *Add four gliders*, then Run. With *Wrap around the edges*
+- **Gliders.** Clear, press *Add four gliders*, then Run. With *Wrap around the edges*
   on, they come back from the opposite side, and pairs travelling along the same line
   collide.
-- **Draw.** Restart and drag a short line or a small blob, then Step through it a
+- **Draw.** Clear and drag a short line or a small blob, then Step through it a
   generation at a time to see how the recovery state steers it.
-- **A big soup.** Raise *seed size* to 1 and density to 0.3, then press *Random seed in
-  the middle* for a world-sized start.
+- **A big soup.** Raise *seed size* to 1 and density to 0.3, then press Restart for a
+  world-sized start.
 
 ## Further reading
 

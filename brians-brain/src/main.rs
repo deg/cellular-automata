@@ -4,7 +4,8 @@ mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
 use ca_core::{
-    About, Advance, GridView, Pace, PaintStroke, Playback, Rng, eframe, generations_per_frame,
+    About, Advance, GridView, NAVY, Pace, PaintStroke, Playback, Rng, eframe,
+    generations_per_frame, grouped,
 };
 use sim::{Brain, Cell, Heading};
 
@@ -12,7 +13,7 @@ fn main() {
     ca_core::run("Brian's Brain", BrainApp::new);
 }
 
-const READY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
+const READY: Color32 = NAVY;
 const FIRING: Color32 = Color32::from_rgb(0xf4, 0xf1, 0xde);
 const REFRACTORY: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
 
@@ -30,6 +31,8 @@ struct BrainApp {
     /// Fraction of the world's width and height the random seed fills, centred.
     seed_extent: f64,
     stroke: PaintStroke,
+    /// The cell under the pointer, for the readout.
+    pointer: Option<(usize, usize)>,
     dirty: bool,
 }
 
@@ -64,6 +67,10 @@ impl eframe::App for BrainApp {
                 }
                 self.dirty = true;
             }
+            if shown.hovered != self.pointer {
+                self.pointer = shown.hovered;
+                ui.ctx().request_repaint(); // the controls were drawn before this
+            }
         });
 
         if self.playback.running || self.dirty {
@@ -86,9 +93,10 @@ impl BrainApp {
             density: 0.3,
             seed_extent: 0.25,
             stroke: PaintStroke::default(),
+            pointer: None,
             dirty: true,
         };
-        app.random_seed();
+        app.restart();
         app
     }
 
@@ -99,17 +107,15 @@ impl BrainApp {
         ui.separator();
 
         self.playback.ui(ui);
-        ui.small("On a big world the top speeds are out of reach: each frame does at most about a million cell updates, so the world slows down instead of freezing.");
-        ui.small(
-            "Restart clears the world. Drag on the grid to draw firing cells; shift-drag to erase.",
-        );
+        ca_core::speed_cap_note(ui, "world");
+        if ui.button("Clear").clicked() {
+            self.brain = Brain::new(self.size.0, self.size.1, self.brain.wrap);
+            self.dirty = true;
+        }
+        ui.small("Restart sows a new random seed in the middle, at the current seed size and density; Clear empties the world. Drag on the grid to draw firing cells; shift-drag to erase.");
         ui.separator();
 
         ui.label(RichText::new("Start").strong());
-        if ui.button("Random seed in the middle").clicked() {
-            self.brain = Brain::new(self.size.0, self.size.1, self.brain.wrap);
-            self.random_seed();
-        }
         ui.add(egui::Slider::new(&mut self.seed_extent, 0.05..=1.0).text("seed size"));
         ui.add(egui::Slider::new(&mut self.density, 0.05..=0.6).text("density"));
         if ui
@@ -123,37 +129,44 @@ impl BrainApp {
         }
         ui.separator();
 
-        ui.checkbox(&mut self.brain.wrap, "Wrap around the edges");
+        ui.checkbox(&mut self.brain.wrap, "Wrap around the edges")
+            .on_hover_text("On: the world is a torus, and a glider leaving one side returns on the other. Off: nothing past the edge ever fires.");
         ui.horizontal_wrapped(|ui| {
             ui.label("World:");
             for &size in SIZES {
                 let label = format!("{} x {}", size.0, size.1);
                 if ui.selectable_label(self.size == size, label).clicked() && self.size != size {
                     self.size = size;
-                    self.brain = Brain::new(size.0, size.1, self.brain.wrap);
-                    self.random_seed();
+                    self.pointer = None;
+                    self.restart();
                 }
             }
         });
         ui.separator();
 
-        egui::Grid::new("stats").num_columns(2).show(ui, |ui| {
-            ui.label("generation");
-            ui.label(self.brain.generation.to_string());
-            ui.end_row();
-            ui.label("firing");
-            ui.label(self.brain.count(Cell::Firing).to_string());
-            ui.end_row();
-            ui.label("recovering");
-            ui.label(self.brain.count(Cell::Refractory).to_string());
-            ui.end_row();
+        let (w, h) = self.size;
+        let pointer = self.pointer.filter(|&(x, y)| x < w && y < h).map(|(x, y)| {
+            let state = match self.brain.grid().get(x, y) {
+                Cell::Ready => "ready",
+                Cell::Firing => "firing",
+                Cell::Refractory => "recovering",
+            };
+            format!("({x}, {y}): {state}")
+        });
+        ca_core::readout(ui, |r| {
+            r.row("generation", grouped(self.brain.generation));
+            r.row("firing", grouped(self.brain.count(Cell::Firing) as u64));
+            r.row(
+                "recovering",
+                grouped(self.brain.count(Cell::Refractory) as u64),
+            );
+            r.pointer(pointer);
         });
     }
 
     fn advance(&mut self, dt: f64) {
         if self.playback.take_restart() {
-            self.brain = Brain::new(self.size.0, self.size.1, self.brain.wrap);
-            self.dirty = true;
+            self.restart();
         }
         let steps = match self.playback.advance() {
             Advance::Idle => 0,
@@ -167,6 +180,13 @@ impl BrainApp {
             self.brain.step();
         }
         self.dirty |= steps > 0;
+    }
+
+    /// Back to the opening: an empty world (keeping the wrap setting) with a fresh random
+    /// seed in the middle, at the current seed size and density.
+    fn restart(&mut self) {
+        self.brain = Brain::new(self.size.0, self.size.1, self.brain.wrap);
+        self.random_seed();
     }
 
     /// Fill a centred patch with random firing cells: a small seed shows the patterns
