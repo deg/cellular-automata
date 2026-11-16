@@ -34,22 +34,22 @@ cycle.
 
 - **1989: random cyclic competition.** The automaton grew out of a random version, in
   which each site picks a neighbour at random and eats it if it can. Bramson and
-  Griffeath proved that in one dimension it settles into fixed colours when there are
-  5 or more colours, but forms ever-growing patches of one colour with 3 or 4
-  ([Bramson and Griffeath, 1989](#further-reading)). In two dimensions it was a mystery
-  until Fisch and Griffeath simulated it on the *Cellular Automaton Machine* (CAM), a
-  plug-in board for running automata quickly, designed by Toffoli and Margolus. To their surprise, the screen filled with large spiral waves
-  ([Griffeath, 1988](#further-reading)).
+  Griffeath proved that in one dimension it settles into fixed colours when there are 5
+  or more colours, but forms ever-growing patches of one colour with 3 or 4 (1989). In
+  two dimensions it was a mystery until Fisch and Griffeath simulated it on the *Cellular
+  Automaton Machine* (CAM), a plug-in board for running automata quickly, designed by
+  Toffoli and Margolus. To their surprise, the screen filled with large spiral waves
+  (Griffeath, 1988).
 - **1991: the cyclic cellular automaton.** Hoping a rule without randomness would be easier
   to analyse, Fisch, Gravner and Griffeath turned to the deterministic version: range 1,
-  diamond neighbourhood, threshold 1. This is the *CCA* preset here
-  ([Fisch, Gravner and Griffeath, 1991a](#further-reading)). With 14 colours on a 256 x 256
-  grid, they saw four stages, named with four Ds:
+  diamond neighbourhood, threshold 1. This is the *CCA* preset here (Fisch, Gravner and
+  Griffeath, 1991a). With 14 colours on a 256 x 256 grid, they saw four stages, named
+  with four Ds:
   - **Debris.** Almost every cell soon has nothing to eat, and stops: random debris.
   - **Droplets.** A few active patches survive, and grow as droplets of waves that spread
     until they have eaten all the debris.
-  - **Defects.** Loops of cells whose colours wind round the whole colour wheel form
-    inside the waves, and spirals grow around them.
+  - **Defects.** Where droplets meet the debris and each other, loops of cells form
+    whose colours wind round the whole colour wheel, and spirals grow around them.
   - **Demons.** The most efficient spirals have at their centre a *clock*: a loop of cells
     on which each colour has its next colour beside it, so it advances every generation
     whatever happens around it. A clock and the cells it drives make a *demon*. Demons
@@ -60,28 +60,30 @@ cycle.
   many colours there are. A. K. Dewdney described the rule in his *Scientific American*
   column of August 1989, "A cellular universe of debris, droplets, defects, and demons".
 - **1991: range and threshold.** In a second paper, Fisch, Gravner and Griffeath added the
-  range, the threshold, and the box and diamond neighbourhoods
-  ([Fisch, Gravner and Griffeath, 1991b](#further-reading)). They mapped what different
-  rules do from random noise, using a program they wrote for PCs, *EXCITE!*:
+  range, the threshold, and the box and diamond neighbourhoods (Fisch, Gravner and
+  Griffeath, 1991b). They mapped what different rules do from random noise, using a
+  program they wrote for PCs, *EXCITE!*:
   - with a low threshold, waves bend round into **spirals**, and the world becomes
     periodic: every cell ends up repeating a cycle of colours forever;
   - with a higher threshold, would-be spirals keep unravelling, leaving debris that seeds
     new waves: a state they called **turbulence**, which never settles;
   - with a higher one still, the world **fixates**: it stops changing for good.
 
-  When there are many colours, it is mostly the threshold divided by the square of the range
-  that decides which of these happens. Their colour plates include the rules here named
-  *Perfect* (perfect spirals appearing out of a churning soup), *Turbulent phase*, and
-  *Bootstrap fixation*. The rule named *Lava lamp* here they called the "lava light".
+  When there are many colours, it is mostly the threshold divided by the square of the
+  range that decides which of these happens. Their colour plates include the rules here
+  named *Perfect* (perfect spirals appearing out of a churning soup), *Turbulent phase*,
+  and *Bootstrap fixation*. The rule named *Lava lamp* here they called the "lava light".
 - **Why it mattered.** These rules are simple mathematical stand-ins for *excitable media*,
-  through which waves of activity travel and turn into spirals. The papers list spiral waves in oscillating chemical reactions (the Belousov-Zhabotinsky
-  reaction), in heart muscle during atrial fibrillation, and in nerve networks. Fisch,
+  through which waves of activity travel and turn into spirals. The papers list spiral
+  waves in oscillating chemical reactions (the Belousov-Zhabotinsky reaction), in heart
+  muscle during atrial fibrillation, and in nerve networks. Fisch,
   Gravner and Griffeath offered the cyclic automaton as a model simple enough to prove
   things about. A closely related rule, the *Greenberg-Hastings model*, differs only in
   that every colour except 0 advances automatically.
 
 The presets' names, rules and credits come from the rule list of **MCell**, Mirek
-Wójtowicz's program for exploring cellular automata. It writes a rule as, for example,
+Wójtowicz's program for exploring cellular automata, except *Bootstrap fixation*, which is
+Plate G of Fisch, Gravner and Griffeath (1991b). It writes a rule as, for example,
 `R1/T3/C4/NM`: range 1, threshold 3, 4 colours, Moore (box) neighbourhood (`NN` is von
 Neumann). The panel shows each rule in this notation.
 
