@@ -65,8 +65,8 @@ although all three are dendrites. Above α = 2 a cell's own weight turns negativ
   the air it grows in. He controlled them by setting the air temperature and that of a
   water bath supplying the vapour.
 - **1984: Packard's digital snowflakes.** Norman Packard's *Lattice models for
-  solidification and aggregation* (an Institute for Advanced Study preprint, reprinted in
-  1986) used a hexagonal automaton whose cells are ice or not: a cell freezes when exactly
+  solidification and aggregation*, an Institute for Advanced Study preprint later printed
+  in Science on Form, pp. 95–101 (1986), used a hexagonal automaton whose cells are ice or not: a cell freezes when exactly
   one of its neighbours is ice. Stephen Wolfram popularised it in *A New Kind of Science*
   (2002). It makes plates and sectors, but not dendrites or stars.
 - **2005: Reiter.** Clifford A. Reiter, *A local cellular model for snow crystal growth*,

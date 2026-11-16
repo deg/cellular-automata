@@ -131,7 +131,7 @@ each rule in this notation, and who published it or added it to MCell's list.
 - M. Bramson and D. Griffeath, *Flux and fixation in cyclic particle systems*, Annals of
   Probability 17, 26–45 (1989).
 - D. Griffeath, *Cyclic random competition: a case history in experimental mathematics*,
-  Notices of the American Mathematical Society 35, 1472–1480 (1988).
+  Notices of the American Mathematical Society 35 (1988).
 - A. K. Dewdney, *A cellular universe of debris, droplets, defects and demons*, in his
   *Computer Recreations* column, Scientific American 261, 102–105 (August 1989).
 - R. Durrett and D. Griffeath, *Asymptotic behavior of excitable cellular automata*,
