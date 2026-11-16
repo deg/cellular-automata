@@ -227,6 +227,39 @@ merge, which the script does by file type:
   fixed order.
 - `Cargo.lock`: take the new base's side and let cargo add the new path crate back.
 
+### The consistency round
+
+After the second round David asked for a consistency review across all the demos, the
+seven older ones included. It ran as its own small parallel effort:
+
+1. **Two read-only reviewers**, each given every demo and a brief (below) asking for a
+   table with one column per demo: one for the interface and behaviour (titles, panel
+   order, start state, Restart, pointer, readout, notes, presets, labels, colours, fit on
+   the laptop screen), one for the text (README structure, citation style, spelling,
+   card blurbs, the index page, the project docs). They found about 25 outliers, and seven
+   places where the older demos disagreed among themselves.
+2. **David decided the four disagreements that mattered**, through one multiple-choice
+   question each: Restart goes back to the opening (with a Clear button where you draw from
+   scratch), the cell under the pointer is a readout row everywhere, the home page's cards
+   follow a curated order, and presets are highlighted chips with their note below.
+3. **Shared pieces first.** Before any worker started, the coordinator added the pieces
+   every demo would need to `ca_core` (the readout grid with its pointer row, the speed-cap
+   note, number grouping, the background colour), so the workers would all use one
+   wording rather than eleven copies.
+4. **Seven workers in parallel**, each owning whole demo directories: the four builders
+   (resumed, for their own demos) and three new agents for the older demos. All shared a
+   conventions brief (below). The coordinator did the shared files (card order, root
+   README, HOW-IT-WORKS, CLAUDE.md) meanwhile.
+5. **Questions settled as they came up**, and written into CLAUDE.md at once: a random
+   opening is drawn afresh by Restart (one builder had added a button to replay the same
+   one, which no other demo had); the speed-cap note names no number (one demo's budget was
+   five times another's); dimensions like "1200 x 1040" aren't grouped with commas.
+6. **Merged one by one**, each branch rebased onto `integration` with every commit checked,
+   then `--no-ff`, as the semi-linear rule says.
+7. **A final sweep** by one agent across all eleven READMEs for what no single-demo worker
+   could see (one format for Further reading, citations verified against Crossref), then a
+   fresh read-only check of the whole.
+
 ## What went wrong
 
 - **A merge committed conflict markers.** On the lattice-gas merge, `Cargo.lock` conflicted
@@ -703,5 +736,171 @@ if ! G rebase --onto "$onto" "$old_base" --exec 'cargo check --workspace -q'; th
 fi
 git log --oneline "$onto..HEAD"
 ```
+
+</details>
+
+<details>
+<summary>The consistency reviewers' brief</summary>
+
+# Brief for a cross-demo consistency reviewer
+
+David's cellular-automata project (Rust, egui 0.37, native + WebAssembly; site
+https://automata.degel.com/) has eleven demos: `sandpile`, `life`, `elementary`,
+`langtons-ant`, `brians-brain`, `wireworld`, `mandelbrot` (the seven older ones, which David
+has used and shaped) and `cyclic`, `snowflakes`, `langtons-loops`, `lattice-gas` (four new
+ones, built today by separate agents). Each was reviewed on its own. Nobody has yet compared
+them with each other, and David has found inconsistencies between them (title case, which
+demos start running, a panel that scrolled, a readout written as prose where the others use a
+grid). Your job is the differences BETWEEN demos.
+
+## Hard rules
+
+- **Read-only.** Work in `/Users/deg/Documents/degel/cellular-automata-wt/integration`
+  (`<wt>`), commit 19482b7. Do not edit, commit, or create files there. Notes, scripts and
+  screenshots go in
+  `<scratchpad>/consistency-<your area>/`.
+- The Bash tool's working directory resets to `/Users/deg/Documents/degel/cellular-automata`,
+  the main checkout, where another session is working. Never run anything there. Start every
+  Bash command with `cd <wt> &&` and use absolute paths.
+- No `bd` commands, no git writes, no pushes.
+- The built site is in `<wt>/dist/` (one directory per demo, plus `index.html`). To see a
+  demo, serve it on your assigned port and render headless, never a screenshot of the real
+  screen:
+  ```
+  cd <wt> && python3 -m http.server --directory dist <port>      # run_in_background
+  B=~/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell
+  $B --headless --hide-scrollbars --window-size=1236,840 --force-device-scale-factor=2 \
+     --use-angle=swiftshader --enable-unsafe-swiftshader --virtual-time-budget=8000 \
+     --screenshot=<file> http://localhost:<port>/<demo>/
+  ```
+  Run one Chromium at a time (parallel runs fail). To hover, click or drag, use Playwright's
+  Python API with `executable_path` set to that binary, launch args
+  `--force-device-scale-factor=2 --window-size=1236,840 --use-angle=swiftshader
+  --enable-unsafe-swiftshader`, and `browser.new_context(no_viewport=True)`. Kill your
+  http.server when done.
+
+## How to judge
+
+- Build a table: one row per thing to compare, one column per demo. Fill every cell from the
+  code or a render, not from memory or from another demo's pattern.
+- The convention is what the older seven do (most of them, or all), unless they disagree
+  among themselves; then say so and propose one, with the reason.
+- A difference is a finding only if a reader would notice it or it would surprise the next
+  person to edit the code. A difference with a real reason (a demo whose nature needs it)
+  is not a finding, but say what the reason is. Matters of taste are not findings.
+- `<wt>/CLAUDE.md` states some conventions (README contents, controls panel width rules,
+  sim.rs vs main.rs, testing). Check every demo against them.
+
+## Report (your final message)
+
+1. The table (compact; abbreviations fine).
+2. Findings, ranked by how visible they are, each with: the demos that differ, the
+   convention, file:line, and the fix. Group findings that one change would fix.
+3. Places where the older seven disagree among themselves, with a proposed convention.
+4. What you checked and found consistent (one line each), so the coordinator knows the
+   coverage.
+
+</details>
+
+<details>
+<summary>The conventions brief for the consistency round's workers</summary>
+
+# Brief: bring demos into line with the project's conventions
+
+Two consistency reviewers compared all eleven demos side by side, and David chose the
+conventions where the older demos disagreed. Your prompt names the demos you own and lists
+their findings. This brief has the rules and the conventions themselves.
+
+## Hard rules
+
+- Work only in your worktree `<wt>`, on your branch. The Bash tool's working directory
+  resets to `/Users/deg/Documents/degel/cellular-automata` (the main checkout, where another
+  session works) after every call: start EVERY Bash command with `cd <wt> &&`, use
+  `git -C <wt>`, and absolute paths under `<wt>` for every file you read or edit. First
+  action: `cd <wt> && git branch --show-current` must print your branch.
+- Change only the files of the demos you own (`<demo>/...`) and, if your prompt says so,
+  their entry in `site/thumbs.js`. Not `ca_core`, not the root README, CLAUDE.md, AGENTS.md,
+  HOW-IT-WORKS.md, `site/` otherwise: the coordinator does those. If you need a `ca_core`
+  change, say so in the report.
+- No `bd` commands. Never push, never touch `main`, never merge anything into your branch.
+  Commit with hooks off: `git -C <wt> -c core.hooksPath=/dev/null commit`, ending the message
+  with a blank line and `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Subjects
+  like `Life: Restart goes back to the opening; a Clear button (cellular-automata-<id>)`
+  (use the bead id in your prompt). Commit per demo or per kind of change, each building and
+  passing tests: the branch will be rebased and every commit checked.
+- Scratch files in
+  `<scratchpad>/<your name>/`.
+- Facts: anything you add to a README (a name's origin, a date) must come from a source you
+  checked (WebSearch is deferred: load it with ToolSearch `select:WebSearch`; read pages with
+  the `web-fetch` agent type). Don't fill gaps from memory.
+
+## Shared pieces in ca_core (use them; commit e8bc199)
+
+- `ca_core::readout(ui, |r| { r.row("generation", ...); r.pointer(...); })`: the readout
+  grid at the bottom of the panel. `r.row` returns the label's response (for a hover text).
+- `r.pointer(Option<String>)`: the "under the pointer" row, "-" off the grid.
+- `ca_core::speed_cap_note(ui, "world")`: the one wording of the speed-cap note.
+- `ca_core::grouped(n)`: numbers as 1,234,567.
+- `ca_core::NAVY`: the background colour; replace a demo's own navy constant with it.
+
+## The conventions
+
+UI:
+1. **Start state**: paused, unless the opening is itself the show (a fixed start best seen
+   developing); then `playback.running = true;` with a one-line comment saying why.
+2. **Restart** returns to the demo's opening (its chosen start, pattern or circuit) with the
+   current settings. A demo where you draw from scratch (Life, Brian's Brain, Wireworld) gets
+   a separate **Clear** button that empties the world. Every demo has a short note saying what
+   Restart does (and Clear, where there is one), next to the other playback notes.
+3. **Pointer**: every demo with a 2D picture shows the cell under the pointer as the last
+   row of its readout grid via `r.pointer(..)`; no tooltip on the grid. Request a repaint
+   when the hovered cell changes, so the row doesn't lag a frame while paused.
+4. **Readout**: `ca_core::readout`, lowercase labels, singular counters ("generation",
+   "step"), numbers through `grouped`. The speed unit uses the readout's noun.
+5. **Speed-cap note**: `speed_cap_note` in every demo whose cap can bite at its slider's
+   range on a world it offers; no home-made variants.
+6. **Presets**: highlighted chips (`selectable_label`) showing the current choice, with the
+   chosen one's note below and no hover repeating it. Drop-downs stay only for long lists
+   (Life's patterns, Wireworld's circuits).
+7. **Sections**: a strong heading on its own line, then its controls. Option chips and radios
+   in lowercase ("single cell", "wire"); named presets keep their names ("Gosper glider gun").
+   The world/size block comes last before the readout. Brush controls sit with the drawing
+   hint (a "Draw" section where there is one).
+8. **Labels**: "World:" for a 2D world's size row (Wireworld keeps "Board:"); "Wrap around
+   the edges" with Life's hover text; drawing hints end "; shift-drag to erase" (or say what
+   shift-drag does where it doesn't erase). Status messages with `ui.small`.
+
+README and text (READMEs are read by people new to the automaton, in the app's About panel):
+9. **Structure**: the rule (in the opening, or under `## The rule` when it doesn't fit), where
+   the name comes from (one sentence in the opening or History; a heading only if the name
+   needs explaining), History, Things to try (bold leads), Further reading LAST.
+10. **No paragraph after a nested list inside a list item**: the About panel's renderer draws
+    it outside the bullet. Put it before the sublist, or after the list.
+11. **Citations**: Author(s), *Title in italics*, Journal Name spelled out in plain text
+    Volume, pages (year). En dash for every range, full numbers (pp. 135–144, 1984–1985).
+    Links labelled `doi:10....` or `arXiv:....`. Scientific American plain, the column's name
+    in italics. Refer to papers in running text by authors and year, without parenthesised
+    author-date citations.
+12. **Further reading** starts with "The Wikipedia article [Title](url)." when there is one.
+13. **Provenance for editors** (which file a table was transcribed from, commit hashes, plate
+    and section numbers, rule-list credits) goes in sim.rs doc comments, not the README;
+    the README may end Further reading with one short "Sources" line if needed.
+14. **Style**: British spelling; "anticlockwise"; "forever"; "degrees" in prose; commas in
+    numbers of 1,000 and up; control names in *italics*; "Rule 184" capitalised as a name.
+15. The app's notes and the README must not contradict each other.
+16. The Cargo `description` (the index card) matches the root README's table row word for
+    word; the coordinator owns the README table, so if you change a description, report the
+    new text.
+
+## Before you report
+
+- `cd <wt> && make check` passes.
+- For each demo you changed: `cd <wt>/<demo> && trunk build --release`, serve it on your
+  port, and render headless at 1236 x 840, 2x (see `<wt>/CLAUDE.md` and the memory in your
+  context about Playwright; one Chromium at a time; `--use-angle=swiftshader
+  --enable-unsafe-swiftshader`). Check the panel still fits without scrolling in its tallest
+  ordinary state, and hover the grid to see the pointer row. Kill your server after.
+- Report: commits (hash, subject), what you changed per finding, what you didn't and why,
+  any Cargo description you changed, screenshot paths, anything you're unsure of.
 
 </details>
