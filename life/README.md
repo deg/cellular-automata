@@ -16,7 +16,10 @@ crawl across the grid, and patterns that build other patterns.
 
 - **1970: the game.** The British mathematician John Horton Conway devised Life. It
   reached the world through Martin Gardner's *Mathematical Games* column in Scientific
-  American, October 1970, which was based on Gardner's conversations with Conway.
+  American, October 1970, which was based on Gardner's conversations with Conway. The
+  column introduced it as "a fantastic solitaire pastime he calls 'life'", one of the
+  "simulation games" that resemble real-life processes, for its analogies with "the rise,
+  fall and alternations of a society of living organisms".
 - **The glider.** While Conway's group was tracking the R-pentomino (one of the patterns
   in this demo), Richard K. Guy spotted a five-cell shape that crawls diagonally across
   the grid: the **glider**. Sources disagree on whether that was 1969 or 1970. It is often
