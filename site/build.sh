@@ -48,6 +48,25 @@ cp "$root/site/style.css" "$root/site/thumbs.js" "$dist/"
 cargo run --release --quiet -p mdpage -- \
   "$root/HOW-IT-WORKS.md" "$root/site/page.html" "$dist/how-it-works.html"
 
+# GitHub Pages lets browsers keep any file for 10 minutes. After a deploy, a browser could
+# pair the new index.html with its cached old thumbs.js (it did, on 2026-11-16: the new
+# Mandelbrot card got the generic picture until a forced refresh). So the pages ask for
+# each shared file by a URL carrying a fingerprint of its contents: a deploy that changes
+# the file changes the URL, and no stale copy can match it. (The demos' own .js and .wasm
+# already have hashed names, from trunk.)
+fingerprint() { cksum < "$1" | cut -d' ' -f1; }
+style_v="$(fingerprint "$root/site/style.css")"
+thumbs_v="$(fingerprint "$root/site/thumbs.js")"
+for page in "$dist/index.html" "$dist/how-it-works.html"; do
+  sed -e "s|href=\"style.css\"|href=\"style.css?v=$style_v\"|" \
+      -e "s|src=\"thumbs.js\"|src=\"thumbs.js?v=$thumbs_v\"|" "$page" > "$page.new"
+  mv "$page.new" "$page"
+done
+if grep -q -e 'href="style.css"' -e 'src="thumbs.js"' "$dist/index.html" "$dist/how-it-works.html"; then
+  echo "a page still loads style.css or thumbs.js without a fingerprint" >&2
+  exit 1
+fi
+
 command rm -rf "$final"
 mv "$dist" "$final"
 trap - EXIT
