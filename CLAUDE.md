@@ -176,7 +176,9 @@ make siblings               # before/after a Rust update: build+test David's oth
 - Panel conventions (David chose them on 2026-11-16, where the older demos disagreed):
   - Paused at start, unless the opening is itself the show; then a comment says why.
   - Restart returns to the demo's opening with the current settings; a demo you draw on
-    from scratch has a separate Clear. A note says what Restart (and Clear) does.
+    from scratch has a separate Clear. A note says what Restart (and Clear) does. Where
+    the opening is random, Restart draws it afresh (a typed seed, where there is one, is
+    for reproducing a world).
   - The readout at the bottom is `ca_core::readout`, lowercase singular labels, numbers
     through `grouped`, and its last row is `pointer` ("under the pointer"), not a tooltip.
   - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
