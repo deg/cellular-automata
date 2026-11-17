@@ -73,15 +73,16 @@ turbulence*.
 - **The opening.** The forest grows from empty, and while its clusters are small,
   lightning burns only a few trees at a time. Once the density passes about 0.5, the
   clusters join into big ones, and a burst of large fires, some of them tens of thousands
-  of trees, burns the forest back. Fires that big hardly come again, so the chart waits
-  until the forest has burnt and grown back many times over. Raise the speed to fill it.
+  of trees, burns the forest back. The chart waits until the forest has burnt and grown
+  back many times over, so that it shows the steady state, not the opening. Raise the
+  speed to fill it.
 - **The power law.** Let the chart fill. The dots fall along the line, whose slope is
   1 − *τ* = −1.14, until the cut-off, where they drop away. Choose a bigger *p*/*f*: the
   straight stretch lengthens as the cut-off moves out.
 - **The mean density.** Grassberger measured it after each fire, before new trees grow,
-  as the *mean density* row does. His values, for *p*/*f* from 125 to 16,000: 0.3798,
-  0.3876, 0.3934, 0.3976, 0.4006, 0.4027, 0.4042 and 0.4054. His worlds were 2,048 to
-  32,768 sites across; on a smaller one the density comes out a little lower.
+  as the *mean density* row does. His values, for *p*/*f* from 125 to 4,000: 0.3798,
+  0.3876, 0.3934, 0.3976, 0.4006 and 0.4027. His worlds were 2,048 to 16,384 sites
+  across; on a smaller one the density comes out a little lower.
 - **Patches.** Grassberger observed that the steady forest is made of patches of roughly
   even density, most of them far below or far above the density at which a fire can cross
   them. Pause, and look for them: thick stands that have not burnt for a long time, and

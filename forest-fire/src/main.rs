@@ -19,17 +19,21 @@ const SCAR: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51); // coral
 const DOTS: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff); // sky blue, as elsewhere
 const LINE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
-/// Trees grown per lightning, θ = p/f: the values in Grassberger's Table 1 (2002), so the
-/// mean density can be compared with his.
-const THETAS: &[u32] = &[125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000];
+/// Trees grown per lightning, θ = p/f: values in Grassberger's Table 1 (2002), so the mean
+/// density can be compared with his.
+const THETAS: &[u32] = &[125, 250, 500, 1_000, 2_000, 4_000];
 
 const SIZES: &[(usize, usize)] = &[(320, 200), (640, 400), (1280, 800)];
 
-/// The largest θ a world of `cells` sites is offered. The biggest fires grow faster than θ
-/// (s_max ∼ θ^λ, λ about 1.1), and must stay well short of the whole world, which would
-/// otherwise cut them off; Grassberger's lattices had 2^20 sites or more for θ ≥ 500.
+/// The largest θ a world of `cells` sites is offered: one site in 256, so the world is
+/// about 3.5 to 4 times as tall as the fires' rms radius R(θ) in Grassberger's Table 1
+/// (2002): 47.8 at θ = 250, 107 at 1,000, 239 at 4,000. Measured here, a world 4 times
+/// smaller than that cuts the biggest fires short and lowers the density: at θ = 4,000 the
+/// 99.9th percentile of fire sizes was 91,151 trees on 640 x 400 and 124,403 on 1280 x 800,
+/// the mean density 0.3981 and 0.4016 (Grassberger: 0.4027). At one site in 256, doubling
+/// the world changed them little: 27,850 and 28,732, 0.3965 and 0.3974, at θ = 1,000.
 fn max_theta(cells: usize) -> u32 {
-    (cells / 64) as u32
+    (cells / 256) as u32
 }
 
 /// τ in two dimensions, from Clar, Drossel and Schwabl's Table 1 (1996): 2.14(3).
@@ -239,7 +243,7 @@ impl FireApp {
         );
         if stats.skip > 0 {
             ui.small(format!(
-                "The chart starts in {} lightnings, once the forest planted from empty has burnt and grown back many times over: its first fires are far bigger than later ones.",
+                "The chart starts in {} lightnings, once the forest planted from empty has burnt and grown back many times over and settled down.",
                 grouped(stats.skip)
             ));
         } else {

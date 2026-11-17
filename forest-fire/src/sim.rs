@@ -45,9 +45,11 @@ struct Fire {
 }
 
 /// What the statistics collect, from fires lit by lightning. The first lightnings after a
-/// restart (or a change of θ) are skipped: a forest grown from empty first burns in fires
-/// far bigger than any in the steady state, and Grassberger (2002, section II) warns that
-/// such transients distort the tail of the fire-size distribution.
+/// restart (or a change of θ) are skipped, so the statistics are of the steady state, not
+/// of a forest grown from empty: Grassberger (2002, section II) warns that transients
+/// distort the tail of the fire-size distribution. (Here the opening's fires are not much
+/// bigger than the steady state's largest: at θ = 1,000 on 640 x 400, the largest was
+/// 72,380 trees in the first 2,500 lightnings, and 57,182 to 62,674 in later stretches.)
 #[derive(Clone, Debug, PartialEq)]
 pub struct Stats {
     /// Lightnings still to skip before counting starts.
