@@ -94,13 +94,16 @@ which are the particles throughout:
 - **Before the start.** Run backwards from generation 0, into negative generations. The
   random square has a past as well as a future, and it looks much the same: gliders fly
   out in both.
-- **Billiard balls.** Balls bounce around a box of mirrors and knock each other off
-  course. Run them for a while, then backwards: every collision un-happens in turn. Draw
-  your own mirrors with a brush of radius 0: a square of four particles is a mirror only
-  where it straddles two blocks.
+- **Billiard balls.** Balls bounce around a box of mirrors. They are dropped at random,
+  so most meet askew rather than squarely, and break up into loose particles; in a
+  billiard-ball computer every ball is placed with care. Run them for a while, then
+  backwards: every collision un-happens in turn, and the balls come back whole. Draw your
+  own mirrors with a brush of radius 0: a square of four particles is a mirror only where
+  it straddles two blocks.
 - **HPP gas.** A square of particles sits in a random gas, and a round wave spreads from
-  it, though every particle moves along a diagonal. Run backwards, and the wave gathers
-  itself back into the square.
+  it, though every particle moves along a diagonal. This rule gets the biggest world, so
+  the wave has room to grow before it wraps round the edges. Run backwards, and the wave
+  gathers itself back into the square.
 
 ## Further reading
 

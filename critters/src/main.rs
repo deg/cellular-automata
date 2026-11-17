@@ -18,6 +18,20 @@ const PARTICLE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a); // gold
 
 const SIZES: &[(usize, usize)] = &[(160, 100), (320, 200), (640, 400)];
 
+/// The world size to use for a rule needing at least `min`: the current one if it is big
+/// enough, otherwise the smallest offered that is.
+fn size_for(current: (usize, usize), min: (usize, usize)) -> (usize, usize) {
+    let fits = |s: &(usize, usize)| s.0 >= min.0 && s.1 >= min.1;
+    if fits(&current) {
+        current
+    } else {
+        *SIZES
+            .iter()
+            .find(|s| fits(s))
+            .unwrap_or(&SIZES[SIZES.len() - 1])
+    }
+}
+
 /// Which way Run and Step go.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Direction {
@@ -152,6 +166,7 @@ impl CrittersApp {
         });
         ui.small(self.world.rule.note);
         if let Some(rule) = chosen {
+            self.size = size_for(self.size, rule.min_size);
             self.world = Blocks::new(self.size.0, self.size.1, rule);
             self.restart();
         }
@@ -254,10 +269,28 @@ fn signed(n: i64) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// A rule that needs a bigger world gets the smallest one that fits, and every rule's
+    /// minimum is one of the sizes offered, so none is quietly run too small.
+    #[test]
+    fn rules_get_a_big_enough_world() {
+        assert_eq!(size_for((160, 100), (640, 400)), (640, 400));
+        assert_eq!(size_for((320, 200), (0, 0)), (320, 200));
+        for rule in RULES {
+            let s = size_for(SIZES[0], rule.min_size);
+            assert!(
+                s.0 >= rule.min_size.0 && s.1 >= rule.min_size.1,
+                "{}",
+                rule.name
+            );
+        }
+    }
+
     #[test]
     fn signed_uses_a_minus_sign() {
-        assert_eq!(super::signed(0), "0");
-        assert_eq!(super::signed(1_234), "1,234");
-        assert_eq!(super::signed(-1_234), "\u{2212}1,234");
+        assert_eq!(signed(0), "0");
+        assert_eq!(signed(1_234), "1,234");
+        assert_eq!(signed(-1_234), "\u{2212}1,234");
     }
 }

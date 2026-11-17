@@ -67,6 +67,8 @@ pub struct Rule {
     /// of each follow by symmetry.
     pub figure: &'static [(&'static str, &'static str)],
     pub opening: Opening,
+    /// The smallest world the opening shows well in.
+    pub min_size: (usize, usize),
     /// Shown under the chips.
     pub note: &'static str,
 }
@@ -101,6 +103,7 @@ pub const CRITTERS: Rule = Rule {
         ("##/##", "../.."),
     ],
     opening: Opening::RandomSquare,
+    min_size: (0, 0),
     note: "Toffoli and Margolus's reversible rule. Gliders escape from the random square and bounce around the world, changing whatever they hit.",
 };
 
@@ -119,7 +122,8 @@ pub const BILLIARD_BALLS: Rule = Rule {
         ("##/##", "##/##"),
     ],
     opening: Opening::BallsInABox,
-    note: "Margolus's billiard-ball model, 1984. Each ball is two particles, one behind the other; when two balls meet, both are knocked off their paths. The walls are mirrors.",
+    min_size: (0, 0),
+    note: "Margolus's billiard-ball model, 1984. Each ball is two particles, one behind the other, and the walls are mirrors. Balls that meet squarely knock each other off their paths; dropped at random, most meet askew and break up.",
 };
 
 /// The HPP lattice gas in block form: Margolus 1999, figure 1.11a (p. 19). Every particle
@@ -136,6 +140,8 @@ pub const HPP_GAS: Rule = Rule {
         ("##/##", "##/##"),
     ],
     opening: Opening::GasWithSquare,
+    // Room for the wave to grow round before it wraps, as in Margolus's 512 x 512 figure.
+    min_size: (640, 400),
     note: "A gas of particles moving diagonally; two meeting head-on leave at right angles. A round wave spreads from the square of particles.",
 };
 
@@ -324,7 +330,7 @@ impl Blocks {
             }
             Opening::BallsInABox => {
                 self.walls();
-                let balls = (w * h / 500).max(1);
+                let balls = (w * h / 1_500).max(1);
                 for _ in 0..balls * 20 {
                     if self.ball_count_guess() >= balls {
                         break;
@@ -824,7 +830,7 @@ mod tests {
         b.restart(&mut Rng::new(5));
         let n = b.particle_count();
         let balls = b.ball_count_guess();
-        assert!(balls >= 20, "{balls} balls");
+        assert!(balls >= 8, "{balls} balls");
         for _ in 0..500 {
             b.step();
             assert_eq!(b.particle_count(), n);
