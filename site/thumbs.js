@@ -327,7 +327,8 @@
         "702221 702251 702321 702525 702720";
       const key = (c, t, r, b, l) => (c << 12) | (t << 9) | (r << 6) | (b << 3) | l;
       // Unlisted neighbourhoods keep the centre state.
-      const next = Uint8Array.from({ length: 1 << 15 }, (_, k) => k >> 12);
+      const next = new Uint8Array(1 << 15);
+      for (let c = 1; c < 8; c++) next.fill(c, c << 12, (c + 1) << 12);
       for (const e of table.split(" ")) {
         const [c, t, r, b, l, i] = [...e].map(Number);
         next[key(c, t, r, b, l)] = next[key(c, l, t, r, b)] = i;
@@ -335,21 +336,27 @@
       }
       const loop = [" 22222222", "2170140142", "2022222202", "272    212", "212    212",
         "202    212", "272    212", "21222222122222", "207107107111112", " 2222222222222"];
-      let cells = new Uint8Array(W * H);
+      // The grid has a border of one cell that stays 0, standing for the world outside.
+      const pw = W + 2;
+      let cells = new Uint8Array(pw * (H + 2)), after = new Uint8Array(pw * (H + 2));
       loop.forEach((row, y) => [...row].forEach((ch, x) => {
-        cells[(y + 30) * W + x + 24] = ch === " " ? 0 : +ch;
+        cells[(y + 31) * pw + x + 25] = ch === " " ? 0 : +ch;
       }));
-      const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? cells[y * W + x] : 0);
-      for (let g = 0; g < 450; g++) {
-        const now = (i) => {
-          const x = i % W, y = (i / W) | 0;
-          return next[key(cells[i], at(x, y - 1), at(x + 1, y), at(x, y + 1), at(x - 1, y))];
-        };
-        cells = Uint8Array.from(cells, (_, i) => now(i));
+      function step(cells, after) {
+        for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
+          after[i] = next[key(cells[i], cells[i - pw], cells[i + 1], cells[i + pw], cells[i - 1])];
+        }
       }
+      for (let g = 0; g < 450; g++) {
+        step(cells, after);
+        [cells, after] = [after, cells];
+      }
+      const shown = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) shown.set(cells.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
       const SHEATH = [0x4a, 0x4f, 0x80], MARKER = [0x5a, 0xb4, 0xff];
       const PINK = [0xd1, 0x6b, 0xa5];
-      paint(canvas, W, H, cells, (v) => [NAVY, TEAL, SHEATH, MARKER, CORAL, PINK, SPARK, GOLD][v]);
+      const colours = [NAVY, TEAL, SHEATH, MARKER, CORAL, PINK, SPARK, GOLD];
+      paint(canvas, W, H, shown, (v) => colours[v]);
     },
 
     snowflakes(canvas) {
@@ -357,51 +364,71 @@
       // (axial coordinates) until the ice nears the circle held at the background.
       const VAPOUR = [0x6c, 0x8c, 0xc4], OLD_ICE = [0x8f, 0xc1, 0xe3];
       // R counts hex rows, as Reiter's program does: the circle is R sqrt(3)/2 cells wide.
-      const R = 35, beta = 0.6, gamma = 0.01;
+      const R = 28, beta = 0.6, gamma = 0.01;
       const c = R + 2, n = 2 * c + 1;
+      // water is each cell's water; field is the part that diffuses, the water of cells
+      // that are not receptive (ice, or next to ice) and 0 at those that are. Each has a
+      // second buffer for the next step.
       let water = new Float64Array(n * n).fill(beta), next = new Float64Array(n * n).fill(beta);
-      const field = new Float64Array(n * n).fill(beta), ice = new Uint8Array(n * n);
-      const rec = new Uint8Array(n * n), list = [];
+      let field = new Float64Array(n * n).fill(beta), after = new Float64Array(n * n).fill(beta);
+      const ice = new Uint8Array(n * n), rec = new Uint8Array(n * n), list = [];
       for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
         const q = x - c, r = y - c;
         if (4 * (q * q + q * r + r * r) < 3 * R * R) list.push(y * n + x);
       }
       const inside = Int32Array.from(list), m = inside.length;
+      // Ice never melts (a receptive cell only gains water), so a cell's freezing makes it
+      // and its six neighbours receptive for good, with nothing in the field.
+      const around = [0, 1, -1, n, -n, n - 1, -n + 1];
+      const freeze = (i) => {
+        ice[i] = 1;
+        for (const d of around) { rec[i + d] = 1; field[i + d] = 0; }
+      };
       water[c * n + c] = 1;
-      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) {
-        for (let k = 0; k < m; k++) { const i = inside[k]; ice[i] = water[i] >= 1 ? 1 : 0; }
+      freeze(c * n + c);
+      const frozen = [];
+      function step(reach) {
         for (let k = 0; k < m; k++) {
-          const i = inside[k];
-          rec[i] = ice[i] | ice[i + 1] | ice[i - 1] | ice[i + n] | ice[i - n] | ice[i + n - 1] | ice[i - n + 1];
-          field[i] = rec[i] ? 0 : water[i];
-        }
-        for (let k = 0; k < m; k++) {
-          const i = inside[k], v = field[i];
+          const i = inside[k], v = field[i], receptive = rec[i];
           const s = field[i + 1] + field[i - 1] + field[i + n] + field[i - n] + field[i + n - 1] + field[i - n + 1];
-          next[i] = v + (s - 6 * v) / 12 + (rec[i] ? water[i] + gamma : 0);
-          if (next[i] >= 1 && !ice[i]) {
+          const w = v + (s - 6 * v) / 12 + (receptive ? water[i] + gamma : 0);
+          next[i] = w;
+          after[i] = receptive ? 0 : w;
+          if (w >= 1 && !ice[i]) {
+            frozen.push(i);
             const q = (i % n) - c, r = ((i / n) | 0) - c;
             reach = Math.max(reach, q * q + q * r + r * r);
           }
         }
         [water, next] = [next, water];
+        [field, after] = [after, field];
+        for (const i of frozen) freeze(i);
+        frozen.length = 0;
+        return reach;
       }
+      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) reach = step(reach);
       let most = 1;
       for (const i of inside) most = Math.max(most, water[i]);
-      // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates).
-      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Float64Array(w * h);
-      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
-        const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), q = (px + 0.5 - w / 2) * scale - r / 2;
-        let rq = Math.round(q), rr = Math.round(r);
-        const rs = Math.round(-q - r), dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs + q + r);
-        if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
-        const x = rq + c, y = rr + c;
-        cells[py * w + px] = x >= 0 && y >= 0 && x < n && y < n ? water[y * n + x] : beta;
+      // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates), or
+      // -1 outside the grid. A cell's colour is worked out once, for its first pixel.
+      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Int32Array(w * h);
+      for (let py = 0; py < h; py++) {
+        const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), round = Math.round(r), dr = Math.abs(round - r);
+        for (let px = 0; px < w; px++) {
+          const q = (px + 0.5 - w / 2) * scale - r / 2;
+          let rq = Math.round(q), rr = round;
+          const rs = Math.round(-q - r), dq = Math.abs(rq - q), ds = Math.abs(rs + q + r);
+          if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
+          const x = rq + c, y = rr + c;
+          cells[py * w + px] = x >= 0 && y >= 0 && x < n && y < n ? y * n + x : -1;
+        }
       }
       const mix = (a, b, t) => a.map((v, k) => Math.round(v + (b[k] - v) * t));
-      paint(canvas, w, h, cells, (v) => (v < 1
+      const colour = (v) => (v < 1
         ? mix(NAVY, VAPOUR, Math.max(v, 0))
-        : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1)))));
+        : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1))));
+      const background = colour(beta), shades = [];
+      paint(canvas, w, h, cells, (i) => (i < 0 ? background : (shades[i] ||= colour(water[i]))));
     },
 
     critters(canvas) {
@@ -474,14 +501,27 @@
       // neighbour has it. The edges wrap.
       const n = 8, random = rng(14);
       let cells = Uint8Array.from({ length: W * H }, () => Math.floor(random() * n));
-      for (let g = 0; g < 250; g++) {
-        cells = cells.map((v, i) => {
-          const x = i % W, y = (i - x) / W, next = (v + 1) % n;
-          const hit = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]
-            .some(([nx, ny]) => cells[((ny + H) % H) * W + (nx + W) % W] === next);
-          return hit ? next : v;
-        });
+      // Worked on a copy with a border of one cell, refilled each generation from the
+      // opposite edge, so the inner loop needs no wrapping.
+      const pw = W + 2, ph = H + 2;
+      const succ = Uint8Array.from({ length: n }, (_, v) => (v + 1) % n);
+      let a = new Uint8Array(pw * ph), b = new Uint8Array(pw * ph);
+      for (let y = 0; y < H; y++) a.set(cells.subarray(y * W, (y + 1) * W), (y + 1) * pw + 1);
+      function step(a, b) {
+        for (let y = 1; y <= H; y++) { a[y * pw] = a[y * pw + W]; a[y * pw + W + 1] = a[y * pw + 1]; }
+        a.copyWithin(0, H * pw, (H + 1) * pw);
+        a.copyWithin((H + 1) * pw, pw, 2 * pw);
+        for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
+          const v = a[i], next = succ[v];
+          b[i] = a[i - 1] === next || a[i + 1] === next || a[i - pw] === next || a[i + pw] === next
+            ? next : v;
+        }
       }
+      for (let g = 0; g < 250; g++) {
+        step(a, b);
+        [a, b] = [b, a];
+      }
+      for (let y = 0; y < H; y++) cells.set(a.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
       // n colours round the loop blue, teal, gold, coral and back, evenly by distance.
       const loop = [BLUE, TEAL, GOLD, CORAL];
       const len = loop.map((a, i) => Math.hypot(...a.map((c, j) => c - loop[(i + 1) % 4][j])));
