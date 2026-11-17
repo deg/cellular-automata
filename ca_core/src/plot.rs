@@ -43,8 +43,9 @@ pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) {
     let weak = ui.visuals().weak_text_color();
     let font = FontId::proportional(10.0);
 
-    // Room for the tick labels on the left and below, and the axis names.
-    let area = Rect::from_min_max(rect.min + vec2(34.0, 4.0), rect.max - vec2(6.0, 26.0));
+    // Room for the y axis's name above, the tick labels on the left and below (half a label
+    // past the right end, so the last one isn't cut off), and the x axis's name.
+    let area = Rect::from_min_max(rect.min + vec2(34.0, 14.0), rect.max - vec2(18.0, 26.0));
     let x_axis = Axis::fit(
         plot.series.iter().map(|s| s.points.iter().map(|p| p.0)),
         plot.log_x,
@@ -93,7 +94,7 @@ pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) {
         text,
     );
     painter.text(
-        pos2(area.left() + 4.0, area.top() + 2.0),
+        pos2(area.left(), rect.top()),
         Align2::LEFT_TOP,
         plot.y_label,
         font,

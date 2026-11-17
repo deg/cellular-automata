@@ -182,7 +182,10 @@ make siblings               # before/after a Rust update: build+test David's oth
   aggregation). Its README row may start "Not a cellular automaton but ...:"; its Cargo
   description is then the row without that prefix.
 - Never put a paragraph after a nested list inside a list item: the About panel's renderer
-  draws it outside the bullet.
+  draws it outside the bullet. Nor a line break inside a link's text (it loses the space).
+- Mention another demo by name in prose ("the sandpile, another demo in this project"),
+  without a link: the README also shows in the native app, where a relative link goes
+  nowhere.
 - Panel conventions (David chose them on 2026-11-16, where the older demos disagreed):
   - Paused at start, unless the opening is itself the show; then a comment says why.
   - Restart returns to the demo's opening with the current settings; a demo you draw on
