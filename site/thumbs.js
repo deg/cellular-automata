@@ -327,7 +327,8 @@
         "702221 702251 702321 702525 702720";
       const key = (c, t, r, b, l) => (c << 12) | (t << 9) | (r << 6) | (b << 3) | l;
       // Unlisted neighbourhoods keep the centre state.
-      const next = Uint8Array.from({ length: 1 << 15 }, (_, k) => k >> 12);
+      const next = new Uint8Array(1 << 15);
+      for (let c = 1; c < 8; c++) next.fill(c, c << 12, (c + 1) << 12);
       for (const e of table.split(" ")) {
         const [c, t, r, b, l, i] = [...e].map(Number);
         next[key(c, t, r, b, l)] = next[key(c, l, t, r, b)] = i;
@@ -335,21 +336,27 @@
       }
       const loop = [" 22222222", "2170140142", "2022222202", "272    212", "212    212",
         "202    212", "272    212", "21222222122222", "207107107111112", " 2222222222222"];
-      let cells = new Uint8Array(W * H);
+      // The grid has a border of one cell that stays 0, standing for the world outside.
+      const pw = W + 2;
+      let cells = new Uint8Array(pw * (H + 2)), after = new Uint8Array(pw * (H + 2));
       loop.forEach((row, y) => [...row].forEach((ch, x) => {
-        cells[(y + 30) * W + x + 24] = ch === " " ? 0 : +ch;
+        cells[(y + 31) * pw + x + 25] = ch === " " ? 0 : +ch;
       }));
-      const at = (x, y) => (x >= 0 && y >= 0 && x < W && y < H ? cells[y * W + x] : 0);
-      for (let g = 0; g < 450; g++) {
-        const now = (i) => {
-          const x = i % W, y = (i / W) | 0;
-          return next[key(cells[i], at(x, y - 1), at(x + 1, y), at(x, y + 1), at(x - 1, y))];
-        };
-        cells = Uint8Array.from(cells, (_, i) => now(i));
+      function step(cells, after) {
+        for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
+          after[i] = next[key(cells[i], cells[i - pw], cells[i + 1], cells[i + pw], cells[i - 1])];
+        }
       }
+      for (let g = 0; g < 450; g++) {
+        step(cells, after);
+        [cells, after] = [after, cells];
+      }
+      const shown = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) shown.set(cells.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
       const SHEATH = [0x4a, 0x4f, 0x80], MARKER = [0x5a, 0xb4, 0xff];
       const PINK = [0xd1, 0x6b, 0xa5];
-      paint(canvas, W, H, cells, (v) => [NAVY, TEAL, SHEATH, MARKER, CORAL, PINK, SPARK, GOLD][v]);
+      const colours = [NAVY, TEAL, SHEATH, MARKER, CORAL, PINK, SPARK, GOLD];
+      paint(canvas, W, H, shown, (v) => colours[v]);
     },
 
     snowflakes(canvas) {
