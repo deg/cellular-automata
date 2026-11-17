@@ -112,6 +112,8 @@ impl PercolationApp {
         self.grid = Percolation::new(self.size, self.size, self.seed);
         self.image = Grid::new(self.size, self.size, NAVY);
         self.selected = None;
+        // The old grid's cell: on a smaller world it could be off the new grid.
+        self.hovered = None;
         self.dirty = true;
     }
 
@@ -162,9 +164,7 @@ impl PercolationApp {
 
         let largest = self.grid.largest_size();
         let spans_at = self.grid.spans_at();
-        let hovered = self
-            .hovered
-            .map(|(x, y)| (x, y, self.grid.cluster_size(x, y)));
+        let pointer = pointer(&mut self.grid, self.hovered);
         readout(ui, |r| {
             r.row("p", format!("{:.3}", self.grid.p()));
             r.row("open cells", grouped(self.grid.open_cells() as u64));
@@ -177,11 +177,7 @@ impl PercolationApp {
                     None => "no".to_string(),
                 },
             );
-            // Not "open, cluster of 640,000 cells": the row must fit the panel.
-            r.pointer(hovered.map(|(x, y, size)| match size {
-                Some(n) => format!("({x}, {y}): cluster of {}", grouped(n as u64)),
-                None => format!("({x}, {y}): closed"),
-            }));
+            r.pointer(pointer);
         });
     }
 
@@ -288,6 +284,17 @@ impl PercolationApp {
     }
 }
 
+/// The "under the pointer" row for the cell at `at`: an open cell's cluster size, or
+/// "closed". Not "open, cluster of 640,000 cells": the row must fit the panel. A cell off
+/// the grid (left over from a bigger world) gives `None`.
+fn pointer(grid: &mut Percolation, at: Option<(usize, usize)>) -> Option<String> {
+    let (x, y) = at.filter(|&(x, y)| x < grid.width() && y < grid.height())?;
+    Some(match grid.cluster_size(x, y) {
+        Some(n) => format!("({x}, {y}): {}", cells(n)),
+        None => format!("({x}, {y}): closed"),
+    })
+}
+
 /// "1 cell", "1,234 cells".
 fn cells(n: usize) -> String {
     if n == 1 {
@@ -299,7 +306,25 @@ fn cells(n: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::cells;
+    use super::*;
+
+    /// The pointer row reads the cell's cluster, and a cell left over from a bigger world
+    /// (hovered at (799, 799), then a 100 x 100 world chosen) is skipped, not a panic.
+    #[test]
+    fn the_pointer_row_skips_a_cell_off_the_grid() {
+        let mut grid = Percolation::new(100, 100, 1);
+        assert_eq!(pointer(&mut grid, Some((799, 799))), None);
+        assert_eq!(
+            pointer(&mut grid, Some((5, 7))).as_deref(),
+            Some("(5, 7): closed")
+        );
+        grid.set_p(1.0);
+        assert_eq!(
+            pointer(&mut grid, Some((5, 7))).as_deref(),
+            Some("(5, 7): 10,000 cells")
+        );
+        assert_eq!(pointer(&mut grid, None), None);
+    }
 
     #[test]
     fn cell_counts_read_as_words() {

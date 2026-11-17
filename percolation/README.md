@@ -71,8 +71,9 @@ grids grow.
   its forest in the critical state is this threshold, that of site percolation in
   two dimensions: a density still far beyond what simulations could reach.
 - **2015–2022: more digits.** Jesper Jacobsen found the threshold to 14 decimal places,
-  the value quoted above, by extrapolating exact calculations on small grids. Mertens's
-  exact spanning probabilities, in 2022, gave estimates close to his.
+  the value quoted above, by extrapolating exact calculations on narrow cylinders, up to
+  21 cells round. Mertens's exact spanning probabilities, in 2022, gave estimates close to
+  his.
 
 Percolation's threshold is a critical point reached by tuning a parameter, here *p*, to
 one exact value. Grassberger contrasted points like that with *self-organised

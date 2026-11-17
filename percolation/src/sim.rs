@@ -193,9 +193,11 @@ impl Percolation {
         self.size[ra] += self.size[rb];
         self.edges[ra] |= self.edges[rb];
         self.clusters -= 1;
-        // The merged cluster is bigger than either part, so if either was the largest, it now
-        // is; `size` at a former root still holds that cluster's last size.
-        if self.size[ra] >= self.largest.map_or(0, |l| self.size[l as usize]) {
+        // The merged cluster is strictly bigger than either part, so if either was the
+        // largest, it now is; `size` at a former root still holds that cluster's last size.
+        // A different cluster only as big as the largest doesn't take over: ties go to the
+        // one that reached the size first.
+        if self.size[ra] > self.largest.map_or(0, |l| self.size[l as usize]) {
             self.largest = Some(ra as u32);
         }
     }
@@ -387,6 +389,17 @@ mod tests {
         }
     }
 
+    /// A cell whose number is exactly p stays closed: open means strictly below p.
+    #[test]
+    fn a_number_equal_to_p_stays_closed() {
+        let mut grid = Percolation::from_numbers(2, 1, vec![0.5, 0.25]);
+        grid.set_p(0.5);
+        assert!(!grid.is_open(0, 0));
+        assert!(grid.is_open(1, 0));
+        grid.set_p(0.500_001);
+        assert!(grid.is_open(0, 0));
+    }
+
     /// A grid from a picture: `#` cells open at p = 0.5 (their numbers rise along the
     /// picture's rows, so they open in reading order), `.` cells never.
     fn picture(rows: &[&str]) -> Percolation {
@@ -527,8 +540,19 @@ mod tests {
         let cells = n * m;
         let mut counts = vec![0; cells + 1];
         for mask in 0u32..1 << cells {
+            // Open cells in a random order, a different one for each configuration, so a
+            // cell's neighbours on every side are sometimes open before it and all four joins
+            // get exercised. (A fixed stride such as 7,919 is −1 modulo every size here, which
+            // only reverses the reading order.)
+            let mut rng = Rng::new(u64::from(mask));
             let numbers = (0..cells)
-                .map(|i| if mask >> i & 1 == 1 { 0.25 } else { 0.75 })
+                .map(|i| {
+                    if mask >> i & 1 == 1 {
+                        0.25 * rng.next_f64()
+                    } else {
+                        0.75
+                    }
+                })
                 .collect();
             let mut grid = Percolation::from_numbers(n, m, numbers);
             grid.set_p(0.5);
@@ -635,8 +659,8 @@ mod tests {
 
     /// The threshold estimated from many grids. At Mertens's exact median for 16 x 16 and
     /// 24 x 24 grids, each grid spans with probability exactly 1/2, so the count that do is
-    /// binomial: it must be within 4 standard deviations of half. 100,000 grids pin the
-    /// median to about ±0.0005 in p.
+    /// binomial: it must be within 4 standard deviations of half, which allows about ±0.001
+    /// in p.
     #[test]
     #[ignore = "slow: 200,000 grids"]
     fn half_the_grids_span_at_mertens_median() {
@@ -651,14 +675,15 @@ mod tests {
 
     /// On bigger grids the median moves on towards the threshold of the infinite lattice,
     /// p_c = 0.59274605079210(2) (Jacobsen, Journal of Physics A 48, 454003, 2015;
-    /// arXiv:1507.03027). Mertens's exact medians rise towards it from below for every n up
-    /// to 24, and he finds them converging as n^(−1 − 1/ν) = n^(−7/4) (his eq. 15, with
-    /// ν = 4/3), which keeps them below it. So on 128 x 128 grids the median lies between
-    /// his 24 x 24 median and p_c: fewer than half the grids span at the first, more than
-    /// half at the second, each within 4 standard deviations.
+    /// arXiv:1507.03027). Mertens's exact medians (Table 4) rise towards it from below for
+    /// every n up to 24, his eq. 15 giving the rate, n^(−7/4). So on 128 x 128 grids fewer
+    /// than half span at his 24 x 24 median, 0.00147 below p_c: that half of the test has
+    /// teeth (measured: 1,823 of 4,000, 5.6 standard deviations below half). The other half
+    /// only checks that the count at p_c is consistent with the median lying below p_c: 4,000
+    /// grids can't resolve the true gap, about 0.0001.
     #[test]
     #[ignore = "slow: 4,000 grids of 128 x 128"]
-    fn the_median_of_big_grids_lies_between_mertens_and_the_threshold() {
+    fn the_median_of_big_grids_has_moved_past_mertens_24_by_24() {
         let pc = 0.592_746_050_792_10;
         let grids = 4_000;
         let sd = (grids as f64 * 0.25).sqrt();
