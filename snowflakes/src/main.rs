@@ -221,20 +221,15 @@ impl SnowflakeApp {
 /// frozen, turning icy blue where it has gathered the most water.
 fn colour(w: f64, most: f64) -> Color32 {
     if w < 1.0 {
-        mix(NAVY, VAPOUR, w.max(0.0))
+        ca_core::mix(NAVY, VAPOUR, w.max(0.0) as f32)
     } else {
         let t = if most > 1.0 {
             (w - 1.0) / (most - 1.0)
         } else {
             0.0
         };
-        mix(NEW_ICE, OLD_ICE, t.clamp(0.0, 1.0).sqrt())
+        ca_core::mix(NEW_ICE, OLD_ICE, t.clamp(0.0, 1.0).sqrt() as f32)
     }
-}
-
-fn mix(a: Color32, b: Color32, t: f64) -> Color32 {
-    let m = |x: u8, y: u8| (f64::from(x) + (f64::from(y) - f64::from(x)) * t).round() as u8;
-    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
 /// Turns a held pointer into the cells to freeze each frame, like `ca_core::PaintStroke`

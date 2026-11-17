@@ -7,6 +7,13 @@ use crate::egui::{self, Color32};
 /// page's cards. The rest of the palette is in each demo and in `site/style.css`.
 pub const NAVY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
 
+/// The colour `t` of the way from `a` to `b` (0 gives `a`, 1 gives `b`), each channel rounded.
+/// The demos shade a value between two palette colours with it.
+pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+    let m = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
+    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
+}
+
 /// The note under the speed slider in a demo whose work per frame is capped (see
 /// [`crate::generations_per_frame`]). It names no number: each demo sizes its budget by its
 /// own cost per cell. `world` is what the demo calls its world: "world",
@@ -91,6 +98,18 @@ mod tests {
         assert_eq!(super::signed(-0.25), "\u{2212}0.25");
         assert_eq!(super::signed(-0.001), "0.00");
         assert_eq!(super::signed(0.0), "0.00");
+    }
+
+    #[test]
+    fn mix_runs_from_one_colour_to_the_other() {
+        use super::{Color32, mix};
+        let (a, b) = (
+            Color32::from_rgb(0, 100, 200),
+            Color32::from_rgb(200, 100, 0),
+        );
+        assert_eq!(mix(a, b, 0.0), a);
+        assert_eq!(mix(a, b, 1.0), b);
+        assert_eq!(mix(a, b, 0.5), Color32::from_rgb(100, 100, 100));
     }
 
     #[test]

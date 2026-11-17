@@ -40,6 +40,6 @@ pub use neighbours::moore_counts;
 pub use pace::{Pace, generations_per_frame};
 pub use playback::{Advance, Playback};
 pub use plot::{Plot, Series, Style, plot};
-pub use readout::{NAVY, Readout, grouped, readout, signed, speed_cap_note};
+pub use readout::{NAVY, Readout, grouped, mix, readout, signed, speed_cap_note};
 pub use rng::Rng;
 pub use view::{GridResponse, GridView, HEX_NEIGHBOURS, Layout};

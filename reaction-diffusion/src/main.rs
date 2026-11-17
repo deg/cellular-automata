@@ -270,14 +270,9 @@ fn palette() -> Vec<Color32> {
         .map(|i| {
             let t = i as f32 / (SHADES - 1) as f32 * (RAMP.len() - 1) as f32;
             let j = (t as usize).min(RAMP.len() - 2);
-            mix(RAMP[j], RAMP[j + 1], t - j as f32)
+            ca_core::mix(RAMP[j], RAMP[j + 1], t - j as f32)
         })
         .collect()
-}
-
-fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
-    let m = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
-    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
 /// Pearson's figure 3 as a small chart, `k` across and `F` up: a letter at each point where

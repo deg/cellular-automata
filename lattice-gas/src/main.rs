@@ -569,7 +569,7 @@ fn blocks(kind: Kind, size: (usize, usize), block: usize) -> Blocks {
 fn ramp(colours: &[Color32], t: f64) -> Color32 {
     let t = t.clamp(0.0, 1.0) * (colours.len() - 1) as f64;
     let i = (t as usize).min(colours.len() - 2);
-    mix(colours[i], colours[i + 1], (t - i as f64) as f32)
+    ca_core::mix(colours[i], colours[i + 1], (t - i as f64) as f32)
 }
 
 /// `t` from -1 (blue) through 0 (navy) to 1 (coral), clamped.
@@ -579,11 +579,6 @@ fn diverging(t: f64) -> Color32 {
     } else {
         ramp(&[NAVY, CORAL, SPARK], t)
     }
-}
-
-fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
-    let m = |x: u8, y: u8| (f32::from(x) + (f32::from(y) - f32::from(x)) * t).round() as u8;
-    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
 #[cfg(test)]

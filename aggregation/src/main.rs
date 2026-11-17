@@ -289,8 +289,7 @@ fn shade(t: f64) -> Color32 {
     let i = (t.floor() as usize).min(SHADES.len() - 2);
     let f = t - i as f64;
     let (a, b) = (SHADES[i], SHADES[i + 1]);
-    let m = |x: u8, y: u8| (f64::from(x) + (f64::from(y) - f64::from(x)) * f).round() as u8;
-    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
+    ca_core::mix(a, b, f as f32)
 }
 
 #[cfg(test)]

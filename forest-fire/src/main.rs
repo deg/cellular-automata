@@ -298,7 +298,7 @@ impl FireApp {
                             if age >= 1.0 {
                                 NAVY
                             } else {
-                                mix(SCAR, NAVY, age as f32)
+                                ca_core::mix(SCAR, NAVY, age as f32)
                             }
                         }
                     },
@@ -307,12 +307,6 @@ impl FireApp {
             }
         }
     }
-}
-
-/// `a` moved a fraction `t` of the way to `b`.
-fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
-    let m = |a: u8, b: u8| (f32::from(a) + (f32::from(b) - f32::from(a)) * t).round() as u8;
-    Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
 /// The line P(s) ∝ s^(1 − τ) across the measured sizes, placed through the points between
