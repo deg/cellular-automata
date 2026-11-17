@@ -714,6 +714,38 @@
         return ramp[j].map((c, m) => Math.round(c + (ramp[j + 1][m] - c) * (t - j)));
       });
     },
+
+    percolation(canvas) {
+      // Site percolation near the threshold: each cell open with chance 0.59, clusters
+      // joined across edges, the largest (which spans top to bottom) gold, and the rest in
+      // the demo's colours.
+      const random = rng(12), N = W * H;
+      const open = Uint8Array.from({ length: N }, () => (random() < 0.59 ? 1 : 0));
+      const label = new Int32Array(N).fill(-1), queue = new Int32Array(N);
+      let clusters = 0, largest = -1, best = 0, tail = 0;
+      const visit = (j) => {
+        if (open[j] && label[j] < 0) { label[j] = clusters; queue[tail++] = j; }
+      };
+      for (let s = 0; s < N; s++) {
+        if (!open[s] || label[s] >= 0) continue;
+        let head = 0;
+        tail = 0;
+        visit(s);
+        while (head < tail) {
+          const i = queue[head++], x = i % W;
+          if (x > 0) visit(i - 1);
+          if (x < W - 1) visit(i + 1);
+          if (i >= W) visit(i - W);
+          if (i + W < N) visit(i + W);
+        }
+        if (tail > best) { best = tail; largest = clusters; }
+        clusters++;
+      }
+      const dim = (c) => c.map((v, m) => Math.round(v + (NAVY[m] - v) * 0.45));
+      const palette = [TEAL, BLUE, CORAL, HEAD, dim(TEAL), dim(CORAL)];
+      paint(canvas, W, H, label, (l) =>
+        l < 0 ? NAVY : l === largest ? GOLD : palette[(Math.imul(l, 2654435761) >>> 29) % palette.length]);
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
