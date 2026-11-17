@@ -56,12 +56,12 @@ which are the particles throughout:
   computation*, Physica D 10, 81–95 (1984).)
 - **1984: the HPP gas on a machine.** J. Hardy, Y. Pomeau and O. de Pazzis had introduced
   the HPP gas in the 1970s as a model of a gas on a square lattice (the lattice gas, another
-  demo here, tells that story). Toffoli and Margolus rediscovered it and wrote it as a block
-  rule. When they first ran it, Margolus recalled, they were amazed to see a round pressure
-  wave. They had built machines that ran automata fast enough to watch. Toffoli and
-  Margolus report Pomeau's account: seeing his gas run on one of them, at a 1984 workshop,
-  showed him that what he had conceived as a model on paper could actually be computed,
-  and set him looking for lattice gases that would model fluids better.
+  demo in this project, tells that story). Toffoli and Margolus rediscovered it and wrote it
+  as a block rule. When they first ran it, Margolus recalled, they were amazed to see a
+  round pressure wave. They had built machines that ran automata fast enough to watch.
+  Toffoli and Margolus report Pomeau's account: seeing his gas run on one of them, at a
+  1984 workshop, showed him that what he had conceived as a model on paper could actually
+  be computed, and set him looking for lattice gases that would model fluids better.
 - **1987: Critters.** Toffoli and Margolus described Critters in their book *Cellular
   Automata Machines: A New Environment for Modeling* (MIT Press, 1987). It is reversible
   like the billiard balls, but needs no careful arrangement: start from a random square
