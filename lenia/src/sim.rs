@@ -49,8 +49,8 @@
 //! # Speed
 //!
 //! The potential is computed with Fourier transforms ([`crate::fft`]), as in Chan's
-//! programs: three transforms of the world a step, against some 530 multiplications a
-//! cell for a direct sum at radius 13. [`World::potential_direct`] is the direct sum,
+//! programs: two transforms of the world a step, against 516 multiplications a cell
+//! for a direct sum at radius 13. [`World::potential_direct`] is the direct sum,
 //! kept as the reference the tests compare with. States are `f32`; Chan's GPU path uses
 //! single precision too (`complex64` in `LeniaND.py`).
 //!
@@ -87,7 +87,9 @@ use ca_core::Rng;
 /// The kernel core `K_C(r)` for `r` in `[0, 1]` (equation 10, and 14 for Life's).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Core {
-    /// `exp(α − α / (4 r (1 − r)))`, `α = 4`.
+    /// `exp(α − α / (4 r (1 − r)))`, `α = 4`. The paper's choice; only the test of its
+    /// figure 7 uses it (see the module notes).
+    #[cfg_attr(not(test), allow(dead_code))]
     Exponential,
     /// `(4 r (1 − r))^α`, `α = 4`.
     Polynomial,
@@ -119,7 +121,8 @@ impl Core {
 /// The growth mapping `G(u; μ, σ)` (equation 13): 1 at `u = μ`, falling to −1 away from it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Growth {
-    /// `2 exp(−(u − μ)² / 2σ²) − 1`.
+    /// `2 exp(−(u − μ)² / 2σ²) − 1`. As for [`Core::Exponential`].
+    #[cfg_attr(not(test), allow(dead_code))]
     Exponential,
     /// `2 (1 − (u − μ)² / 9σ²)^α − 1` within `μ ± 3σ`, −1 outside; `α = 4`.
     Polynomial,
@@ -548,6 +551,7 @@ impl World {
     }
 
     /// The potential at every cell, by Fourier transform: what [`World::step`] uses.
+    #[cfg(test)]
     pub fn potential(&mut self) -> Vec<f32> {
         self.convolve();
         self.re.clone()
@@ -555,6 +559,7 @@ impl World {
 
     /// The potential at every cell, summed directly over the kernel in f64: slow, the
     /// reference for the tests.
+    #[cfg(test)]
     pub fn potential_direct(&self) -> Vec<f32> {
         let n = self.n as isize;
         let kernel = self.rule.kernel();
@@ -680,6 +685,25 @@ mod tests {
         assert!((p - (2.0 * 0.316_406_25 - 1.0)).abs() < 1e-4);
         assert_eq!(Growth::Step.at(mu + 0.99 * s, mu, s), 1.0);
         assert_eq!(Growth::Step.at(mu + 1.01 * s, mu, s), -1.0);
+    }
+
+    /// Equation 11: the shell copies the core into `B` equal rings, ring `i` scaled by
+    /// `β[i]`. With β = (1/2, 1) and radius 10 (the serrated Scutium's kernel), the inner
+    /// ring peaks at 2.5 cells with height 1/2, the outer at 7.5 with height 1, and the
+    /// shell is 0 at the centre, between the rings (5 cells) and from the edge (10) out.
+    #[test]
+    fn the_shell_copies_the_core_into_rings() {
+        let rule = CREATURES[5].rule;
+        assert_eq!((rule.radius, rule.peaks), (10, &[0.5, 1.0][..]));
+        let at = |d: f64| rule.shell(d);
+        assert!((at(2.5) - 0.5).abs() < 1e-12);
+        assert!((at(7.5) - 1.0).abs() < 1e-12);
+        for d in [0.0, 5.0, 10.0, 12.0] {
+            assert_eq!(at(d), 0.0, "at {d}");
+        }
+        // Halfway up each ring's rising side: β · K_C(1/4).
+        assert!((at(1.25) - 0.5 * Core::Polynomial.at(0.25)).abs() < 1e-12);
+        assert!((at(6.25) - Core::Polynomial.at(0.25)).abs() < 1e-12);
     }
 
     /// A step worked by hand. Radius 2, polynomial core: the four orthogonal neighbours are

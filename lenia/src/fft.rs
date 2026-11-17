@@ -1,8 +1,8 @@
 //! A small fast Fourier transform for square worlds whose side is a power of two, written
 //! here because the project takes no crates beyond egui.
 //!
-//! Lenia's potential is a convolution with a kernel some 13 to 20 cells in radius: about 530
-//! weights a cell at radius 13, 1,250 at 20. By the convolution theorem it is also
+//! Lenia's potential is a convolution with a kernel some 13 to 20 cells in radius: 516
+//! weights a cell at radius 13, 1,244 at 20. By the convolution theorem it is also
 //! `F⁻¹(F(K) · F(A))`, which costs a few transforms of the whole world however big the
 //! kernel, and wraps round the edges by itself (Chan's programs do the same, his paper's
 //! equation 18).
@@ -43,10 +43,6 @@ impl Fft {
                 .map(|i| i.reverse_bits() >> (usize::BITS - bits))
                 .collect(),
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.n
     }
 
     /// Transform every column of the `n x n` array `(re, im)` in place: entry `(x, k)`

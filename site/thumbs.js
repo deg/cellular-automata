@@ -654,6 +654,43 @@
         return ramp[j].map((c, m) => Math.round(c + (ramp[j + 1][m] - c) * (t - j)));
       });
     },
+    lenia(canvas) {
+      // Two Orbium, Lenia's best-known creature, gliding apart: the pattern from Bert Chan's
+      // catalogue (Python/animals.json, MIT licence, (c) 2018 Bert Chan; see lenia/src/sim.rs),
+      // one of them mirrored. One pixel per cell, in the demo's colours.
+      const orbium =
+        "7.MD6.qL$6.pKqEqFURpApBRAqQ$5.VqTrSsBrOpXpWpTpWpUpCrQ$4.CQrQsTsWsApITNPpGqGvL$3.IpIp" +
+        "WrOsGsBqXpJ4.LsFrL$A.DpKpSpJpDqOqUqSqE5.ExD$qL.pBpTT2.qCrGrVrWqM5.sTpP$.pGpWpD3.qUsM" +
+        "tItQtJ6.tL$.uFqGH3.pXtOuR2vFsK5.sM$.tUqL4.GuNwAwVxBwNpC4.qXpA$2.uH5.vBxGyEyMyHtW4.qI" +
+        "pL$2.wV5.tIyG3yOxQqW2.FqHpJ$2.tUS4.rM2yOyJyOyHtVpPMpFqNV$2.HsR4.pUxAyOxLxDxEuVrMqBqG" +
+        "qKJ$3.sLpE3.pEuNxHwRwGvUuLsHrCqTpR$3.TrMS2.pFsLvDvPvEuPtNsGrGqIP$4.pRqRpNpFpTrNtGtVt" +
+        "StGsMrNqNpF$5.pMqKqLqRrIsCsLsIrTrFqJpHE$6.RpSqJqPqVqWqRqKpRXE$8.OpBpIpJpFTK!";
+      // Chan's run-length code: "." for 0, A-X for 1-24, p-y then A-X for 25-255, "$" ends
+      // a row, a number repeats what follows.
+      const rows = [[]];
+      let count = 0, prefix = 0;
+      for (const ch of orbium) {
+        if (ch >= "0" && ch <= "9") count = count * 10 + Number(ch);
+        else if (ch >= "p" && ch <= "y") prefix = ch.charCodeAt(0) - 111;
+        else if (ch === "$") { for (let i = 0; i < Math.max(count, 1); i++) rows.push([]); count = 0; }
+        else if (ch !== "!") {
+          const v = ch === "." ? 0 : prefix ? (prefix - 1) * 24 + 25 + ch.charCodeAt(0) - 65 : ch.charCodeAt(0) - 64;
+          for (let i = 0; i < Math.max(count, 1); i++) rows[rows.length - 1].push(v / 255);
+          count = prefix = 0;
+        }
+      }
+      const w = 64, h = 40, cells = new Float32Array(w * h);
+      const put = (x0, y0, flip) => rows.forEach((row, y) => row.forEach((v, x) => {
+        cells[(y0 + y) * w + x0 + (flip ? 19 - x : x)] = v;
+      }));
+      put(8, 4, false);
+      put(36, 15, true);
+      const ramp = [NAVY, BLUE, TEAL, GOLD];
+      paint(canvas, w, h, cells, (a) => {
+        const t = a * 3, j = Math.min(Math.floor(t), 2);
+        return ramp[j].map((c, m) => Math.round(c + (ramp[j + 1][m] - c) * (t - j)));
+      });
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
