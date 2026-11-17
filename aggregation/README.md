@@ -6,9 +6,10 @@ lands on a cell **next to** the cluster. There it **sticks**, and the next parti
 go. That's the whole rule.
 
 The cluster that grows is not a blob but a **branching fractal**, like the copper that
-grows on an electrode, or a starving colony of bacteria. A wandering particle almost always meets a
-tip of the cluster before it can get deep into the gaps between branches, so the tips
-grow and the gaps, the *fjords*, stay open. The outer branches shield the inner ones.
+grows on an electrode, or a starving colony of bacteria. A wandering particle almost
+always meets a tip of the cluster before it can get deep into the gaps between branches,
+so the tips grow and the gaps, the *fjords*, stay open. The outer branches shield the
+inner ones.
 
 This isn't quite a cellular automaton, where every cell updates at once: only one particle
 moves at a time. The name says what limits the growth: particles reach the cluster only by
@@ -66,13 +67,13 @@ plain walk):
 - **1981: Witten and Sander.** Thomas Witten and Leonard Sander introduced the model, on
   the square lattice, in *Diffusion-limited aggregation, a kinetic critical phenomenon*,
   Physical Review Letters 47, 1400–1403 (1981),
-  [doi:10.1103/PhysRevLett.47.1400](https://doi.org/10.1103/PhysRevLett.47.1400). Its
-  clusters' density falls off with distance as a power law, as in metal-particle
-  aggregates, and so does their radius of gyration. Sander's first program let
-  particles go far from the cluster and spent most of its time on walks that found
-  nothing. Over dinner, his companion asked why he didn't start them on a circle near
-  the cluster (he credits the idea to M. E. Sander), and soon they had clusters to look
-  at.
+  [doi:10.1103/PhysRevLett.47.1400](https://doi.org/10.1103/PhysRevLett.47.1400). In its
+  clusters, as in aggregates of metal particles, density falls off with distance as a
+  power law, and the radius of gyration grows as a power of the number of particles.
+  Sander's first program let particles go far from the cluster and spent most of its
+  time on walks that found nothing. Over dinner, his companion asked why he didn't start
+  them on a circle near the cluster (he credits the idea to M. E. Sander), and soon they
+  had clusters to look at.
 - **1983: other dimensions, sticking, and surfaces.** Paul Meakin grew clusters on
   lattices of two to six dimensions and off the lattice: *Diffusion-controlled cluster
   formation in 2–6-dimensional space*, Physical Review A 27, 1495–1507 (1983),
@@ -87,15 +88,23 @@ plain walk):
   magnitude in size: *Fractal growth of copper electrodeposits*, Nature 309, 225–229
   (1984), [doi:10.1038/309225a0](https://doi.org/10.1038/309225a0). The same year Lincoln
   Paterson linked DLA to viscous fingering, where one fluid pushed into another through
-  a porous medium branches the same way (Physical Review Letters 52, 1621–1624), and L.
+  a porous medium branches the same way: *Diffusion-limited aggregation and two-fluid
+  displacements in porous media*, Physical Review Letters 52, 1621–1624 (1984),
+  [doi:10.1103/PhysRevLett.52.1621](https://doi.org/10.1103/PhysRevLett.52.1621). L.
   Niemeyer, L. Pietronero and H. J. Wiesmann found DLA's fractal dimension in the
-  branching patterns of electrical breakdown (Physical Review Letters 52, 1033–1036). In 1989 Hiroshi Fujikawa and Mitsugu
-  Matsushita found that colonies of the bacterium *Bacillus subtilis*, short of food, grow
-  like DLA: *Fractal growth of Bacillus subtilis on agar plates*, Journal of the Physical
-  Society of Japan 58, 3875–3878 (1989).
+  branching patterns of electrical breakdown: *Fractal dimension of dielectric
+  breakdown*, Physical Review Letters 52, 1033–1036 (1984),
+  [doi:10.1103/PhysRevLett.52.1033](https://doi.org/10.1103/PhysRevLett.52.1033). In 1989
+  Hiroshi Fujikawa and Mitsugu Matsushita found that colonies of the bacterium *Bacillus
+  subtilis*, short of food, grow like DLA: *Fractal growth of Bacillus subtilis on agar
+  plates*, Journal of the Physical Society of Japan 58, 3875–3878 (1989),
+  [doi:10.1143/JPSJ.58.3875](https://doi.org/10.1143/JPSJ.58.3875).
 - **1985–1987: the lattice shows.** Ball and Brady's hierarchical maps of the cluster made
-  much bigger clusters possible. On the square lattice, clusters of under about 100,000
-  particles looked like those grown off it. At about a million, their arms stretch out
+  much bigger clusters possible: R. C. Ball and R. M. Brady, *Large scale lattice effect
+  in diffusion-limited aggregation*, Journal of Physics A 18, L809–L813 (1985),
+  [doi:10.1088/0305-4470/18/13/014](https://doi.org/10.1088/0305-4470/18/13/014). On the
+  square lattice, clusters of under about 100,000 particles looked like those grown off
+  it. At about a million, their arms stretch out
   along the lattice's axes: Paul Meakin, Robin Ball, P. Ramanlal and Leonard Sander,
   *Structure of large two-dimensional square-lattice diffusion-limited aggregates:
   Approach to asymptotic behavior*, Physical Review A 35, 5233–5239 (1987),
@@ -110,7 +119,9 @@ plain walk):
   particles, and there was still no satisfactory theory of DLA. In 2021 Eviatar and Itamar
   Procaccia found the exact dimension of DLA grown on a line, off the lattice: 3/2, in
   *The dimension of diffusion limited aggregates grown on a line*, Physical Review E 103,
-  L020101 (2021), [arXiv:2010.05709](https://arxiv.org/abs/2010.05709).
+  L020101 (2021),
+  [doi:10.1103/PhysRevE.103.L020101](https://doi.org/10.1103/PhysRevE.103.L020101),
+  [arXiv:2010.05709](https://arxiv.org/abs/2010.05709).
 
 ## Things to try
 
@@ -126,9 +137,10 @@ plain walk):
 - **Grow a forest.** Choose the *line* seed. Trees start everywhere, but the tall ones
   catch the particles and the short ones stop growing. With the ends joined round, the
   Procaccias point out, a single tree would in the end take all the growth.
-- **Compare with the snowflakes**, another demo here. A snow crystal grows from a seed too,
-  but its vapour diffuses everywhere at once, by a rule with no randomness, so its six arms
-  grow alike. Here each particle's walk is random, and no two clusters are the same.
+- **Compare with the snowflakes**, another demo in this project. A snow crystal grows
+  from a seed too, but its vapour diffuses everywhere at once, by a rule with no
+  randomness, so its six arms grow alike. Here each particle's walk is random, and no two
+  clusters are the same.
 
 ## Further reading
 

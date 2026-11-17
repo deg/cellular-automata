@@ -820,19 +820,68 @@ mod tests {
             let (x, y) = return_to_circle((start as f64, 0.0), radius, rng.next_f64());
             formula.push(y.atan2(x));
         }
-        walked.sort_by(f64::total_cmp);
-        formula.sort_by(f64::total_cmp);
-        let mut gap: f64 = 0.0;
-        for &v in walked.iter().chain(&formula) {
-            let fa = walked.partition_point(|&w| w <= v) as f64 / trials as f64;
-            let fb = formula.partition_point(|&w| w <= v) as f64 / trials as f64;
-            gap = gap.max((fa - fb).abs());
-        }
+        let gap = kolmogorov_smirnov(walked, formula);
         // The 0.1% critical value for two samples of 3,000: 1.95 · √(2 / 3000) ≈ 0.050.
         assert!(gap < 0.05, "Kolmogorov–Smirnov distance {gap:.3}");
         // And the formula lands on the circle.
         let (x, y) = return_to_circle((30.0, -40.0), 10.0, 0.3);
         assert!((x.hypot(y) - 10.0).abs() < 1e-12);
+    }
+
+    /// The two-sample Kolmogorov–Smirnov statistic: the largest gap between the samples'
+    /// cumulative distributions.
+    fn kolmogorov_smirnov(mut a: Vec<f64>, mut b: Vec<f64>) -> f64 {
+        a.sort_by(f64::total_cmp);
+        b.sort_by(f64::total_cmp);
+        let mut gap: f64 = 0.0;
+        for &v in a.iter().chain(&b) {
+            let fa = a.partition_point(|&w| w <= v) as f64 / a.len() as f64;
+            let fb = b.partition_point(|&w| w <= v) as f64 / b.len() as f64;
+            gap = gap.max((fa - fb).abs());
+        }
+        gap
+    }
+
+    /// The line seed's counterpart: [`return_to_line`] must shift a walker sideways as
+    /// far as the plain walk does on its way back down to the launch row. Walk (by big
+    /// steps, checked above, that never reach below the row) from 33 rows up, just past
+    /// where the demo brings walkers back, on a row with no wrapping, and compare the
+    /// shifts by the Kolmogorov–Smirnov statistic.
+    #[test]
+    fn walkers_come_back_down_where_the_cauchy_shift_says() {
+        let (start, far) = (33i64, 1_650i64);
+        let trials = 20_000;
+        let mut rng = Rng::new(31);
+        let mut walked = Vec::new();
+        let mut formula = Vec::new();
+        for _ in 0..trials {
+            // x across, h the height above the launch row.
+            let (mut x, mut h) = (0i64, start);
+            while h > 0 {
+                if h > far {
+                    // One walker in fifty gets this far, and its shift from here is
+                    // fifty times wider than the test's: any error in the formula hardly
+                    // shows.
+                    x += return_to_line(h as f64, rng.next_f64()).round() as i64;
+                    break;
+                }
+                // A square of radius h reaches down to the row at most at its edge.
+                let k = (h as usize).min(MAX_JUMP);
+                let (side, along) = jump(k, &mut rng);
+                let k = k as i64;
+                match side {
+                    0 => (x, h) = (x + k, h + along),
+                    1 => (x, h) = (x - k, h + along),
+                    2 => (x, h) = (x + along, h + k),
+                    _ => (x, h) = (x + along, h - k),
+                }
+            }
+            walked.push(x as f64);
+            formula.push(return_to_line(start as f64, rng.next_f64()));
+        }
+        let gap = kolmogorov_smirnov(walked, formula);
+        // The 0.1% critical value for two samples of 20,000: 1.95 · √(2 / 20000) ≈ 0.020.
+        assert!(gap < 0.02, "Kolmogorov–Smirnov distance {gap:.3}");
     }
 
     /// Every particle joins next to an earlier one, by a nearest-neighbour (not

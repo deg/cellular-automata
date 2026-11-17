@@ -252,7 +252,7 @@ impl AggregationApp {
         match fit {
             Some((slope, _)) => ui.label(format!("Slope, the fractal dimension: {slope:.2}")),
             None => ui.label(format!(
-                "The slope is fitted from {} particles on.",
+                "The slope is shown once there are {} particles.",
                 grouped(4 * FIT_FROM as u64)
             )),
         };
