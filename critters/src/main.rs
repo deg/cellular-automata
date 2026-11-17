@@ -143,6 +143,7 @@ impl CrittersApp {
         ui.separator();
 
         self.playback.ui(ui);
+        speed_cap_note(ui, "world");
         ui.horizontal_wrapped(|ui| {
             ui.label("Direction:");
             ui.selectable_value(&mut self.direction, Direction::Forwards, "forwards");
@@ -154,7 +155,6 @@ impl CrittersApp {
             self.dirty = true;
         }
         ui.small("Backwards undoes the steps one at a time, exactly, and stops at generation 0, the start; Run again to go on into its past. Restart draws a new opening; Clear empties the world.");
-        speed_cap_note(ui, "world");
         ui.separator();
 
         ui.label(RichText::new("Rule").strong());

@@ -374,7 +374,7 @@ impl TrafficApp {
             );
             r.row("mean speed", format!("{mean_speed:.2} cells / step"));
             r.row(
-                "stopped",
+                "stopped cars",
                 format!(
                     "{} ({:.0}%)",
                     ca_core::grouped(stopped as u64),
