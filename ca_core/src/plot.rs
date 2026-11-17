@@ -36,10 +36,42 @@ pub struct Plot<'a> {
     pub series: Vec<Series<'a>>,
 }
 
+/// What [`plot`] drew: its response (clicks and drags anywhere on the chart) and the
+/// mapping between data and screen, so a demo can let the reader pick a point on a chart
+/// (as reaction-diffusion's map of feed and kill rates does) or draw over it.
+pub struct PlotResponse {
+    pub response: egui::Response,
+    area: Rect,
+    x_axis: Axis,
+    y_axis: Axis,
+}
+
+impl PlotResponse {
+    /// Where the data point `(x, y)` is on the screen.
+    pub fn screen_of(&self, (x, y): (f64, f64)) -> Pos2 {
+        pos2(
+            self.area.left() + self.x_axis.fraction(x) as f32 * self.area.width(),
+            self.area.bottom() - self.y_axis.fraction(y) as f32 * self.area.height(),
+        )
+    }
+
+    /// The data point at a screen position, if it is inside the plotted area.
+    pub fn value_at(&self, pos: Pos2) -> Option<(f64, f64)> {
+        if !self.area.contains(pos) {
+            return None;
+        }
+        let fx = f64::from((pos.x - self.area.left()) / self.area.width());
+        let fy = f64::from((self.area.bottom() - pos.y) / self.area.height());
+        Some((self.x_axis.at_fraction(fx), self.y_axis.at_fraction(fy)))
+    }
+}
+
 /// Draw `plot` across the panel's width, `height` points tall (labels included).
-pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) {
-    let (rect, _) =
-        ui.allocate_exact_size(vec2(ui.available_width(), height), egui::Sense::hover());
+pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) -> PlotResponse {
+    let (rect, response) = ui.allocate_exact_size(
+        vec2(ui.available_width(), height),
+        egui::Sense::click_and_drag(),
+    );
     let painter = ui.painter_at(rect);
     let text = ui.visuals().text_color();
     let weak = ui.visuals().weak_text_color();
@@ -131,6 +163,12 @@ pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) {
             }
         }
     }
+    PlotResponse {
+        response,
+        area,
+        x_axis,
+        y_axis,
+    }
 }
 
 /// One axis: its range, and whether it is logarithmic. Positions are fractions of the
@@ -171,6 +209,14 @@ impl Axis {
 
     fn shows(&self, v: f64) -> bool {
         v.is_finite() && (!self.log || v > 0.0) && v >= self.lo && v <= self.hi
+    }
+
+    fn at_fraction(&self, f: f64) -> f64 {
+        if self.log {
+            10f64.powf(self.lo.log10() + f * (self.hi.log10() - self.lo.log10()))
+        } else {
+            self.lo + f * (self.hi - self.lo)
+        }
     }
 
     fn fraction(&self, v: f64) -> f64 {
@@ -260,6 +306,16 @@ mod tests {
         let a = Axis::fit(std::iter::once([0.0, 0.6].into_iter()), false, None);
         let ticks: Vec<String> = a.ticks().iter().map(|&t| label(t)).collect();
         assert_eq!(ticks, ["0", "0.2", "0.4", "0.6"]);
+    }
+
+    #[test]
+    fn at_fraction_inverts_fraction() {
+        for (values, log) in [(&[0.02, 0.0725][..], false), (&[3.0, 4_500.0][..], true)] {
+            let a = axis(values, log);
+            for v in [values[0], values[1], (values[0] + values[1]) / 2.0] {
+                assert!((a.at_fraction(a.fraction(v)) - v).abs() < 1e-9 * v.abs().max(1.0));
+            }
+        }
     }
 
     #[test]
