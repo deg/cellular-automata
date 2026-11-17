@@ -11,9 +11,11 @@
 //! Critters run of his figure 1.6), so the odd blocks along the edges are whole, and its
 //! width and height must be even.
 //!
-//! Other sources state Critters differently: Wikipedia's article describes a version that
-//! complements nothing but rotates on alternate steps, equivalent "up to flipping all states
-//! every other generation". That is a different table, and is not used here.
+//! Other sources state Critters differently: Wikipedia's article also describes a version
+//! that "flips the states only in blocks with exactly two live cells, and in alternating
+//! time steps rotates either the blocks with three live cells or the blocks with one live
+//! cell", equivalent "up to flipping all states every other generation". Its table changes
+//! from step to step, and is not used here.
 //!
 //! Each rule is written as its source's figure draws it: one block of each kind and what it
 //! becomes, the other rotations following by symmetry ("each of the four discrete
@@ -88,10 +90,10 @@ pub enum Opening {
 }
 
 /// Critters: Margolus 1999, figure 1.5b (p. 12). Toffoli and Margolus introduced it in
-/// *Cellular Automata Machines* (MIT Press, 1987), section 12.8.2, pp. 132–134 (the
-/// section is as Wikipedia cites it; the book itself was not available to check).
-/// Wikipedia's wording of the same rule: complement every cell of the block unless it
-/// holds exactly two 1s, and a block of three 1s is also turned 180 degrees.
+/// *Cellular Automata Machines* (MIT Press, 1987), section 12.8.2, pp. 132–134, where p. 133
+/// states it in words: "a block is complemented unless it contains exactly two [1]'s, in
+/// which case it is left unchanged. A block containing three [1]'s is rotated through 180°
+/// in addition to being complemented."
 pub const CRITTERS: Rule = Rule {
     name: "Critters",
     figure: &[
@@ -500,10 +502,10 @@ mod tests {
         }
     }
 
-    /// The whole Critters table, by hand from Wikipedia's wording of the rule: complement
-    /// the block unless it holds exactly two 1s; a block of three is also turned 180
-    /// degrees. This checks the transcription of Margolus's figure against an independent
-    /// statement of it.
+    /// The whole Critters table, by hand from the book's wording of the rule (Toffoli and
+    /// Margolus 1987, p. 133): complement the block unless it holds exactly two 1s; a block
+    /// of three is also "rotated through 180°". This checks the transcription of Margolus's
+    /// 1999 figure against an independent statement of it.
     #[test]
     fn critters_is_complement_unless_two_and_three_turn_half_way() {
         let t = CRITTERS.table();
@@ -532,9 +534,10 @@ mod tests {
         }
     }
 
-    /// Wikipedia: Critters "is not its own inverse", but is "symmetric under a combination
-    /// of time reversal and state complementation": its inverse is complement, rule,
-    /// complement.
+    /// Toffoli and Margolus 1987, p. 133: "the block transformation performed by CRITTERS is
+    /// not its own inverse", but "this rule is time-reversal invariant ... under the
+    /// operation of complementation": its inverse is complement, rule, complement. And "the
+    /// inverse rule must rotate through −180° and complement a block with one [1] in it".
     #[test]
     fn critters_is_not_its_own_inverse_but_complementing_reverses_it() {
         let t = CRITTERS.table();
@@ -546,6 +549,9 @@ mod tests {
                 !t[(!b & 15) as usize] & 15,
                 "block {b:04b}"
             );
+        }
+        for one in [TL, TR, BL, BR] {
+            assert_eq!(inv[one as usize], rotate(rotate(!one & 15)));
         }
     }
 
@@ -901,7 +907,18 @@ mod tests {
                 };
                 for (dx, dy) in [(2, 0), (-2, 0), (0, 2), (0, -2)] {
                     if seen[4] == shifted(dx, dy, 1) {
-                        let mut distinct = seen[..4].to_vec();
+                        // Shapes, not places: each frame moved to touch the origin.
+                        let mut distinct: Vec<_> = seen[..4]
+                            .iter()
+                            .map(|frame| {
+                                let x0 = frame.iter().map(|p| p.0).min().unwrap();
+                                let y0 = frame.iter().map(|p| p.1).min().unwrap();
+                                let mut f: Vec<_> =
+                                    frame.iter().map(|&(x, y)| (x - x0, y - y0)).collect();
+                                f.sort();
+                                f
+                            })
+                            .collect();
                         distinct.sort();
                         distinct.dedup();
                         assert_eq!(distinct.len(), 4, "four different shapes on the way");

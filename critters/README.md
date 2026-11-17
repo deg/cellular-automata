@@ -15,6 +15,10 @@ Norman Margolus, who devised it. Here the world wraps round at its edges.
 - **Zero, one or four:** every cell flips, 0 to 1 and 1 to 0.
 - **Three:** every cell flips, and the block is turned half a turn.
 
+The name comes from the book that introduced the rule, where, from a lump of random cells,
+"small 'critters' race horizontally and vertically; when they collide they may bounce
+back or execute a right-angle turn".
+
 No two blocks turn into the same block, so every step can be **undone**: from any picture
 there is exactly one picture it came from, and a table that leads back to it. Run backwards
 and the world retraces its history step by step, back to the start exactly, however tangled
@@ -35,7 +39,8 @@ which are the particles throughout:
   leave, each knocked off its path.
 - **HPP gas.** Every particle moves to the opposite corner of its block, whatever else is
   there, except that two particles meeting head-on, on a diagonal, leave on the other
-  diagonal, at right angles to how they came.
+  diagonal, at right angles to how they came. The letters are the initials of its
+  inventors, J. Hardy, Y. Pomeau and O. de Pazzis.
 
 ## History
 
@@ -63,9 +68,12 @@ which are the particles throughout:
   1984 workshop, showed him that what he had conceived as a model on paper could actually
   be computed, and set him looking for lattice gases that would model fluids better.
 - **1987: Critters.** Toffoli and Margolus described Critters in their book *Cellular
-  Automata Machines: A New Environment for Modeling* (MIT Press, 1987). It is reversible
-  like the billiard balls, but needs no careful arrangement: start from a random square
-  in an empty world, and gliders escape from it on their own.
+  Automata Machines: A New Environment for Modeling* (MIT Press, 1987), section 12.8.2,
+  pp. 132–134. It is reversible like the billiard balls, but needs no careful arrangement:
+  start from "a blob of randomness" in an empty world, and gliders escape from it on their
+  own. Unlike the billiard-ball rule, it is not its own inverse, though the book points
+  out a shortcut: complement every cell, run Critters itself, and you see the history run
+  backwards in complement.
 - **1999: Critters is universal.** In a later account, Margolus showed how pairs of
   Critters gliders, suitably arranged, act just like the balls of his billiard-ball rule,
   so Critters can compute anything too. He also showed why its gliders are so hard to
@@ -81,7 +89,7 @@ which are the particles throughout:
 - **There and back.** Run *Critters* for a few hundred generations, until the square has
   thrown gliders across the world. Choose *backwards* and Run: the gliders fly home, the
   mess untangles, and the run stops at generation 0 on the very square you started from.
-  The readout's *cell unlike the start* shows 0.
+  The readout's *cells unlike the start* shows 0.
 - **The gliders.** Each is four particles: two side by side and two a little apart. It
   goes through four shapes as it moves two cells, along a row or a column. Watch two
   collide: something always comes out.
@@ -89,7 +97,7 @@ which are the particles throughout:
   0. Run forwards, then backwards to your drawing. The *random* brush with a radius of 5
   makes a small random square, the kind of seed gliders come from.
 - **Change the past.** Run forwards, pause, and draw a few particles in the busiest part.
-  Now run backwards: the start doesn't come back, and *cell unlike the start* counts how
+  Now run backwards: the start doesn't come back, and *cells unlike the start* counts how
   far off it is.
 - **Before the start.** Run backwards from generation 0, into negative generations. The
   random square has a past as well as a future, and it looks much the same: gliders fly
@@ -118,4 +126,5 @@ which are the particles throughout:
 - T. Toffoli and N. Margolus, *Invertible cellular automata: a review*, Physica D 45,
   229–253 (1990), [doi:10.1016/0167-2789(90)90185-R](https://doi.org/10.1016/0167-2789(90)90185-R).
 - T. Toffoli and N. Margolus, *Cellular Automata Machines: A New Environment for
-  Modeling* (MIT Press, 1987): Critters is in section 12.8.2.
+  Modeling* (MIT Press, 1987), [PDF](https://people.csail.mit.edu/nhm/cam-book.pdf):
+  Critters is in section 12.8.2, and the Margolus neighbourhood in chapter 12.

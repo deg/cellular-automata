@@ -203,8 +203,8 @@ impl CrittersApp {
 
         readout(ui, |r| {
             r.row("generation", signed(self.world.generation));
-            r.row("particle", grouped(self.world.particle_count() as u64));
-            r.row("cell unlike the start", grouped(self.unlike as u64));
+            r.row("particles", grouped(self.world.particle_count() as u64));
+            r.row("cells unlike the start", grouped(self.unlike as u64));
             r.pointer(self.hovered.map(|(x, y)| {
                 let state = if self.world.particle(x, y) {
                     "particle"
