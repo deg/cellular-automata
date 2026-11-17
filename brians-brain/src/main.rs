@@ -185,6 +185,8 @@ impl BrainApp {
     /// Back to the opening: an empty world (keeping the wrap setting) with a fresh random
     /// seed in the middle, at the current seed size and density.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.pointer = None;
         self.brain = Brain::new(self.size.0, self.size.1, self.brain.wrap);
         self.random_seed();
     }

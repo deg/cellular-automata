@@ -194,6 +194,8 @@ impl AntApp {
 
     /// A fresh grid with one ant at the centre, under the typed rule if it parses.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let rule = match Rule::parse(&self.rule_text) {
             Ok(rule) => {
                 self.rule_error = None;

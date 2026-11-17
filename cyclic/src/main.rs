@@ -297,6 +297,8 @@ impl CyclicApp {
 
     /// A fresh world of random colours from the current seed, rule, edges and size.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let (rule, wrap) = (self.ca.rule, self.ca.wrap);
         self.ca = Cyclic::new(self.size.0, self.size.1, rule, wrap);
         self.ca.fill_random(&mut Rng::new(self.seed));

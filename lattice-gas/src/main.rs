@@ -434,6 +434,8 @@ impl GasApp {
 
     /// Set the current preset up afresh.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let (w, h) = self.size;
         self.seed += 1;
         let mut l = Lattice::new(self.kind, w, h, self.seed);

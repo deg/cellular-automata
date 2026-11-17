@@ -239,6 +239,8 @@ impl RdApp {
 
     /// Pearson's opening at the current rates and size, with fresh noise.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let rates = self.dish.rates;
         self.dish = Dish::new(self.size, self.size, rates);
         self.dish.pearson_opening(&mut self.rng);

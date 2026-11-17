@@ -146,6 +146,8 @@ impl LoopsApp {
 
     /// A new world holding one loop in the middle.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let (w, h) = self.size;
         self.loops = Loops::new(w, h, Rule::langton());
         let start = pattern(&LANGTON_LOOP);

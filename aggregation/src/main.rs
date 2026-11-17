@@ -116,6 +116,8 @@ impl AggregationApp {
 
     /// A fresh cluster, from new random walks, with the chosen seed and world.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.pointer = None;
         self.run += 1;
         self.aggregate = Aggregate::new(self.size, self.size, self.seed, self.stick, self.run);
         self.dirty = true;

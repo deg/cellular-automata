@@ -107,6 +107,8 @@ impl SnowflakeApp {
     }
 
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.pointer = None;
         self.crystal = Crystal::new(self.radius, self.params);
         self.dirty = true;
     }

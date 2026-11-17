@@ -473,6 +473,8 @@ impl TrafficApp {
 
     /// A fresh random road with the current settings.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let count = (self.density * self.length as f64).round() as usize;
         let (v_max, p) = (self.road.v_max, self.road.p);
         self.road = Road::random(self.length, count, v_max, p, self.seed);

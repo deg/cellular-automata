@@ -209,6 +209,8 @@ impl ElementaryApp {
 
     /// Begin again with the current rule, start, edge and width.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let start = if self.random_start {
             Start::Random(self.seed)
         } else {

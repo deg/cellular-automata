@@ -250,6 +250,8 @@ impl CrittersApp {
 
     /// The rule's opening, drawn afresh from the current seed.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         self.world.restart(&mut Rng::new(self.seed));
         self.start = self.world.particles();
         self.dirty = true;

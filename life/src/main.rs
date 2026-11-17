@@ -272,6 +272,8 @@ impl LifeApp {
     /// Back to the opening, keeping the rule and wrap: a new world of the current size with
     /// the last pattern placed, or a fresh random fill at the current density.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.pointer = None;
         self.life = Life::new(self.size.0, self.size.1, self.life.rule, self.life.wrap);
         match &self.opening {
             Opening::Pattern(i) => {

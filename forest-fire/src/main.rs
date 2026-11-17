@@ -118,6 +118,8 @@ impl FireApp {
 
     /// An empty forest again, with the current θ and size, and new random choices.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         let theta = self.forest.theta();
         self.seed += 1;
         self.forest = Forest::new(self.size.0, self.size.1, theta, self.seed);

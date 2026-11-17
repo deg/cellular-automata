@@ -192,6 +192,8 @@ impl WireworldApp {
 
     /// Back to the opening: the chosen circuit in the middle of a clear board.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.pointer = None;
         self.world = Wireworld::new(self.size.0, self.size.1);
         let p = &PATTERNS[self.pattern];
         let (pw, ph) = p.size();
