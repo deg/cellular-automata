@@ -474,14 +474,27 @@
       // neighbour has it. The edges wrap.
       const n = 8, random = rng(14);
       let cells = Uint8Array.from({ length: W * H }, () => Math.floor(random() * n));
-      for (let g = 0; g < 250; g++) {
-        cells = cells.map((v, i) => {
-          const x = i % W, y = (i - x) / W, next = (v + 1) % n;
-          const hit = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]
-            .some(([nx, ny]) => cells[((ny + H) % H) * W + (nx + W) % W] === next);
-          return hit ? next : v;
-        });
+      // Worked on a copy with a border of one cell, refilled each generation from the
+      // opposite edge, so the inner loop needs no wrapping.
+      const pw = W + 2, ph = H + 2;
+      const succ = Uint8Array.from({ length: n }, (_, v) => (v + 1) % n);
+      let a = new Uint8Array(pw * ph), b = new Uint8Array(pw * ph);
+      for (let y = 0; y < H; y++) a.set(cells.subarray(y * W, (y + 1) * W), (y + 1) * pw + 1);
+      function step(a, b) {
+        for (let y = 1; y <= H; y++) { a[y * pw] = a[y * pw + W]; a[y * pw + W + 1] = a[y * pw + 1]; }
+        a.copyWithin(0, H * pw, (H + 1) * pw);
+        a.copyWithin((H + 1) * pw, pw, 2 * pw);
+        for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
+          const v = a[i], next = succ[v];
+          b[i] = a[i - 1] === next || a[i + 1] === next || a[i - pw] === next || a[i + pw] === next
+            ? next : v;
+        }
       }
+      for (let g = 0; g < 250; g++) {
+        step(a, b);
+        [a, b] = [b, a];
+      }
+      for (let y = 0; y < H; y++) cells.set(a.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
       // n colours round the loop blue, teal, gold, coral and back, evenly by distance.
       const loop = [BLUE, TEAL, GOLD, CORAL];
       const len = loop.map((a, i) => Math.hypot(...a.map((c, j) => c - loop[(i + 1) % 4][j])));
