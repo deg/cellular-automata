@@ -265,6 +265,48 @@ seven older ones included. It ran as its own small parallel effort:
    could see (one format for Further reading, citations verified against Crossref), then a
    fresh read-only check of the whole.
 
+## Wave one of the next nine (2026-11-17)
+
+Five more demos (Critters, forest fire, traffic, diffusion-limited aggregation,
+reaction-diffusion) were built the same way, with what the first round taught applied
+from the start:
+
+| Time | Event |
+|---|---|
+| about 10:00 | Worktrees from `main`; beads; an advisor review of the plan. |
+| 10:23 | Before launch: a shared chart helper (`ca_core::plot`) and the text forms the last sweep settled, written into CLAUDE.md. |
+| about 10:25 | Five builders launched, each limited to four compile jobs. |
+| 10:59–11:12 | Builders finish (37–47 minutes each); a reviewer per demo at once. |
+| 11:03–11:34 | The coordinator fixes `ca_core` as the builders report its flaws: four commits to `plot`, and `signed` moved in. |
+| 11:18–11:45 | Review fixes come back; each branch rebased and merged. The home page gets groups. |
+| 11:47–12:11 | A cross-demo consistency check of all sixteen; its 13 findings fixed. |
+
+What was different:
+
+- **Conventions in the brief from the start.** The brief carried the house rules and asked
+  each builder to report "every place your demo departs from a convention, with the
+  reason", not "choices". Builders mostly followed the rules, and listed their departures
+  honestly; the coordinator judged each against the other demos.
+- **Settle shared decisions before launch.** The advisor's review of the plan named three:
+  how a chart is drawn (three demos would want one), the text forms the sweep had chosen
+  but not written down, and how a demo that isn't a cellular automaton says so. Each was
+  decided and written into CLAUDE.md before the builders started.
+- **The coordinator owns the shared code and fixes it at once.** The builders found four
+  flaws in the new chart helper (a clipped label, a label over the data, a missing marker,
+  a rounding bug) and needed a way to make a chart clickable. Each fix landed on
+  `integration` within minutes, and the builders rebased onto it with their review fixes.
+- **Builders rebase onto `integration` themselves**, with their review fixes, so the one
+  who knows the code resolves any conflict; the coordinator's own rebase then has nothing
+  to do but check every commit builds.
+- **Conventions written down reduce drift but don't remove it.** The consistency check
+  still found 13 things, nearly all between demos: one chart drew its measurements teal
+  and its theory grey where the others used blue and gold, two demos put Clear in a
+  different place, one demo's presets were lowercase, a colour function had been copied
+  six times. No builder could see these, because each saw one demo. Each finding went
+  into CLAUDE.md, so the next wave starts with it.
+- **Clean up your own processes.** A web server I had left running blocked a builder's
+  port; it found another one, and reported it.
+
 ## What went wrong
 
 - **A merge committed conflict markers.** On the lattice-gas merge, `Cargo.lock` conflicted
