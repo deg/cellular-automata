@@ -1,0 +1,8 @@
+[package]
+name = "percolation"
+version = "0.1.0"
+edition = "2024"
+description = "Each cell is open with chance p, and at a critical p a cluster of open cells first reaches across the grid."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
