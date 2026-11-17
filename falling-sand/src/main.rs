@@ -136,6 +136,8 @@ impl SandApp {
 
     /// The current opening again, at the current size, with new shades for its grains.
     fn restart(&mut self) {
+        // The pointer's cell may not exist in the restarted world (it can be smaller).
+        self.hovered = None;
         self.seed += 1;
         self.world = World::new(self.size.0, self.size.1, self.seed);
         (OPENINGS[self.opening].build)(&mut self.world);
@@ -219,9 +221,9 @@ impl SandApp {
             Advance::Step => 1,
             Advance::Run(per_second) => {
                 // A step costs 1 to 3.5 ns a cell natively on the openings at 640 x 400
-                // (the pressure rule is up to half of it), and 11 ns with half the world in
-                // motion, against the 11 ns `generations_per_frame` budgets for: count half
-                // the cells, leaving room for the slower browser build.
+                // (the pressure rule about half of that or more), and 11 ns with half the
+                // world in motion, against the 11 ns `generations_per_frame` budgets for:
+                // count half the cells, leaving room for the slower browser build.
                 let cap = generations_per_frame(self.size.0 * self.size.1 / 2, 50);
                 self.pace.steps(per_second as f64, dt, cap)
             }

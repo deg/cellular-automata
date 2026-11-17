@@ -10,19 +10,20 @@
 //!
 //! A step updates the cells one at a time, row by row from the bottom up, and each sees the
 //! moves already made this step. Bottom up, so a falling grain lands in a row already done
-//! and isn't moved again (Noita updates its world "from the bottom up" for the same reason:
-//! 80.lv, *Noita: a Game Based on Falling Sand Simulation*, 5 April 2019; Max Bittker's
-//! Sandspiel scans top to bottom and stamps each cell with a clock instead: *Making
-//! Sandspiel*, maxbittker.com, 30 April 2019). Here a tag bit in each cell does what
-//! Bittker's clock does, for cells that move sideways or up into cells not yet reached: a
-//! cell is updated once a step.
+//! and isn't moved again. (Noita also updates its world "from the bottom up", though the
+//! reason it gives is that otherwise only the bottom pixels would fall: 80.lv, *Noita: a
+//! Game Based on Falling Sand Simulation*, 5 April 2019. Max Bittker's Sandspiel scans top
+//! to bottom and stamps each cell with a clock: *Making Sandspiel*, maxbittker.com,
+//! 30 April 2019.) Here a tag bit in each cell does what Bittker's clock does, for cells
+//! that move sideways or up into cells not yet reached: a cell is updated once a step.
 //!
 //! Within a row, the scan runs left to right on even steps and right to left on odd ones,
 //! and every choice between two sides is a coin toss, so neither side is favoured. The
 //! cells that move first in a row get first pick of the empty cells, which is why the scan
-//! alternates. Devlin and Schuster found the bias this avoids in a block rule for sand: on
-//! the plain Margolus neighbourhood, sand particles "topple in one direction only" until they
-//! can no longer fall that way (arXiv:2008.06341, section II).
+//! alternates. (Block rules for sand have a lean of their own, from the blocks rather than
+//! a scan: Devlin and Schuster found that on the plain Margolus neighbourhood, sand
+//! particles "topple in one direction only" until they can no longer fall that way:
+//! arXiv:2008.06341, section II.)
 //!
 //! # Sources for the README
 //!
@@ -102,7 +103,8 @@ const WATER: u8 = Material::Water as u8;
 const PLANT: u8 = Material::Plant as u8;
 const FIRE: u8 = Material::Fire as u8;
 
-/// A new flame lives 8 to 15 steps once nothing near it is left to burn.
+/// A new flame's life is 8 to 15. Once nothing near it is left to burn, each step counts it
+/// down, and at 0 the next step puts it out, so a flame lasts 9 to 16 steps.
 const FIRE_LIFE: u8 = 8;
 
 /// The chance a step that a plant cell tries to grow, out of 2^32: 1 in 128. It then picks
@@ -204,8 +206,12 @@ impl World {
         self.cells[y * self.width + x] = c;
     }
 
+    /// Empty every cell and start counting steps again. (The tag's parity restarts too,
+    /// which is safe: no cell is left to carry an old tag.)
     pub fn clear(&mut self) {
         self.cells.fill(EMPTY);
+        self.step = 0;
+        self.changed = 0;
     }
 
     /// Paint `m` on the disc of `radius` cells around `(x, y)`. Empty erases anything;
@@ -305,9 +311,10 @@ impl World {
     /// Sand falls into the cell below if it is empty, water or fire (swapping places with
     /// it, so the water or flame rises), else into one of the two cells diagonally below,
     /// chosen by a coin toss when both are open. A diagonal move also needs the cell beside
-    /// it open, so sand can't slip between two walls that only touch at a corner. So a grain
-    /// rests when the cell below it and both cells diagonally below are full, and a pile
-    /// stands at most one cell higher than each column beside it: 45 degrees.
+    /// it open, so sand can't slip between two walls that only touch at a corner. So in a
+    /// pile of sand alone, a grain rests only when the cell below it and both cells
+    /// diagonally below are full, and the pile stands at most one cell higher than each
+    /// column beside it: 45 degrees. (Beside a wall a grain can also rest on a corner.)
     fn sand(&mut self, x: usize, y: usize, i: usize) {
         let w = self.width;
         if y + 1 >= self.height {
@@ -574,17 +581,17 @@ pub struct Opening {
 
 pub const OPENINGS: &[Opening] = &[
     Opening {
-        name: "hourglass",
+        name: "Hourglass",
         note: "Sand runs through the neck and piles up below, at its angle of repose.",
         build: hourglass,
     },
     Opening {
-        name: "dam",
+        name: "Dam",
         note: "A lake behind a dam. Shift-drag across the dam to break it.",
         build: dam,
     },
     Opening {
-        name: "fire",
+        name: "Forest fire",
         note: "A fire is lit at the edge of a wood; it burns every plant it can reach. Water stops it.",
         build: wood_fire,
     },
@@ -766,48 +773,80 @@ mod tests {
         assert_eq!(cells_of(&world, Sand), vec![(2, 4)]);
     }
 
+    /// Runs `trials` one-step worlds at each scan direction (a world's first step scans left
+    /// to right, its second right to left), each built by `build` just before the step it
+    /// is tested on, and checks that `m` always ends up at `left` or `right`, each about
+    /// half the time in each direction. The bound is 4 standard deviations of a fair coin
+    /// (200 in 10,000), so a coin of 53 to 47 fails.
+    fn fair_coin(
+        size: (usize, usize),
+        build: fn(&mut World),
+        m: Material,
+        left: Vec<(usize, usize)>,
+        right: Vec<(usize, usize)>,
+    ) {
+        let trials = 10_000;
+        for parity in 0..2 {
+            let mut lefts = 0;
+            for seed in 0..trials {
+                let mut world = World::new(size.0, size.1, seed);
+                for _ in 0..parity {
+                    world.step();
+                }
+                build(&mut world);
+                world.step();
+                let at = cells_of(&world, m);
+                assert!(at == left || at == right, "{at:?}");
+                lefts += usize::from(at == left);
+            }
+            let off = lefts.abs_diff(trials as usize / 2);
+            assert!(off < 200, "parity {parity}: {lefts} of {trials} went left");
+        }
+    }
+
     /// Hand trace: a grain on top of another slides off to one side or the other, each
-    /// about half the time.
+    /// half the time, whichever way the scan goes.
     #[test]
     fn a_grain_on_a_grain_slides_off_to_either_side() {
-        let mut left = 0;
-        for seed in 0..200 {
-            let mut world = World::new(3, 2, seed);
-            world.set(1, 0, Sand);
-            world.set(1, 1, Sand);
-            world.step();
-            let moved = cells_of(&world, Sand);
-            assert!(moved == vec![(0, 1), (1, 1)] || moved == vec![(1, 1), (2, 1)]);
-            left += usize::from(moved[0] == (0, 1));
-        }
-        assert!((80..120).contains(&left), "{left} of 200 went left");
+        fair_coin(
+            (3, 2),
+            |world| {
+                world.set(1, 0, Sand);
+                world.set(1, 1, Sand);
+            },
+            Sand,
+            vec![(0, 1), (1, 1)],
+            vec![(1, 1), (2, 1)],
+        );
     }
 
     /// Hand trace: a drop of water on a single wall cell runs off it diagonally, to each
-    /// side about half the time, as a grain of sand does.
+    /// side half the time, as a grain of sand does.
     #[test]
     fn a_drop_on_a_post_runs_off_to_either_side() {
-        let mut left = 0;
-        for seed in 0..200 {
-            let mut world = World::new(3, 2, seed);
-            world.set(1, 1, Wall);
-            world.set(1, 0, Water);
-            world.step();
-            let moved = cells_of(&world, Water);
-            assert!(moved == vec![(0, 1)] || moved == vec![(2, 1)], "{moved:?}");
-            left += usize::from(moved[0] == (0, 1));
-        }
-        assert!((80..120).contains(&left), "{left} of 200 went left");
+        fair_coin(
+            (3, 2),
+            |world| {
+                world.set(1, 1, Wall);
+                world.set(1, 0, Water);
+            },
+            Water,
+            vec![(0, 1)],
+            vec![(2, 1)],
+        );
     }
 
-    /// Hand trace: water with nothing under it but the floor moves one cell sideways.
+    /// Hand trace: water with nothing under it but the floor moves one cell sideways, to
+    /// each side half the time.
     #[test]
     fn water_on_a_floor_spreads_sideways() {
-        let mut world = World::new(5, 1, 3);
-        world.set(2, 0, Water);
-        world.step();
-        let at = cells_of(&world, Water);
-        assert!(at == vec![(1, 0)] || at == vec![(3, 0)], "{at:?}");
+        fair_coin(
+            (5, 1),
+            |world| world.set(2, 0, Water),
+            Water,
+            vec![(1, 0)],
+            vec![(3, 0)],
+        );
     }
 
     /// Sand is heavier than water: it sinks, and the water rises in its place.
@@ -897,27 +936,47 @@ mod tests {
         assert_eq!(now[Sand as usize], start[Sand as usize]);
     }
 
-    /// The angle of repose. A grain rests only when the cells below it and diagonally below
-    /// are full, so in a pile at rest no column stands more than one cell above the column
+    /// The angle of repose. In a pile of sand alone, a grain rests only when the cells below
+    /// it and diagonally below are full, so in a pile at rest no column stands more than one cell above the column
     /// beside it: a slope of 45 degrees at most. Poured from one point, the pile is a
     /// triangle that steep, so N grains stand about sqrt(N) high; a rule that let sand
     /// slide further would make it lower.
     #[test]
     fn a_pile_stands_at_45_degrees() {
+        pour_a_pile(false);
+    }
+
+    /// Sand slides into water as it slides into empty cells, so a pile poured into a tank of
+    /// water stands just as steep.
+    #[test]
+    fn a_pile_under_water_stands_at_45_degrees() {
+        pour_a_pile(true);
+    }
+
+    /// Pour 900 grains on one point of a 121 x 60 world (under 35 rows of water if `wet`),
+    /// let them come to rest, and check the pile's slope and height.
+    fn pour_a_pile(wet: bool) {
         let (w, h, grains) = (121, 60, 900);
         let mut world = World::new(w, h, 7);
+        if wet {
+            world.fill_rect(0, 25, w - 1, h - 1, Water);
+        }
         for k in 0..grains * 2 {
             if k % 2 == 0 {
                 world.set(w / 2, 0, Sand);
             }
             world.step();
         }
-        settle(&mut world, 1_000);
+        if wet {
+            run(&mut world, 1_500); // water's surface never quite settles
+        } else {
+            settle(&mut world, 1_000);
+        }
         assert_eq!(world.count(Sand), grains);
         let heights: Vec<usize> = (0..w)
             .map(|x| (0..h).filter(|&y| world.get(x, y) == Sand).count())
             .collect();
-        // Columns are solid: no grain rests on an empty cell.
+        // Columns are solid: no grain rests on an empty or water cell.
         for (x, height) in heights.iter().enumerate() {
             assert!(
                 (h - height..h).all(|y| world.get(x, y) == Sand),
@@ -997,6 +1056,59 @@ mod tests {
         assert_eq!(cells_of(&world, Plant), spared);
     }
 
+    /// Pressure moves water only between resting surfaces. A body of water in free fall has
+    /// none, so it keeps its shape, every cell falling a row a step, though its top is two
+    /// rows above the top of its foot.
+    #[test]
+    fn falling_water_keeps_its_shape() {
+        let mut world = World::new(12, 20, 4);
+        let shape = [(5, 1), (5, 2), (5, 3), (6, 3), (7, 3)];
+        for (x, y) in shape {
+            world.set(x, y, Water);
+        }
+        for k in 1..=10 {
+            world.step();
+            let fallen: Vec<_> = shape.iter().map(|&(x, y)| (x, y + k)).collect();
+            let mut at = cells_of(&world, Water);
+            at.sort_unstable();
+            let mut want = fallen.clone();
+            want.sort_unstable();
+            assert_eq!(at, want, "step {k}");
+        }
+    }
+
+    /// A newly lit plant doesn't burn until the next step, so fire runs along a line of
+    /// plants at most one cell a step, whichever way the scan goes.
+    #[test]
+    fn fire_spreads_at_most_a_cell_a_step() {
+        for seed in 0..10 {
+            let mut world = World::new(60, 40, seed);
+            world.fill_rect(1, 20, 59, 20, Plant);
+            world.set(0, 20, Fire);
+            for k in 1..=50 {
+                world.step();
+                assert!(
+                    (k + 1..60).all(|x| world.get(x, 20) == Plant),
+                    "seed {seed}, step {k}"
+                );
+            }
+        }
+    }
+
+    /// Clear empties the world and starts the step count again, and the world runs on as
+    /// before.
+    #[test]
+    fn clear_starts_again() {
+        let mut world = World::new(5, 5, 1);
+        world.set(2, 0, Sand);
+        run(&mut world, 3);
+        world.clear();
+        assert_eq!((world.step, world.count(Empty)), (0, 25));
+        world.set(2, 0, Sand);
+        world.step();
+        assert_eq!(cells_of(&world, Sand), vec![(2, 1)]);
+    }
+
     /// Water puts a flame out, and isn't used up doing it.
     #[test]
     fn water_puts_fire_out() {
@@ -1009,8 +1121,8 @@ mod tests {
         assert_eq!(world.count(Water), 1);
     }
 
-    /// A lone flame rises a cell each step (straight up or to one side) and burns out
-    /// within its life of at most 16 steps.
+    /// A lone flame rises a cell each step (straight up or to one side), and lasts 9 to 16
+    /// steps: its life of 8 to 15 counts down, and at 0 the next step puts it out.
     #[test]
     fn a_flame_rises_and_dies() {
         for seed in 0..20 {
@@ -1021,7 +1133,9 @@ mod tests {
             assert_eq!(at.len(), 1);
             assert_eq!(at[0].1, 29);
             assert!(at[0].0.abs_diff(20) <= 1);
-            run(&mut world, 15);
+            run(&mut world, 7);
+            assert_eq!(world.count(Fire), 1, "seed {seed}: alive after 8 steps");
+            run(&mut world, 8);
             assert_eq!(world.count(Fire), 0, "seed {seed}");
         }
     }
@@ -1048,12 +1162,14 @@ mod tests {
     /// - so does water poured on one point, where every drop that lands on the puddle
     ///   chooses a side;
     /// - water in the middle arm of a tube with three arms rises as much in the left arm as
-    ///   in the right, which tests the pressure rule.
+    ///   in the right, and a wide basin drains as much from its left as from its right,
+    ///   which test the pressure rule's choices of where water goes and where it comes from.
     ///
     /// Each run's offset of its centre of mass is noise around 0.
     #[test]
     fn no_side_is_favoured() {
-        let (mut sand, mut water, mut arms) = (Vec::new(), Vec::new(), Vec::new());
+        let (mut sand, mut water, mut arms, mut basin) =
+            (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         for seed in 0..40 {
             let (w, h) = (121, 40);
             for (m, out) in [(Sand, &mut sand), (Water, &mut water)] {
@@ -1083,11 +1199,25 @@ mod tests {
             world.fill_rect(17, 5, 26, 32, Water);
             run(&mut world, 3);
             arms.push(offset(&world, Water, 21.5));
+
+            // A basin 40 wide drains down a shaft into two risers 4 wide, all symmetrical
+            // about x = 29.5. Its top row has more cells than the risers' surfaces, so
+            // pressure must choose which of them to move, at random.
+            let mut world = World::new(60, 60, seed);
+            world.fill_rect(0, 0, 59, 59, Wall);
+            world.fill_rect(10, 5, 49, 24, Empty);
+            world.fill_rect(10, 12, 49, 24, Water);
+            world.fill_rect(28, 25, 31, 49, Water);
+            world.fill_rect(4, 50, 55, 54, Water);
+            world.fill_rect(4, 30, 7, 49, Empty);
+            world.fill_rect(52, 30, 55, 49, Empty);
+            run(&mut world, 2);
+            basin.push(offset(&world, Water, 29.5));
         }
-        let (zs, zw, za) = (z(&sand), z(&water), z(&arms));
+        let (zs, zw, za, zb) = (z(&sand), z(&water), z(&arms), z(&basin));
         assert!(
-            zs.abs() < 4.0 && zw.abs() < 4.0 && za.abs() < 4.0,
-            "z: sand {zs:.2}, water {zw:.2}, three arms {za:.2}"
+            zs.abs() < 4.0 && zw.abs() < 4.0 && za.abs() < 4.0 && zb.abs() < 4.0,
+            "z: sand {zs:.2}, water {zw:.2}, three arms {za:.2}, basin {zb:.2}"
         );
     }
 
