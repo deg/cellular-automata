@@ -1,0 +1,8 @@
+[package]
+name = "lenia"
+version = "0.1.0"
+edition = "2024"
+description = "Cells hold any value from 0 to 1 and grow by a smooth ring around them; gliding, turning creatures appear that look alive."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
