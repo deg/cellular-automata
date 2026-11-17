@@ -13,8 +13,11 @@
 //! is the wording of P. Meakin's abstract, Physical Review A 27, 1495 (1983). Meakin also
 //! tried sticking probabilities from 0.1 to 1; here a particle arriving next to the cluster
 //! sticks with probability `stick` each time, and otherwise walks on. A step towards an
-//! occupied site is not taken; another direction is drawn instead (our choice: the papers
-//! read don't say).
+//! occupied site is not taken; another direction is drawn instead. That choice can't
+//! matter at `stick` = 1, where a walker sticks as soon as it reaches a site next to the
+//! cluster, before any blocked step; below 1 it does. The alternative is to stay put,
+//! which counts as another contact and another chance to stick. No source read settles
+//! which Meakin used.
 //!
 //! A line seed is a substrate along the bottom row, with the left and right edges joined,
 //! as in Meakin's "Diffusion-controlled deposition on fibers and surfaces", Physical
@@ -22,8 +25,13 @@
 //!
 //! # Speed-ups
 //!
-//! Each leaves the distribution of where a particle sticks unchanged, and a test checks it
-//! against the plain walk:
+//! The launch circle and bringing walkers back are exact for a walk in the continuum and
+//! close on the lattice; big steps and the line seed's launch row are exact on the
+//! lattice. The tests check each against walks without it: big steps against plain
+//! walks out of a square, equation (16) and the line's shift against walks back to the
+//! circle or row, and the sites where particles stick against a slow setting (single
+//! steps only, and walkers brought back from eight times the launch radius, not three),
+//! with no difference found:
 //! - **Launch circle.** A particle from far away first meets a circle around the cluster
 //!   at a uniformly random point, so it starts there, a few sites outside the cluster's
 //!   reach (Sander section 7.1, crediting M. E. Sander). For the line seed: a uniformly
@@ -320,7 +328,8 @@ impl Aggregate {
             Seed::Line => {
                 let w = self.arrival.width() as f64;
                 let shift = return_to_line(out - launch, self.rng.next_f64());
-                let x = (p.0 as f64 + shift).rem_euclid(w);
+                // To the nearest site, as for the circle: truncating drifted left.
+                let x = (p.0 as f64 + shift).round().rem_euclid(w);
                 let x = if x.is_finite() { x as i64 } else { 0 };
                 (
                     x.min(w as i64 - 1),
@@ -786,10 +795,13 @@ mod tests {
     /// circle. Walk from three times the circle's radius until inside it, and compare the
     /// angle turned with the formula's, by the two-sample Kolmogorov–Smirnov statistic.
     ///
-    /// The formula is for the continuum. On the lattice, a circle of radius 8 is too small
-    /// for it from twice the radius (a distance of 0.089, failing); from three times, or
-    /// for a circle of radius 20 from twice, it passes. So walkers are brought back only
-    /// from at least three times the launch radius.
+    /// The formula is for the continuum. On the lattice, the sites within radius 8 catch
+    /// walkers like a continuum disc of radius about 7.6: from 24, walks give a mean cos θ
+    /// of 0.316 against the formula's 1/3 (60,000 walks), and at radius 20 from 60 about
+    /// 0.325. That is a half-site offset in where the lattice circle is, not a failure of
+    /// the formula, and this test passes because its threshold of 0.05 sits above it. The
+    /// offset shows more from closer in (a distance of 0.089 from twice the radius, failing),
+    /// which is why walkers are brought back only from three launch radii out.
     #[test]
     fn walkers_come_back_where_equation_16_says() {
         let (radius, start, far) = (8.0f64, 24i64, 1000.0f64);
@@ -882,6 +894,63 @@ mod tests {
         let gap = kolmogorov_smirnov(walked, formula);
         // The 0.1% critical value for two samples of 20,000: 1.95 · √(2 / 20000) ≈ 0.020.
         assert!(gap < 0.02, "Kolmogorov–Smirnov distance {gap:.3}");
+    }
+
+    /// The line seed's bring-back must not drift sideways: walkers land as often left of
+    /// where they were as right of it. Rounding the shift down instead of to the nearest
+    /// site made "right" 1/(33π) ≈ 1% rarer than "left" here (a drift of half a site); the
+    /// standard error of the difference is about 0.1%. Walkers land on the launch row.
+    #[test]
+    fn line_walkers_come_back_with_no_sideways_drift() {
+        let mut a = Aggregate::new(1000, 40, Seed::Line, 1.0, 12);
+        let launch = a.launch_distance() as i64;
+        let from = (500, 39 - (launch + 33));
+        let (mut left, mut right) = (0.0, 0.0);
+        let n = 1_000_000;
+        for _ in 0..n {
+            let (x, y) = a.bring_back(from);
+            assert_eq!(y, 39 - launch);
+            if x < 500 {
+                left += 1.0;
+            } else if x > 500 {
+                right += 1.0;
+            }
+        }
+        let gap = (right - left) / n as f64;
+        assert!(gap.abs() < 0.004, "right minus left {gap:.4}");
+    }
+
+    /// The line seed's shift is Cauchy with scale the walker's height above the launch row
+    /// (not above the bottom row): on a wide world, half the shifts are within that height.
+    #[test]
+    fn line_walkers_come_back_shifted_by_their_height_above_the_launch_row() {
+        let (w, h) = (20_000i64, 220i64);
+        let mut a = Aggregate::new(w as usize, h as usize, Seed::Line, 1.0, 13);
+        a.reach = 200.0;
+        let launch = a.launch_distance() as i64;
+        let x0 = w / 2;
+        let mut sizes: Vec<i64> = (0..20_000)
+            .map(|_| (a.bring_back((x0, h - 1 - (launch + 40))).0 - x0).abs())
+            .collect();
+        sizes.sort();
+        let median = sizes[sizes.len() / 2];
+        // The median of |shift| is the scale, 40, with a standard error of about 0.5.
+        assert!((37..=43).contains(&median), "median shift {median}");
+    }
+
+    /// Equation (16) is good on the lattice only from about three launch radii out (see
+    /// above), so walkers closer in are left alone.
+    #[test]
+    fn walkers_are_brought_back_only_from_three_launch_radii() {
+        let mut a = Aggregate::new(1000, 1000, Seed::Point, 1.0, 14);
+        let c = a.middle();
+        for reach in [0.0, 5.0, 20.0, 100.0, 400.0] {
+            a.reach = reach;
+            let launch = a.launch_distance();
+            assert!(a.return_distance() >= 3.0 * launch, "reach {reach}");
+            let inside = (c.0 + (3.0 * launch).floor() as i64, c.1);
+            assert_eq!(a.bring_back(inside), inside, "reach {reach}");
+        }
     }
 
     /// Every particle joins next to an earlier one, by a nearest-neighbour (not
@@ -1052,23 +1121,24 @@ mod tests {
         assert!((a.radius_of_gyration() - 0.8f64.sqrt()).abs() < 1e-12);
     }
 
-    /// The fractal dimension of large clusters. Witten and Sander's clusters are fractal
-    /// with dimension near 1.7; sources:
-    /// - P. Meakin, Physical Review A 27, 1495 (1983): on lattices, the radius of gyration
-    ///   grows as N^β with β ≈ 6/(5d), a dimension of 5/3 in two dimensions;
+    /// The fractal dimension of clusters the size of the demo's biggest. Sources:
+    /// - P. Meakin, Physical Review A 33, 3371 (1986): hundreds of clusters of 40,000 to
+    ///   80,000 sites; on the square lattice the radius of gyration grows as N^β with "an
+    ///   effective value of about 0.60" at the largest sizes, a dimension of about 1.67
+    ///   (1/0.605 = 1.65 if "about 0.60" means 0.60 to two places). On the triangular and
+    ///   hexagonal lattices β = 0.585 ± 0.003, as off the lattice.
     /// - S. Tolman and P. Meakin, Physical Review A 40, 428 (1989): 1.715 ± 0.004 off the
-    ///   lattice, for clusters up to a million particles;
-    /// - L. M. Sander, Contemporary Physics 41, 203 (2000), section 5.1: square-lattice
-    ///   clusters of under about 100,000 particles show the same scaling as off-lattice
-    ///   ones; the lattice shows only beyond (P. Meakin et al., Physical Review A 35,
-    ///   5233 (1987)).
+    ///   lattice, for clusters of up to a million particles.
+    /// - (P. Meakin, Physical Review A 27, 604 (1983), found D/d = 0.847 ± 0.01 in two
+    ///   dimensions, a dimension of 1.69 ± 0.02, with β insensitive to lattice details.)
     ///
-    /// The mean over twenty clusters of 30,000 particles must lie between 5/3 and 1.719,
-    /// widened by three standard errors of the mean.
+    /// The mean, over 100 clusters of 30,000 particles, of each cluster's fitted slope must
+    /// lie between 1.65 (Meakin 1986) and 1.72 (the top of Tolman and Meakin's range). Its
+    /// standard error is about 0.004.
     #[test]
     #[ignore]
     fn large_clusters_have_the_published_fractal_dimension() {
-        let dims: Vec<f64> = (0..20)
+        let dims: Vec<f64> = (0..100)
             .map(|s| {
                 let mut a = Aggregate::new(1000, 1000, Seed::Point, 1.0, 100 + s);
                 while a.particles() < 30_000 {
@@ -1080,12 +1150,14 @@ mod tests {
         let n = dims.len() as f64;
         let mean = dims.iter().sum::<f64>() / n;
         let sd = (dims.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / (n - 1.0)).sqrt();
-        let se = sd / n.sqrt();
-        println!("dimensions {dims:.3?}: mean {mean:.4}, standard error {se:.4}");
-        assert!(
-            (5.0 / 3.0 - 3.0 * se..=1.719 + 3.0 * se).contains(&mean),
-            "mean {mean:.4} ± {se:.4}"
+        let (lo, hi) = dims
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(lo, hi), &d| (lo.min(d), hi.max(d)));
+        println!(
+            "mean {mean:.4}, standard deviation {sd:.4}, standard error {:.4}, range {lo:.3} to {hi:.3}",
+            sd / n.sqrt()
         );
+        assert!((1.65..=1.72).contains(&mean), "mean {mean:.4}");
     }
 
     /// Not a test: times the growth of a cluster, for the panel's speed settings.

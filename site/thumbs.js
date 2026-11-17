@@ -433,6 +433,7 @@
       }
       paint(canvas, W, H, cells, (v) => (v ? GOLD : NAVY));
     },
+
     aggregation(canvas) {
       // Diffusion-limited aggregation from a seed in the middle, coloured by time of
       // arrival as in the demo. Plain walks, started on a circle just outside the cluster

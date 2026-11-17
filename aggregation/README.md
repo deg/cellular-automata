@@ -39,14 +39,18 @@ line from 100 particles on, and shows its slope.
 
 No one has found D by theory: the only way to know it is to grow clusters and measure.
 Susan Tolman and Paul Meakin measured 1.715 ± 0.004 for clusters of up to a million
-particles grown off the lattice, and Sander quotes 1.71.
+particles grown off the lattice, and Sander quotes 1.71. On the square lattice the
+measured value depends a little on the size: for clusters of 40,000 to 80,000 sites, like
+this demo's biggest, Meakin found the radius of gyration growing as N to the power 0.60,
+a dimension of about 1.67. Clusters grown here measure about 1.70.
 
 ### Making it fast
 
 Wandering at random is slow: most of a walk is spent getting near the cluster, and in two
 dimensions a particle can wander very far before coming back. The demo uses three standard
-shortcuts, none of which changes where particles stick (its tests compare each with the
-plain walk):
+shortcuts. The first two are exact for a random walk in continuous space and very close on
+the grid; the third is exact on the grid. The demo's tests compare each with walks that
+don't use it, and find no difference in where particles stick:
 
 - Particles start on a circle just outside the cluster, at a random point. A particle
   coming from far away meets that circle first anyway, equally likely at any point.
@@ -83,31 +87,41 @@ plain walk):
   Review A 27, 2616–2623 (1983),
   [doi:10.1103/PhysRevA.27.2616](https://doi.org/10.1103/PhysRevA.27.2616), he grew them
   on lines and surfaces.
-- **1984: DLA in nature.** Robert Brady and Robin Ball grew copper on the end of a thin
-  wire in diffusion-limited conditions and found it self-similar over five orders of
-  magnitude in size: *Fractal growth of copper electrodeposits*, Nature 309, 225–229
-  (1984), [doi:10.1038/309225a0](https://doi.org/10.1038/309225a0). The same year Lincoln
+- **1984: DLA in nature.** Robert Brady and Robin Ball grew fractal deposits of copper:
+  *Fractal growth of copper electrodeposits*, Nature 309, 225–229 (1984),
+  [doi:10.1038/309225a0](https://doi.org/10.1038/309225a0). In Sander's account, they
+  grew it on the end of a thin wire in diffusion-limited conditions, and it looked
+  self-similar over five orders of magnitude in size. The same year Lincoln
   Paterson linked DLA to viscous fingering, where one fluid pushed into another through
   a porous medium branches the same way: *Diffusion-limited aggregation and two-fluid
   displacements in porous media*, Physical Review Letters 52, 1621–1624 (1984),
   [doi:10.1103/PhysRevLett.52.1621](https://doi.org/10.1103/PhysRevLett.52.1621). L.
-  Niemeyer, L. Pietronero and H. J. Wiesmann found DLA's fractal dimension in the
-  branching patterns of electrical breakdown: *Fractal dimension of dielectric
-  breakdown*, Physical Review Letters 52, 1033–1036 (1984),
+  Niemeyer, L. Pietronero and H. J. Wiesmann modelled the branching patterns of
+  electrical breakdown, and by Sander's account found real ones to have DLA's fractal
+  dimension: *Fractal dimension of dielectric breakdown*, Physical Review Letters 52,
+  1033–1036 (1984),
   [doi:10.1103/PhysRevLett.52.1033](https://doi.org/10.1103/PhysRevLett.52.1033). In 1989
-  Hiroshi Fujikawa and Mitsugu Matsushita found that colonies of the bacterium *Bacillus
-  subtilis*, short of food, grow like DLA: *Fractal growth of Bacillus subtilis on agar
-  plates*, Journal of the Physical Society of Japan 58, 3875–3878 (1989),
+  Hiroshi Fujikawa and Mitsugu Matsushita grew colonies of the bacterium *Bacillus
+  subtilis* with random branches like DLA's, of fractal dimension 1.716 ± 0.008, whose
+  inner branches stopped growing: *Fractal growth of Bacillus subtilis on agar plates*,
+  Journal of the Physical Society of Japan 58, 3875–3878 (1989),
   [doi:10.1143/JPSJ.58.3875](https://doi.org/10.1143/JPSJ.58.3875).
-- **1985–1987: the lattice shows.** Ball and Brady's hierarchical maps of the cluster made
-  much bigger clusters possible: R. C. Ball and R. M. Brady, *Large scale lattice effect
-  in diffusion-limited aggregation*, Journal of Physics A 18, L809–L813 (1985),
-  [doi:10.1088/0305-4470/18/13/014](https://doi.org/10.1088/0305-4470/18/13/014). On the
-  square lattice, clusters of under about 100,000 particles looked like those grown off
-  it. At about a million, their arms stretch out
-  along the lattice's axes: Paul Meakin, Robin Ball, P. Ramanlal and Leonard Sander,
-  *Structure of large two-dimensional square-lattice diffusion-limited aggregates:
-  Approach to asymptotic behavior*, Physical Review A 35, 5233–5239 (1987),
+- **1985–1987: the lattice shows.** By Sander's account, small clusters grown on the
+  square and triangular lattices looked alike: under about 100,000 particles, the growth
+  appeared to ignore the lattice. Then Ball and Brady's hierarchical maps of the cluster
+  made much bigger clusters possible, and lattice effects began to show: R. C. Ball and
+  R. M. Brady, *Large scale lattice effect in diffusion-limited aggregation*, Journal of
+  Physics A 18, L809–L813 (1985),
+  [doi:10.1088/0305-4470/18/13/014](https://doi.org/10.1088/0305-4470/18/13/014). Growing
+  hundreds of clusters of 40,000 to 80,000 sites, Meakin found the square lattice's
+  exponent already differing from the triangular and hexagonal lattices', which matched
+  off-lattice DLA: *Universality, nonuniversality, and the effects of anisotropy on
+  diffusion-limited aggregation*, Physical Review A 33, 3371–3382 (1986),
+  [doi:10.1103/PhysRevA.33.3371](https://doi.org/10.1103/PhysRevA.33.3371). At about a
+  million particles, square-lattice clusters stretch their arms out along the lattice's
+  axes: Paul Meakin, Robin Ball, P. Ramanlal and Leonard Sander, *Structure of large
+  two-dimensional square-lattice diffusion-limited aggregates: Approach to asymptotic
+  behavior*, Physical Review A 35, 5233–5239 (1987),
   [doi:10.1103/PhysRevA.35.5233](https://doi.org/10.1103/PhysRevA.35.5233). This demo's
   biggest world holds a few tens of thousands.
 - **1989: the dimension.** Susan Tolman and Paul Meakin, *Off-lattice and
@@ -118,7 +132,7 @@ plain walk):
 - **2000: still open.** By Sander's review the record stood at about 30,000,000
   particles, and there was still no satisfactory theory of DLA. In 2021 Eviatar and Itamar
   Procaccia found the exact dimension of DLA grown on a line, off the lattice: 3/2, in
-  *The dimension of diffusion limited aggregates grown on a line*, Physical Review E 103,
+  *Dimension of diffusion-limited aggregates grown on a line*, Physical Review E 103,
   L020101 (2021),
   [doi:10.1103/PhysRevE.103.L020101](https://doi.org/10.1103/PhysRevE.103.L020101),
   [arXiv:2010.05709](https://arxiv.org/abs/2010.05709).
@@ -130,7 +144,7 @@ plain walk):
   grew past.
 - **Measure the dimension.** Choose the *1000 x 1000* world and let a cluster grow to the
   edge. The slope wanders at first and settles near 1.7. *Restart* a few times: each
-  cluster gives a slightly different slope, and their average is close to 1.71.
+  cluster gives a slightly different slope, and their average is close to 1.70.
 - **Lower the sticking probability** to 0.1 and *Restart*. Particles get further into the
   fjords before they stick, and the branches grow thick. Meakin found that it changes the
   density, but not the dimension, of large clusters.

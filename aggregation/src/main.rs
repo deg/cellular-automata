@@ -256,7 +256,7 @@ impl AggregationApp {
                 grouped(4 * FIT_FROM as u64)
             )),
         };
-        ui.small("Large clusters measure about 1.71: see the explanation.");
+        ui.small("Published values are 1.67 to 1.71: see the explanation.");
     }
 
     fn advance(&mut self, dt: f64) {
