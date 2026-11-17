@@ -14,6 +14,8 @@ explains how that fits together, and why it is built this way.
   src/sim.rs   the automaton itself:            GridView   draws a grid, maps clicks
                cells, rules, one step.           Playback   Run / Pause / Step / Restart
                Pure Rust, no UI, tested.         About      renders the demo's README
+                                                 readout    the readout grid, pointer row
+                                                 plot       a small chart in the panel
                                                  Pace, Rng, line, moore_counts, ...
   src/main.rs  the controls and the frame        run()      opens a window or starts in
                loop, built from ca_core's                   the page
@@ -294,7 +296,9 @@ The centred pile took 6.7 s that day, so this machine ran about twice as slow as
    depending on `ca_core`, and add it to the workspace `members` in the root `Cargo.toml`.
 2. Write `src/sim.rs`, the automaton, with tests of known behaviour.
 3. Write `src/main.rs`, using `ca_core::run`, `controls_panel`, `Playback`, `GridView`
-   and `About`. Copy an existing demo, such as `brians-brain/src/main.rs`, as a start.
+   and `About`, with `readout` for the readout at the bottom of the panel,
+   `speed_cap_note` if its work per frame is capped, and `plot` for a chart. Copy a recent
+   demo, such as `langtons-loops/src/main.rs`, as a start.
 4. Copy another demo's `index.html` and change its title and `data-bin`. Keep its
    `data-initializer="../site/loading.mjs"`, which shows the download's progress.
 5. Write `README.md`: the rule, where the name comes from, its history (with checked

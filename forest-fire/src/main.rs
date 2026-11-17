@@ -196,7 +196,7 @@ impl FireApp {
                     _ => "-".to_string(),
                 },
             );
-            r.row("fire counted", grouped(stats.fires));
+            r.row("fires counted", grouped(stats.fires));
             r.row("largest fire", format!("{} trees", grouped(stats.largest)));
             r.pointer(self.hovered.map(|(x, y)| {
                 let what = match grid.get(x, y) {

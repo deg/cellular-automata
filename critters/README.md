@@ -48,8 +48,9 @@ which are the particles throughout:
   computer could, in principle, be built from perfectly elastic balls bouncing off each
   other and off fixed mirrors. Whether two balls collide at a point depends on whether
   both arrive, so a collision is a logic gate, and the whole computer is reversible: run
-  every ball backwards and it uncomputes. (E. Fredkin and T. Toffoli, *Conservative
-  logic*, International Journal of Theoretical Physics 21, 219–253 (1982).)
+  every ball backwards and it uncomputes. Edward Fredkin and Tommaso Toffoli set this out
+  in *Conservative logic*, International Journal of Theoretical Physics 21, 219–253
+  (1982), [doi:10.1007/BF01857727](https://doi.org/10.1007/BF01857727).
 - **1983–1984: the Margolus neighbourhood.** Norman Margolus, at MIT, wanted a cellular
   automaton that behaved like the billiard balls. A cell that looks at its neighbours to
   decide its own next state is hard to make reversible: a particle moving from one cell to
@@ -57,8 +58,9 @@ which are the particles throughout:
   separately. Margolus's answer was to update blocks instead of cells. If the table for a
   block is reversible, the whole world is, and if it keeps the number of 1s, so does the
   world. His billiard-ball rule is the one here, and he showed that it is *universal*: it
-  can compute anything a computer can. (N. Margolus, *Physics-like models of
-  computation*, Physica D 10, 81–95 (1984).)
+  can compute anything a computer can. He published both in *Physics-like models of
+  computation*, Physica D 10, 81–95 (1984),
+  [doi:10.1016/0167-2789(84)90252-5](https://doi.org/10.1016/0167-2789(84)90252-5).
 - **1984: the HPP gas on a machine.** J. Hardy, Y. Pomeau and O. de Pazzis had introduced
   the HPP gas in the 1970s as a model of a gas on a square lattice (the lattice gas, another
   demo in this project, tells that story). Toffoli and Margolus rediscovered it and wrote it
@@ -81,13 +83,14 @@ which are the particles throughout:
   into a fixed pattern or a cycle, because then running backwards would leave it there
   too, though it was made by a collision. So it must break up, and the only moving things
   eight particles can make are one or two gliders: at least one glider always comes out.
-  (N. Margolus, *Crystalline computation*, in A. J. G. Hey (ed.), *Feynman and
-  Computation*, Perseus Books, 267–305 (1999), [arXiv:comp-gas/9811002](https://arxiv.org/abs/comp-gas/9811002).)
+  Margolus tells this in *Crystalline computation*, in A. J. G. Hey (ed.), *Feynman and
+  Computation*, Perseus Books, 267–305 (1999),
+  [arXiv:comp-gas/9811002](https://arxiv.org/abs/comp-gas/9811002).
 
 ## Things to try
 
 - **There and back.** Run *Critters* for a few hundred generations, until the square has
-  thrown gliders across the world. Choose *backwards* and Run: the gliders fly home, the
+  thrown gliders across the world. Choose *backwards* and *Run*: the gliders fly home, the
   mess untangles, and the run stops at generation 0 on the very square you started from.
   The readout's *cells unlike the start* shows 0.
 - **The gliders.** Each is four particles: two side by side and two a little apart. It
@@ -118,8 +121,8 @@ which are the particles throughout:
 - The Wikipedia article [Critters (cellular automaton)](https://en.wikipedia.org/wiki/Critters_(cellular_automaton)).
 - The Wikipedia article [Block cellular automaton](https://en.wikipedia.org/wiki/Block_cellular_automaton),
   on rules of this kind.
-- N. Margolus, *Crystalline computation*, in *Feynman and Computation* (1999),
-  [arXiv:comp-gas/9811002](https://arxiv.org/abs/comp-gas/9811002): Critters, the
+- N. Margolus, *Crystalline computation*, in A. J. G. Hey (ed.), *Feynman and
+  Computation*, Perseus Books, 267–305 (1999), [arXiv:comp-gas/9811002](https://arxiv.org/abs/comp-gas/9811002): Critters, the
   billiard balls and the HPP gas in block form, with pictures, by Margolus himself.
 - N. Margolus, *Physics-like models of computation*, Physica D 10, 81–95 (1984),
   [doi:10.1016/0167-2789(84)90252-5](https://doi.org/10.1016/0167-2789(84)90252-5).

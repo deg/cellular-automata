@@ -193,8 +193,13 @@ make siblings               # before/after a Rust update: build+test David's oth
     from scratch has a separate Clear. A note says what Restart (and Clear) does. Where
     the opening is random, Restart draws it afresh (a typed seed, where there is one, is
     for reproducing a world).
-  - The readout at the bottom is `ca_core::readout`, lowercase singular labels, numbers
-    through `grouped`, and its last row is `pointer` ("under the pointer"), not a tooltip.
+  - The readout at the bottom is `ca_core::readout`: lowercase labels, singular for a
+    counter ("generation", "step") and plural for a count of things ("particles",
+    "grains"), numbers through `grouped`, and its last row is `pointer` ("under the
+    pointer", as "(x, y): state"), not a tooltip. Clear, where there is one, sits under
+    the playback controls, its note joined to Restart's. Charts: measured points sky blue,
+    reference lines gold. The panel's opening line describes the rule; whether it is a
+    cellular automaton is the README's business.
   - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
     chosen one's note below (a drop-down only for long lists: Life's patterns,
     Wireworld's circuits). A section's strong heading

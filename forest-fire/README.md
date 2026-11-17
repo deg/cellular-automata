@@ -89,7 +89,7 @@ turbulence*.
   across; on a smaller one the density comes out a little lower.
 - **Patches.** Grassberger observed that the steady forest is made of patches of roughly
   even density, most of them far below or far above the density at which a fire can cross
-  them. Pause, and look for them: thick stands that have not burnt for a long time, and
+  them. *Pause*, and look for them: thick stands that have not burnt for a long time, and
   thin ones that burnt recently. Click a tree in each to light it, and compare the fires.
 - **Watch a fire spread.** Set the speed to a few steps a second and watch a fire ring by
   ring: the front stops wherever it runs out of neighbouring trees.

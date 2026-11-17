@@ -123,7 +123,7 @@ impl AggregationApp {
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Diffusion-limited aggregation");
-        ui.label("Not quite a cellular automaton: one particle at a time wanders at random over the grid until it lands next to the cluster, and sticks there. The cluster grows into a branching fractal.");
+        ui.label("One particle at a time wanders at random over the grid until it lands next to the cluster, and sticks there. The cluster grows into a branching fractal.");
         self.about.toggle_button(ui);
         ui.separator();
 
@@ -250,8 +250,8 @@ impl AggregationApp {
             140.0,
         );
         match fit {
-            Some((slope, _)) => ui.label(format!("Slope, the fractal dimension: {slope:.2}")),
-            None => ui.label(format!(
+            Some((slope, _)) => ui.small(format!("Slope, the fractal dimension: {slope:.2}")),
+            None => ui.small(format!(
                 "The slope is shown once there are {} particles.",
                 grouped(4 * FIT_FROM as u64)
             )),

@@ -23,9 +23,9 @@ slow down more than it had to. These overreactions pass from car to car down a q
 until one car stops: that is how a jam starts. With steps 2 and 3 swapped there are no
 overreactions, and no jams start of their own accord.
 
-With maximum speed 1 and no dawdling (the *rule 184* preset), a car moves exactly when the
+With maximum speed 1 and no dawdling (the *Rule 184* preset), a car moves exactly when the
 cell ahead is empty. That is *Rule 184* in Stephen Wolfram's numbering of the
-one-dimensional automata, which you can also run in the elementary demo, another demo in
+one-dimensional automata, which you can also run in Elementary cellular automata, another demo in
 this project.
 
 The model is named after Kai Nagel and Michael Schreckenberg, the two physicists who
@@ -46,13 +46,13 @@ which the demo's chart measures as you watch:
 Without dawdling, the answer is exact. Once the road has settled, every car drives at
 full speed as long as there is room, and the flow is the density times the maximum speed.
 Past a density of 1/(maximum speed + 1) there isn't room, and the cars move into every
-empty cell each step, so the flow is 1 minus the density. These are the two straight grey
+empty cell each step, so the flow is 1 minus the density. These are the two straight gold
 lines on the chart. Dawdling lowers the curve and rounds off its peak. With maximum speed
 5 and dawdling 0.5 the top is flat: over long runs Nagel's thesis finds the greatest flow,
 0.318 cars a step, at density 0.085, half the 1/6 it would be without dawdling, and from
 about 0.08 to 0.10 the flow is nearly the same.
 
-The teal curve is measured on 49 test roads of 2,000 cells, one for each density from 0.02
+The blue curve is measured on 49 test roads of 2,000 cells, one for each density from 0.02
 to 0.98, each run for 500 steps to settle and then 1,000 more, at the current *maximum
 speed* and *dawdling*; near the top, from 0.04 to 0.20, each density averages 8 roads. The
 coral dot is the road on screen, averaged over its last 200 steps. One road's flow
@@ -75,7 +75,7 @@ above the curve.
   traffic automata physicists had studied, as the 1995 paper below describes them, a car
   moved at most one cell a step. Nagel and Schreckenberg let it go faster, up to a speed
   limit, added the random dawdling step, and found in simulations the change from smooth
-  flow to stop-and-go waves seen on real freeways. Nagel's thesis argues that the model is
+  flow to stop-and-go waves seen on real motorways. Nagel's thesis argues that the model is
   minimal: any further simplification loses something essential, such as jams that form
   by themselves. Its scale comes from a dense jam, in which each car takes up about 7.5 m:
   that is one cell. Cars in free traffic at maximum speed 5 and dawdling 0.5 average 4.5
@@ -95,14 +95,14 @@ above the curve.
   51, 2939–2949 (1995), [arXiv:cond-mat/9412045](https://arxiv.org/abs/cond-mat/9412045),
   report the model running on supercomputers. On a 64-node Intel Paragon it could
   simulate 280,000 km of single-lane road as fast as real time, when the whole of
-  Germany's freeways come to about 60,000 km of single lanes. The work was part of a
+  Germany's motorways come to about 60,000 km of single lanes. The work was part of a
   collaboration between Cologne and TRANSIMS, a transportation simulation project at Los
   Alamos National Laboratory.
 - **2000: a review.** D. Chowdhury, L. Santen and A. Schadschneider's long review of the
   statistical physics of traffic gives the model a chapter of its own, and another to
   the many models that extend it: more lanes, traffic both ways, cars slow to start.
 
-How realistic is it? Nagel's thesis compares it with freeway measurements. Freeways carry
+How realistic is it? Nagel's thesis compares it with motorway measurements. Motorways carry
 up to about 2,000 cars an hour per lane. The model's greatest flow, at maximum speed 5
 and dawdling 0.5, is 0.318 cars a step, about 1,150 an hour at a step a second; Nagel
 suggests that the practitioners' "maximum flow" is not measured the way the model's
@@ -112,23 +112,23 @@ roughly a second and a cell roughly 7.5 m.
 
 ## Things to try
 
-- **Watch a jam start.** Choose *jams* and watch the newest rows. A car dawdles, the car
+- **Watch a jam start.** Choose *Jams* and watch the newest rows. A car dawdles, the car
   behind brakes for it and dawdles too, and a few steps later a short line of coral, a
   queue of stopped cars, is drifting down to the left. Cars leave its front and join its
   back, so it moves backwards while every car moves forwards.
 - **Take the dawdling away.** Set *dawdling* to 0. The jams already there melt away. If
   the density is below 1/(maximum speed + 1), 1/6 for speed 5, every car ends up at full
   speed forever, and the picture becomes parallel stripes. Then set *dawdling* to 0.05.
-- **Too dense to flow freely.** Choose *no dawdling*: at density 0.5 the cars can't all
+- **Too dense to flow freely.** Choose *No dawdling*: at density 0.5 the cars can't all
   drive at full speed. The jams of the random start settle into a pattern that moves back
   one cell a step, forever.
-- **Find the capacity.** Choose *jams*, then move the *density* slider and watch the coral
+- **Find the capacity.** Choose *Jams*, then move the *density* slider and watch the coral
   dot walk along the measured curve. The top is flat: anywhere from about 0.08 to 0.10
   carries nearly the most traffic. Then lower *dawdling* and watch the curve rise: careful
   drivers carry more traffic.
 - **Speed limits.** At density 0.15 with dawdling 0.5, lowering the *maximum speed* from 5
   to 4 hardly changes the flow, and 3 costs only a little. Below that it falls fast.
-- **Rule 184.** Choose *rule 184*, then open the elementary demo, choose Rule 184 and a
+- **Rule 184.** Choose *Rule 184*, then open Elementary cellular automata, choose Rule 184 and a
   random row: the same kind of picture, in one colour.
 - **A longer road.** Set *Road length* to 800 to see many jams at once.
 

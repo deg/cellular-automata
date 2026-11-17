@@ -124,14 +124,18 @@ impl RdApp {
 
     fn controls(&mut self, ui: &mut egui::Ui) {
         ui.heading("Reaction-diffusion");
-        ui.label("Not a cellular automaton: two chemicals spread through a dish and react. V feeds on U to make more V; U is fed in, and V removed. By those two rates, a small square of V grows into spots, stripes, waves or chaos.");
+        ui.label("Two chemicals spread through a dish and react. V feeds on U to make more V; U is fed in, and V removed. By those two rates, a small square of V grows into spots, stripes, waves or chaos.");
         self.about.toggle_button(ui);
         ui.separator();
 
         self.playback.ui(ui);
         ca_core::speed_cap_note(ui, "dish");
+        if ui.button("Clear").clicked() {
+            self.dish.clear();
+            self.dirty = true;
+        }
         ui.small(
-            "Restart puts Pearson's square of V back in the middle of the dish, with fresh noise.",
+            "Restart puts Pearson's square of V back in the middle of the dish, with fresh noise; Clear empties the dish, ready to draw on.",
         );
         ui.separator();
 
@@ -182,11 +186,6 @@ impl RdApp {
         ui.label(RichText::new("Draw").strong());
         ui.small("Drag on the dish to add V; shift-drag to erase.");
         ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
-        if ui.button("Clear").clicked() {
-            self.dish.clear();
-            self.dirty = true;
-        }
-        ui.small("Clear empties the dish, ready to draw on.");
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {

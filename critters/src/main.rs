@@ -148,11 +148,16 @@ impl CrittersApp {
             ui.selectable_value(&mut self.direction, Direction::Forwards, "forwards");
             ui.selectable_value(&mut self.direction, Direction::Backwards, "backwards");
         });
-        ui.small("Backwards undoes the steps one at a time, exactly, and stops at generation 0, the start; Run again to go on into its past. Restart draws a new opening.");
+        if ui.button("Clear").clicked() {
+            self.world.clear();
+            self.start = self.world.particles();
+            self.dirty = true;
+        }
+        ui.small("Backwards undoes the steps one at a time, exactly, and stops at generation 0, the start; Run again to go on into its past. Restart draws a new opening; Clear empties the world.");
         speed_cap_note(ui, "world");
         ui.separator();
 
-        ui.label(RichText::new("Rules").strong());
+        ui.label(RichText::new("Rule").strong());
         let mut chosen: Option<&'static Rule> = None;
         ui.horizontal_wrapped(|ui| {
             for rule in RULES {
@@ -177,14 +182,9 @@ impl CrittersApp {
             ui.label("Brush:");
             ui.selectable_value(&mut self.random_brush, false, "particles");
             ui.selectable_value(&mut self.random_brush, true, "random");
-            if ui.button("Clear").clicked() {
-                self.world.clear();
-                self.start = self.world.particles();
-                self.dirty = true;
-            }
         });
         ui.add(egui::Slider::new(&mut self.brush, 0..=10).text("brush radius"));
-        ui.small("Drag on the grid to paint; shift-drag to erase. Clear empties the world. Drawing after generation 0 changes the history: run back, and the start no longer returns.");
+        ui.small("Drag on the grid to paint; shift-drag to erase. Drawing after generation 0 changes the history: run back, and the start no longer returns.");
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
@@ -202,7 +202,7 @@ impl CrittersApp {
         ui.separator();
 
         readout(ui, |r| {
-            r.row("generation", signed(self.world.generation));
+            r.row("generation", signed_whole(self.world.generation));
             r.row("particles", grouped(self.world.particle_count() as u64));
             r.row("cells unlike the start", grouped(self.unlike as u64));
             r.pointer(self.hovered.map(|(x, y)| {
@@ -258,7 +258,7 @@ impl CrittersApp {
 
 /// A whole number with a true minus sign and commas: generations before the start are
 /// negative.
-fn signed(n: i64) -> String {
+fn signed_whole(n: i64) -> String {
     let digits = grouped(n.unsigned_abs());
     if n < 0 {
         format!("\u{2212}{digits}")
@@ -288,9 +288,9 @@ mod tests {
     }
 
     #[test]
-    fn signed_uses_a_minus_sign() {
-        assert_eq!(signed(0), "0");
-        assert_eq!(signed(1_234), "1,234");
-        assert_eq!(signed(-1_234), "\u{2212}1,234");
+    fn signed_whole_uses_a_minus_sign() {
+        assert_eq!(signed_whole(0), "0");
+        assert_eq!(signed_whole(1_234), "1,234");
+        assert_eq!(signed_whole(-1_234), "\u{2212}1,234");
     }
 }

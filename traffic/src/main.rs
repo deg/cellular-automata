@@ -19,7 +19,10 @@ const GOLD: [f32; 3] = [233.0, 196.0, 106.0];
 const TEAL: [f32; 3] = [42.0, 157.0, 143.0];
 /// This road's point on the chart.
 const HERE: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
-const GREY: Color32 = Color32::from_rgb(0x8a, 0x8f, 0xa8);
+/// The chart's colours, as in the other demos' charts: measured points sky blue, the
+/// reference (theory) lines gold.
+const MEASURED: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
+const REFERENCE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 
 /// The colour of a car at speed `v` of `v_max`: coral standing still, gold at half speed,
 /// teal at full speed, so jams stand out from free-flowing traffic.
@@ -63,35 +66,35 @@ struct Preset {
 
 const PRESETS: &[Preset] = &[
     Preset {
-        name: "light traffic",
+        name: "Light traffic",
         v_max: 5,
         p: 0.5,
         density: 0.03,
         note: "Few cars: each nearly always drives at 5 or 4, and seldom meets another. Nagel's thesis shows this density.",
     },
     Preset {
-        name: "jams",
+        name: "Jams",
         v_max: 5,
         p: 0.5,
         density: 0.1,
         note: "Near the top of the flow curve, which is flat from about 0.08 to 0.10 here: jams start at random and drift backwards.",
     },
     Preset {
-        name: "stop and go",
+        name: "Stop and go",
         v_max: 5,
         p: 0.25,
         density: 0.2,
         note: "Denser, with less dawdling: waves of stopped cars all along the road. One of the review's pictures.",
     },
     Preset {
-        name: "no dawdling",
+        name: "No dawdling",
         v_max: 5,
         p: 0.0,
         density: 0.5,
         note: "Nothing random: the jams of the random start settle into a pattern that moves back one cell a step.",
     },
     Preset {
-        name: "rule 184",
+        name: "Rule 184",
         v_max: 1,
         p: 0.0,
         density: 0.5,
@@ -307,9 +310,9 @@ impl TrafficApp {
             style: Style::Line,
         };
         let mut series = vec![
-            line(&rising, GREY),
-            line(&falling, GREY),
-            line(self.sweep.points(), speed_colour(v_max, v_max)),
+            line(&rising, REFERENCE),
+            line(&falling, REFERENCE),
+            line(self.sweep.points(), MEASURED),
         ];
         let here = this_road.map(|point| [point]);
         if let Some(point) = &here {
@@ -334,7 +337,7 @@ impl TrafficApp {
         } else {
             " (measuring...)"
         };
-        ui.small(format!("Teal: measured on test roads at these settings{measuring}. Grey: with no dawdling. Coral dot: this road. Flow is cars passing a point per step."));
+        ui.small(format!("Blue: measured on test roads at these settings{measuring}. Gold: with no dawdling. Coral dot: this road. Flow is cars passing a point per step."));
     }
 
     fn readout(&self, ui: &mut egui::Ui) {
