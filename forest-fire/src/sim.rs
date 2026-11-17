@@ -6,9 +6,11 @@
 //! one nearest neighbour is burning; a tree ignites with probability f otherwise (lightning);
 //! an empty site grows a tree with probability p. The critical state needs a double
 //! separation of time scales, a fire burning out much faster than trees grow and trees
-//! growing much faster than lightning strikes (their Eq. 5).
+//! growing much faster than lightning strikes (their Eq. 1.5). Equations, sections and
+//! tables of the review are numbered here as in its arXiv version, cond-mat/9610201, which
+//! the README links.
 //!
-//! The review's section II.2.1 simulates that limit directly, and so does Grassberger
+//! The review's section II B 1 simulates that limit directly, and so does Grassberger
 //! (New J. Phys. 4, 17 (2002), section II), and so does this: choose exactly θ = p/f sites
 //! at random and grow a tree on each that is empty; then strike one random site, and if it
 //! holds a tree, burn its whole forest cluster; no tree grows while a fire burns. The only
@@ -19,7 +21,7 @@
 //!
 //! Nearest neighbours are the four sites across an edge. Neither source says "four" in
 //! words: the review's mean-field equations count 2d neighbours on a hypercubic lattice
-//! ((1 − ρ_f)^(2d) in its Eq. 19), and Grassberger's neighbours of site i are i ± 1 and
+//! ((1 − ρ_f)^(2d) in its Eq. 2.14), and Grassberger's neighbours of site i are i ± 1 and
 //! i ± L. The world wraps round as a torus. Grassberger's boundaries are helical (site i + L²
 //! is site i, so leaving one row's end leads into the next row): also without edges, and
 //! his densities on lattices of different sizes agree to about 10⁻⁴, so the difference
@@ -125,27 +127,32 @@ impl Stats {
     }
 }
 
-/// The lower edge of bin `k`: about 2^(k/4), but never the same whole number twice, so each
-/// bin holds at least one size.
-fn bin_start(k: usize) -> u64 {
-    let mut start = 1;
-    for i in 1..=k {
-        start = (2f64.powf(i as f64 / 4.0).round() as u64).max(start + 1);
-    }
-    start
+/// Bins up to sizes past 2^32 trees, more than any world here holds.
+const BINS: usize = 130;
+
+/// The lower edges of the bins: bin k starts at about 2^(k/4), but never at the same whole
+/// number twice, so each bin holds at least one size. Computed once: `record` looks a bin
+/// up for every fire.
+fn bin_starts() -> &'static [u64; BINS + 1] {
+    static STARTS: std::sync::OnceLock<[u64; BINS + 1]> = std::sync::OnceLock::new();
+    STARTS.get_or_init(|| {
+        let mut starts = [1; BINS + 1];
+        for i in 1..=BINS {
+            starts[i] = (2f64.powf(i as f64 / 4.0).round() as u64).max(starts[i - 1] + 1);
+        }
+        starts
+    })
 }
 
 /// The sizes in bin `k`.
 pub fn bin_range(k: usize) -> std::ops::Range<u64> {
-    bin_start(k)..bin_start(k + 1)
+    let starts = bin_starts();
+    starts[k]..starts[k + 1]
 }
 
 fn bin_of(size: u64) -> usize {
-    let mut k = 0;
-    while bin_start(k + 1) <= size {
-        k += 1;
-    }
-    k
+    // The number of bin starts at or below `size`, less one.
+    bin_starts().partition_point(|&start| start <= size) - 1
 }
 
 /// A forest on a torus.
@@ -221,6 +228,7 @@ impl Forest {
         self.trees as f64 / self.grid.len() as f64
     }
 
+    #[cfg(test)]
     pub fn is_burning(&self) -> bool {
         self.fire.is_some()
     }
@@ -607,7 +615,9 @@ mod tests {
     /// 0.379804 ± 0.000008 at θ = 125, L = 2^10, and 0.397570 ± 0.000010 at θ = 1000,
     /// L = 2^11. Ours are far shorter runs, so the tolerance is statistical, 5 × 10⁻⁴; a
     /// fire spreading to the eight nearest sites instead settles near 0.28 (the review's
-    /// section II.2.2).
+    /// section II B 2). The test can't tell whether the density is measured after a fire or
+    /// before it (the difference, ⟨s⟩/L², about 10⁻⁴, is below the spread between seeds):
+    /// it is `Stats::record`, called as each fire ends, that fixes the point.
     #[test]
     #[ignore]
     fn the_density_settles_where_grassberger_measured_it() {
@@ -627,22 +637,28 @@ mod tests {
 
     /// In the steady state every tree burnt was grown first, so the mean fire size over all
     /// lightnings is (1 − ρ) θ, as Grassberger (2002, section II) states for large lattices:
-    /// θ attempts, each landing on an empty site with probability 1 − ρ.
+    /// θ attempts, each landing on an empty site with probability 1 − ρ. On a finite
+    /// lattice ρ is the density while trees grow, which rises from the density after a fire
+    /// to the density before the next, ⟨s⟩/L² higher; so the midpoint is used. This checks
+    /// only that the forest is stationary and the bookkeeping right (Grassberger: it tests
+    /// "just stationarity and the absence of gross mistakes"): any rule of burning, eight
+    /// neighbours included, passes it.
     #[test]
     #[ignore]
     fn the_mean_fire_is_one_minus_the_density_times_theta() {
-        let s = settle(512, 500, 200_000, 12);
+        let (side, theta) = (512, 500.0);
+        let s = settle(side, 500, 200_000, 12);
         let mean = s.burnt as f64 / s.lightnings as f64;
-        let rho = s.mean_density().unwrap();
-        let want = (1.0 - rho) * 500.0;
+        let rho = s.mean_density().unwrap() + mean / (2 * side * side) as f64;
+        let want = (1.0 - rho) * theta;
         eprintln!("mean fire {mean:.2}, (1 − ρ) θ = {want:.2}");
-        assert!((mean - want).abs() / want < 0.005, "{mean} against {want}");
+        assert!((mean - want).abs() / want < 0.001, "{mean} against {want}");
     }
 
     /// Fire sizes follow a power law, P(s) ∼ s^(1−τ), over the sizes well below the cut-off.
-    /// Clar, Drossel and Schwabl's Table 1 gives τ = 2.14(3) in two dimensions, but
+    /// Clar, Drossel and Schwabl's Tab. I gives τ = 2.14(3) in two dimensions, but
     /// Grassberger (2002) finds the effective exponent drifting with θ, so the test asks only
-    /// for the bounds the review derives (section II.1): n(s) "decreases at least like s^(−2)
+    /// for the bounds the review derives (section II A): n(s) "decreases at least like s^(−2)
     /// but not faster than s^(−3)", that is 2 ≤ τ ≤ 3.
     #[test]
     #[ignore]

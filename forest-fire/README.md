@@ -28,7 +28,7 @@ their sizes follow a **power law**: the share of fires burning *s* trees falls l
 *s*^(1 − *τ*), with *τ* about 2.14. There is no typical fire, only a cut-off far out,
 which moves further as *p*/*f* grows. The forest drives itself into this state: no
 parameter is tuned to make it critical. This is **self-organised criticality**, the idea
-behind [the sandpile](../sandpile/), another demo here.
+behind the sandpile, another demo in this project.
 
 Lightning strikes a site at random, so a big cluster is more likely to be hit than a
 small one, in proportion to its size. That is why the fire sizes fall more slowly than
@@ -48,9 +48,10 @@ turbulence*.
   own. Peter Grassberger and Holger Kantz showed in 1991 that as growth slows, its fire
   fronts become more and more regular, turning into spirals, and that in two dimensions
   the model is not critical.
-- **1989–1992: lightning.** Christopher Henley invented the extreme limit used here,
-  independently, in 1989. Drossel and Schwabl introduced the lightning probability *f*
-  in 1992, and argued that the forest becomes critical as *f* goes to 0, with the time
+- **1989–1992: lightning.** The model with lightning was introduced independently by
+  Christopher Henley, in 1989, and by Drossel and Schwabl, in 1992. Henley's was already
+  the extreme limit used here, in which a struck cluster burns at once. Drossel and
+  Schwabl, introducing the lightning probability *f*, argued that the forest becomes critical as *f* goes to 0, with the time
   scales of growing and burning far apart. They derived scaling laws for the fires and
   checked them with simulations.
 - **1993–1996: the exponents.** Drossel and Schwabl's simulations had shown the simple
@@ -76,12 +77,15 @@ turbulence*.
   of trees, burns the forest back. The chart waits until the forest has burnt and grown
   back many times over, so that it shows the steady state, not the opening. Raise the
   speed to fill it.
-- **The power law.** Let the chart fill. The dots fall along the line, whose slope is
-  1 − *τ* = −1.14, until the cut-off, where they drop away. Choose a bigger *p*/*f*: the
-  straight stretch lengthens as the cut-off moves out.
+- **The power law.** Let the chart fill. The dots follow the line, whose slope
+  1 − *τ* = −1.14 uses the *τ* measured in the 1990s, but not exactly. Up to a few
+  hundred trees they fall a little more steeply: Grassberger found the small fires falling
+  faster than *s*^(−1.19), and estimated *τ* = 2.19 ± 0.01. Then, just before the cut-off
+  where they drop away, they rise above the line in a bump, which he found growing as
+  *p*/*f* grows. Choose a bigger *p*/*f* (it needs a bigger world): the cut-off moves out.
 - **The mean density.** Grassberger measured it after each fire, before new trees grow,
   as the *mean density* row does. His values, for *p*/*f* from 125 to 4,000: 0.3798,
-  0.3876, 0.3934, 0.3976, 0.4006 and 0.4027. His worlds were 2,048 to 16,384 sites
+  0.3876, 0.3934, 0.3976, 0.4006 and 0.4027. His worlds were 1,024 to 16,384 sites
   across; on a smaller one the density comes out a little lower.
 - **Patches.** Grassberger observed that the steady forest is made of patches of roughly
   even density, most of them far below or far above the density at which a fire can cross

@@ -26,7 +26,7 @@ const THETAS: &[u32] = &[125, 250, 500, 1_000, 2_000, 4_000];
 const SIZES: &[(usize, usize)] = &[(320, 200), (640, 400), (1280, 800)];
 
 /// The largest θ a world of `cells` sites is offered: one site in 256, so the world is
-/// about 3.5 to 4 times as tall as the fires' rms radius R(θ) in Grassberger's Table 1
+/// 4.2, 3.7 and 3.3 times as tall as the fires' rms radius R(θ) in Grassberger's Table 1
 /// (2002): 47.8 at θ = 250, 107 at 1,000, 239 at 4,000. Measured here, a world 4 times
 /// smaller than that cuts the biggest fires short and lowers the density: at θ = 4,000 the
 /// 99.9th percentile of fire sizes was 91,151 trees on 640 x 400 and 124,403 on 1280 x 800,
@@ -36,7 +36,7 @@ fn max_theta(cells: usize) -> u32 {
     (cells / 256) as u32
 }
 
-/// τ in two dimensions, from Clar, Drossel and Schwabl's Table 1 (1996): 2.14(3).
+/// τ in two dimensions, from Clar, Drossel and Schwabl's Tab. I (1996, arXiv version): 2.14(3).
 const TAU: f64 = 2.14;
 
 /// Sites visited per frame (growth attempts and burning trees). A unit took 8.4 ns natively
@@ -86,7 +86,7 @@ impl eframe::App for FireApp {
             }
         });
 
-        if self.playback.running || self.dirty || self.forest.is_burning() {
+        if self.playback.running || self.dirty {
             ui.ctx().request_repaint();
         }
     }
@@ -248,7 +248,7 @@ impl FireApp {
             ));
         } else {
             ui.small(format!(
-                "Dots: the share of fires burning s trees. Line: the power law, slope 1 \u{2212} τ, with τ = {TAU} as measured in the 1990s."
+                "Dots: the share of fires burning s trees. Line: the power law with τ\u{a0}=\u{a0}{TAU}, as measured in the 1990s (slope 1\u{a0}\u{2212}\u{a0}τ)."
             ));
         }
     }
