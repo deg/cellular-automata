@@ -2,10 +2,10 @@
 
 mod sim;
 
-use ca_core::egui::{self, Align2, Color32, FontId, Rect, RichText, Stroke, pos2, vec2};
+use ca_core::egui::{self, Align2, Color32, FontId, RichText, vec2};
 use ca_core::{
     About, Advance, Grid, GridView, NAVY, Pace, PaintStroke, Playback, Plot, Rng, Series, Style,
-    eframe, generations_per_frame, grouped,
+    eframe, generations_per_frame, grouped, signed,
 };
 use sim::{CLASSES, Dish, FIGURE_3, Found, Rates, SEED_UV};
 
@@ -28,10 +28,8 @@ const SHADES: usize = 256;
 /// World sizes, in cells of Pearson's mesh; his was 256 x 256.
 const SIZES: &[usize] = &[128, 256, 512];
 
-/// The (k, F) window of Pearson's figure 3, which the sliders cover.
+/// The (k, F) window of Pearson's figure 3, which the sliders and the map cover.
 const K_RANGE: (f32, f32) = (0.03, 0.07);
-/// The map's k axis: a little wider on the right, or `ca_core::plot` clips the 0.07 label.
-const MAP_K: (f32, f32) = (0.03, 0.0725);
 const F_RANGE: (f32, f32) = (0.0, 0.08);
 /// The sliders and the map move F and k in steps of this: figure 3's points all lie on it.
 const RATE_STEP: f64 = 0.0005;
@@ -43,10 +41,7 @@ const RATE_STEP: f64 = 0.0005;
 const CHEAPER_THAN_LIFE: usize = 8;
 
 /// The map's height in the panel, labels included.
-const MAP_HEIGHT: f32 = 150.0;
-/// `ca_core::plot`'s margins round its drawing area (left, top, right, bottom), which the
-/// map needs to turn a click into (k, F). They must match `ca_core/src/plot.rs`.
-const PLOT_MARGINS: [f32; 4] = [34.0, 4.0, 6.0, 26.0];
+const MAP_HEIGHT: f32 = 170.0;
 
 struct RdApp {
     dish: Dish,
@@ -180,19 +175,17 @@ impl RdApp {
         if let Some((mk, mf)) = map(ui, Rates { f, k }) {
             (k, f) = (mk, mf);
         }
-        ui.small("Pearson's map: each letter where he found that pattern, dots where the dish went plain (coral: back to U = 1, blue: the other uniform state). Click or drag to move; the dish carries on.");
+        ui.small("Pearson's map: a letter wherever he found that pattern (large at the presets), dots where the dish went plain (coral: back to U = 1, blue: the other uniform state). Click or drag to move; the dish carries on.");
         self.dish.rates = Rates { f, k };
         ui.separator();
 
         ui.label(RichText::new("Draw").strong());
         ui.small("Drag on the dish to add V; shift-drag to erase.");
-        ui.horizontal_wrapped(|ui| {
-            ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
-            if ui.button("Clear").clicked() {
-                self.dish.clear();
-                self.dirty = true;
-            }
-        });
+        ui.add(egui::Slider::new(&mut self.brush, 1.0..=20.0).text("brush radius"));
+        if ui.button("Clear").clicked() {
+            self.dish.clear();
+            self.dirty = true;
+        }
         ui.small("Clear empties the dish, ready to draw on.");
         ui.separator();
 
@@ -220,7 +213,11 @@ impl RdApp {
             );
             r.pointer(self.hovered.map(|(x, y)| {
                 let (u, v) = d.get(x, y);
-                format!("({x}, {y}): u {}, v {}", signed(u), signed(v))
+                format!(
+                    "({x}, {y}): u {}, v {}",
+                    signed(f64::from(u)),
+                    signed(f64::from(v))
+                )
             }));
         });
     }
@@ -283,28 +280,27 @@ fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
-/// Pearson's figure 3 as a small chart, `k` across and `F` up, with a letter at each
-/// preset, a ring at the current rates, and Pearson's uniform outcomes as dots. Returns new
-/// rates `(k, F)` if it was clicked or dragged on.
+/// Pearson's figure 3 as a small chart, `k` across and `F` up: a letter at each point where
+/// he found a pattern (larger at the presets), his uniform outcomes as dots, and a marker at
+/// the current rates. Returns new rates `(k, F)` if it was clicked or dragged on.
 fn map(ui: &mut egui::Ui, now: Rates) -> Option<(f32, f32)> {
-    let point = |k: f32, f: f32| (f64::from(k), f64::from(f));
     let found = |want: Found| -> Vec<(f64, f64)> {
         FIGURE_3
             .iter()
             .filter(|p| p.2 == want)
-            .map(|&(k, f, _)| point(k, f))
+            .map(|&(k, f, _)| (f64::from(k), f64::from(f)))
             .collect()
     };
     let (red, blue) = (found(Found::Red), found(Found::Blue));
-    let rect = Rect::from_min_size(ui.cursor().min, vec2(ui.available_width(), MAP_HEIGHT));
-    ca_core::plot(
+    let here = [(f64::from(now.k), f64::from(now.f))];
+    let shown = ca_core::plot(
         ui,
         &Plot {
             x_label: "kill k",
             y_label: "feed F",
             log_x: false,
             log_y: false,
-            x_range: Some((f64::from(MAP_K.0), f64::from(MAP_K.1))),
+            x_range: Some((f64::from(K_RANGE.0), f64::from(K_RANGE.1))),
             y_range: Some((f64::from(F_RANGE.0), f64::from(F_RANGE.1))),
             series: vec![
                 Series {
@@ -317,57 +313,83 @@ fn map(ui: &mut egui::Ui, now: Rates) -> Option<(f32, f32)> {
                     colour: BLUE,
                     style: Style::Dots,
                 },
+                Series {
+                    points: &here,
+                    colour: GOLD,
+                    style: Style::Marker,
+                },
             ],
         },
         MAP_HEIGHT,
     );
-    let [left, top, right, bottom] = PLOT_MARGINS;
-    let area = Rect::from_min_max(rect.min + vec2(left, top), rect.max - vec2(right, bottom));
-    let to_screen = |k: f32, f: f32| {
-        pos2(
-            area.left() + (k - MAP_K.0) / (MAP_K.1 - MAP_K.0) * area.width(),
-            area.bottom() - (f - F_RANGE.0) / (F_RANGE.1 - F_RANGE.0) * area.height(),
-        )
-    };
-    let painter = ui.painter_at(area.expand(6.0));
-    for class in &CLASSES {
-        let chosen = same(now, class.rates);
+    let screen = |k: f32, f: f32| shown.screen_of((f64::from(k), f64::from(f)));
+    let dots: Vec<_> = red
+        .iter()
+        .chain(&blue)
+        .map(|&p| shown.screen_of(p))
+        .collect();
+    let painter = ui.painter();
+    // The letter on the marker, in the text's colour to stand out on its gold.
+    let on_marker = ui.visuals().strong_text_color();
+    for &(k, f, what) in FIGURE_3 {
+        let Found::Pattern(i) = what else { continue };
+        let class = &CLASSES[i];
+        let preset = class.rates.k == k && class.rates.f == f;
+        let mut at = screen(k, f);
+        // A dot just above (ι has a B close over it): move the letter right, clear of it
+        // and of the letters in the same column.
+        if dots.iter().any(|d| d.distance(at) < 4.0) {
+            at.x += 5.0;
+        }
         painter.text(
-            to_screen(class.rates.k, class.rates.f),
+            at,
             Align2::CENTER_CENTER,
             class.letter,
-            FontId::proportional(if chosen { 15.0 } else { 11.0 }),
-            TEAL,
+            FontId::proportional(if preset { 13.0 } else { 9.0 }),
+            if preset && same(now, class.rates) {
+                on_marker
+            } else if preset {
+                TEAL
+            } else {
+                TEAL.gamma_multiply(0.7)
+            },
         );
     }
-    painter.circle_stroke(to_screen(now.k, now.f), 5.0, Stroke::new(1.5, GOLD));
 
-    let response = ui.interact(
-        area,
-        ui.make_persistent_id("map"),
-        egui::Sense::click_and_drag(),
-    );
-    let pos = response.interact_pointer_pos()?;
-    if !(response.clicked() || response.dragged()) {
+    let r = &shown.response;
+    if !(r.clicked() || r.dragged()) {
         return None;
     }
-    let snap = |x: f32, (lo, hi): (f32, f32)| {
-        let x = x.clamp(lo, hi);
-        ((f64::from(x) / RATE_STEP).round() * RATE_STEP) as f32
-    };
-    let k = MAP_K.0 + (pos.x - area.left()) / area.width() * (MAP_K.1 - MAP_K.0);
-    let f = F_RANGE.0 + (area.bottom() - pos.y) / area.height() * (F_RANGE.1 - F_RANGE.0);
-    Some((snap(k, K_RANGE), snap(f, F_RANGE)))
+    let pos = r.interact_pointer_pos()?;
+    let value = shown.value_at(pos)?;
+    Some(snap(pos, value, |p| shown.screen_of(p)))
 }
 
-/// A concentration to two places, with a true minus sign and no "-0.00".
-fn signed(v: f32) -> String {
-    let text = format!("{:.2}", v.abs());
-    if v < 0.0 && text != "0.00" {
-        format!("\u{2212}{text}")
-    } else {
-        text
+/// Within this many points of one of figure 3's points, a click on the map picks that point.
+const SNAP_RADIUS: f32 = 6.0;
+
+/// The rates `(k, F)` for a click at `pos`, which is at `value` on the map: the nearest point
+/// of figure 3 if one is within [`SNAP_RADIUS`] on the screen (`screen_of` maps a point there),
+/// otherwise `value` rounded to the sliders' steps. A letter is too small to hit by its
+/// centre, and rounding alone would land beside it.
+fn snap(
+    pos: egui::Pos2,
+    value: (f64, f64),
+    screen_of: impl Fn((f64, f64)) -> egui::Pos2,
+) -> (f32, f32) {
+    let nearest = FIGURE_3
+        .iter()
+        .map(|&(k, f, _)| (k, f, screen_of((f64::from(k), f64::from(f))).distance(pos)))
+        .min_by(|a, b| a.2.total_cmp(&b.2));
+    if let Some((k, f, d)) = nearest
+        && d <= SNAP_RADIUS
+    {
+        return (k, f);
     }
+    let round = |x: f64, (lo, hi): (f32, f32)| {
+        ((x.clamp(f64::from(lo), f64::from(hi)) / RATE_STEP).round() * RATE_STEP) as f32
+    };
+    (round(value.0, K_RANGE), round(value.1, F_RANGE))
 }
 
 /// A small positive number as "3.2 × 10⁻⁶", or "0".
@@ -400,14 +422,6 @@ fn scientific(x: f64) -> String {
 mod tests {
     use super::*;
 
-    /// Concentrations read with a true minus sign, and never as "-0.00".
-    #[test]
-    fn signed_uses_a_minus_sign_and_no_negative_zero() {
-        assert_eq!(signed(0.42), "0.42");
-        assert_eq!(signed(-0.25), "\u{2212}0.25");
-        assert_eq!(signed(-0.001), "0.00");
-    }
-
     /// The change per step reads as a power of ten, rounding up into the next power cleanly.
     #[test]
     fn scientific_reads_as_a_power_of_ten() {
@@ -427,6 +441,31 @@ mod tests {
         let s = shades(&d);
         assert_eq!(p[usize::from(s.get(0, 0))], NAVY);
         assert_eq!(p[usize::from(s.get(1, 1))], GOLD);
+    }
+
+    /// A click near a point of figure 3 picks it exactly: on the panel's map a letter's
+    /// centre is hard to hit, and plain rounding lands a step beside it. Further away, the
+    /// click rounds to the sliders' steps. The mapping here is a 100-point square map.
+    #[test]
+    fn a_click_near_a_letter_picks_its_point() {
+        let screen_of = |(k, f): (f64, f64)| {
+            egui::pos2(
+                ((k - 0.03) / 0.04 * 100.0) as f32,
+                (100.0 - f / 0.08 * 100.0) as f32,
+            )
+        };
+        let value_at = |p: egui::Pos2| {
+            (
+                0.03 + f64::from(p.x) / 100.0 * 0.04,
+                f64::from(100.0 - p.y) / 100.0 * 0.08,
+            )
+        };
+        let lambda = CLASSES[10].rates;
+        let centre = screen_of((f64::from(lambda.k), f64::from(lambda.f)));
+        let near = centre + vec2(3.0, -2.0);
+        assert_eq!(snap(near, value_at(near), screen_of), (lambda.k, lambda.f));
+        let far = egui::pos2(10.0, 90.0);
+        assert_eq!(snap(far, value_at(far), screen_of), (0.034, 0.008));
     }
 
     /// Every preset lies on the sliders' grid and inside the map, so choosing one

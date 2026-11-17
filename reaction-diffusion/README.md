@@ -57,8 +57,8 @@ few thousand steps.
 
 None of this is a Turing pattern, the kind that grows by itself from a uniform state when
 one chemical diffuses enough faster than the other. With U only twice as fast as V there
-are no stable ones, Pearson noted: about 2.8 times is the least that gives stable ones. His patterns
-need a push, like the square of V.
+are no stable ones, Pearson noted: about 2.8 times is the least that gives stable ones. His
+patterns need a push, like the square of V.
 
 ## History
 
@@ -71,13 +71,18 @@ need a push, like the square of V.
   reactions in a continuously fed, stirred tank: stirred, so with no diffusion and no
   pattern in space, only amounts that change in time. Their papers include
   *Autocatalytic reactions in the isothermal, continuous stirred tank reactor*, Chemical
-  Engineering Science 38, 29–43 (1983) and 39, 1087–1097 (1984), and *Sustained
-  oscillations and other exotic patterns of behavior in isothermal reactions*, Journal of
-  Physical Chemistry 89, 22–32 (1985).
+  Engineering Science 38, 29–43 (1983),
+  [doi:10.1016/0009-2509(83)80132-8](https://doi.org/10.1016/0009-2509(83)80132-8), and 39,
+  1087–1097 (1984),
+  [doi:10.1016/0009-2509(84)87017-7](https://doi.org/10.1016/0009-2509(84)87017-7); and
+  *Sustained oscillations and other exotic patterns of behavior in isothermal reactions*,
+  Journal of Physical Chemistry 89, 22–32 (1985),
+  [doi:10.1021/j100247a009](https://doi.org/10.1021/j100247a009).
 - **1987: patterns with equal diffusion.** J. A. Vastano, J. E. Pearson, W. Horsthemke and
   H. L. Swinney showed that in one dimension the model can form steady patterns even when
   U and V diffuse at the same rate: *Chemical pattern formation with equal diffusion
-  coefficients*, Physics Letters A 124, 320–324 (1987).
+  coefficients*, Physics Letters A 124, 320–324 (1987),
+  [doi:10.1016/0375-9601(87)90019-3](https://doi.org/10.1016/0375-9601(87)90019-3).
 - **1993: Pearson's map.** John Pearson, at Los Alamos, ran the model in two dimensions on
   a Connection Machine, from the square of V, for 200,000 steps at each of dozens of
   settings of F and k. He sorted what he found into twelve patterns, named by Greek letters
@@ -110,13 +115,14 @@ need a push, like the square of V.
   gives in his text. The square spreads out as a ring of spots, and the spots reach the
   far corners after about 10,000 steps (Pearson: "on the order of 10,000–20,000"). After
   that they keep dividing and dying: *change per step* never settles.
-- **λ: spots that divide and stop.** Choose *λ*. Watch a spot at the edge of the colony stretch,
-  pinch in the middle and become two. The spots reach the far corners after about 20,000
+- **λ: spots that divide and stop.** Choose *λ*. Watch a spot at the edge of the colony
+  stretch, pinch in the middle and become two. The spots reach the far corners after about 20,000
   steps, and then the pattern settles: *change per step* falls towards 0.
 - **μ: stripes that grow at their tips.** Choose *μ*. Pearson saw that two tips heading
   for each other turn aside rather than meet.
 - **κ and θ: fronts that stop.** Waves spread outwards, and where they meet, they stop.
-- **δ: hexagons.** Choose *δ*: the dish fills with spots in a regular hexagonal pattern.
+- **δ: hexagons.** Choose *δ*: the dish fills with a regular hexagonal pattern of holes,
+  blue where U is higher, in a teal field where it is low: the reverse of λ's spots.
 - **The plain places.** Click a coral dot on the map, then *Restart*: the square of V dies
   away, and the dish goes back to plain U, navy. (Except, sometimes, at k = 0.045,
   F = 0.016: there it depends on the random noise.) Click a blue dot and *Restart*, and the
@@ -127,8 +133,9 @@ need a push, like the square of V.
   a pattern can outlive it: λ's spots, moved to the coral dot at k = 0.0675, F = 0.04,
   live on.
 - **Draw.** Choose *Clear*, then draw V on the empty dish: a line in *μ* grows into a
-  long stripe. In *λ*, a small dot settles into a single spot that stays put, and a
-  bigger one dies away, while Pearson's square grows into a colony.
+  long stripe. In *λ*, a dot of the default brush (radius 5) settles into a single spot
+  that stays put, and much smaller or bigger dots die away, while Pearson's square grows
+  into a colony.
 - **A bigger dish.** Choose *512 x 512*: the same spots and stripes, four times as many.
 
 ## Further reading

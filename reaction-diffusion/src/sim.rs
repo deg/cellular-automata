@@ -64,9 +64,8 @@ pub struct Rates {
 
 /// Pearson's twelve pattern classes, named by Greek letter as in his figure 2, each at a
 /// point of his figure 3 where he found it. Pearson gives F and k in his text only for ε
-/// (F = 0.02, k = 0.059, p. 5); the others are read off figure 3, whose letters are text in
-/// the arXiv PDF: each letter's left edge lies on its k and its middle on its F, as the
-/// tick labels show, which gives ε's point to within 0.0001. [`FIGURE_3`] has every point.
+/// (F = 0.02, k = 0.059, p. 5); the others are read off figure 3. [`FIGURE_3`] has every
+/// point, and says where they come from.
 pub struct Class {
     pub letter: &'static str,
     pub rates: Rates,
@@ -154,8 +153,12 @@ pub enum Found {
     Pattern(usize),
 }
 
-/// Every point of Pearson's figure 3, as `(k, F, what he found)`, read off the arXiv PDF as
-/// [`Class`] describes.
+/// Every point of Pearson's figure 3, as `(k, F, what he found)`. They come from `fig3.ps` in
+/// the arXiv source of the paper (e-print patt-sol/9304003v1), which places each letter at
+/// exact plotter coordinates, left-aligned on its k and centred on its F: with the axes'
+/// tick labels (k 0.03 at x = 750, 0.07 at 4358; F 0 at y = 500, 0.08 at 4725), every point
+/// lands within 0.00002 of a multiple of 0.0005, given here. ε's point is the F = 0.02,
+/// k = 0.059 of Pearson's text. (The letters' positions in the arXiv PDF give the same.)
 pub const FIGURE_3: &[(f32, f32, Found)] = {
     use Found::{Blue as B, Pattern as P, Red as R};
     &[
@@ -668,6 +671,18 @@ mod tests {
         assert!(d.change().unwrap() > 0.0);
     }
 
+    /// Each preset is a point of figure 3 where Pearson found its own pattern.
+    #[test]
+    fn presets_are_points_of_figure_3() {
+        for (i, c) in CLASSES.iter().enumerate() {
+            assert!(
+                FIGURE_3.contains(&(c.rates.k, c.rates.f, Found::Pattern(i))),
+                "{}",
+                c.letter
+            );
+        }
+    }
+
     /// The sizes of the patches where V is above `level`, joined across edges as the dish is.
     fn patches(d: &Dish, level: f32) -> Vec<usize> {
         let (w, h) = (d.width(), d.height());
@@ -717,6 +732,13 @@ mod tests {
     /// One point is left out: the R at k = 0.045, F = 0.016, between β above and α below.
     /// There the outcome depends on the noise: on Pearson's 256 x 256 dish for his 200,000
     /// steps, three of five random openings died away, as he found, and two lived on.
+    ///
+    /// Figure 3's pattern points aren't tested one by one, and two of them don't give their
+    /// pattern here: the ε points at k = 0.0625. At F = 0.03 every opening tried (six
+    /// seeds, 256 x 256, 200,000 steps) settles into about 310 steady spots, not ε's chaos;
+    /// at F = 0.025 some die away (seed 1993 among them) and the rest settle. Which happens
+    /// is sensitive to the diffusion coefficients: with 0.2 and 0.1 a step, all survive, but
+    /// still settle. The ε preset is Pearson's own point from his text, F = 0.02, k = 0.059.
     #[test]
     #[ignore]
     fn figure_3_uniform_outcomes() {
