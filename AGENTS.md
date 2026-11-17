@@ -204,6 +204,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `readout` (the label/value grid at the bottom of every panel, with its `pointer` row
     "under the pointer"), `speed_cap_note`, `grouped` (numbers as 1,234,567) and `NAVY`
     (the background): shared so the demos' panels look and read alike.
+  - `plot`: a small chart in the panel (dots or lines, linear or log axes), for a demo
+    that measures something as it runs; every demo's chart uses it.
   - `controls_panel`: the scrolling left panel each demo puts its controls in. It is a
     fixed 290 points wide, so rows must fit or wrap: use `horizontal_wrapped`, and put
     sliders on their own line (a slider doesn't wrap and would run past the edge).
@@ -238,7 +240,15 @@ make siblings               # before/after a Rust update: build+test David's oth
   pages (year), en dash for ranges, links labelled `doi:...` or `arXiv:...`. British
   spelling, "anticlockwise", "forever", commas in numbers from 1,000, control names in
   *italics*. Notes for editors (which file a table came from, commit hashes) go in `sim.rs`
-  doc comments, not the README.
+  doc comments, not the README. A Further reading entry: authors, *title*, journal volume,
+  pages (year), then a labelled link (`[doi:...](...)`, `[PDF](...)`); the title itself is
+  not the link. Journals by their usual short name, without a subtitle ("Physica D").
+- In the panel, a negative number takes a true minus sign (U+2212), and a value that
+  rounds to zero shows as "0.00", never "-0.00".
+- A demo that isn't a cellular automaton says so in its opening: "not a cellular
+  automaton" (Mandelbrot, reaction-diffusion) or "isn't quite" (Langton's ant,
+  aggregation). Its README row may start "Not a cellular automaton but ...:"; its Cargo
+  description is then the row without that prefix.
 - Never put a paragraph after a nested list inside a list item: the About panel's renderer
   draws it outside the bullet.
 - Panel conventions (David chose them on 2026-11-16, where the older demos disagreed):
