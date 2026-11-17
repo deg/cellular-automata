@@ -93,9 +93,10 @@ for i in "${!demos[@]}"; do
   # The script that reloads a page cached from before a deploy (see the file), straight
   # after <meta charset>, so it is listening before trunk's script asks for the demo's code.
   # Not before the charset: a browser looks for that only in a page's first 1,024 bytes,
-  # which the script would fill.
+  # which the script would fill. The favicon's links (site/icons.html) go after <title>.
   page="$dist/$dir/index.html"
-  sed "/<meta charset/r $root/site/stale-page.html" "$page" > "$page.new"
+  sed -e "/<meta charset/r $root/site/stale-page.html" -e "/<\/title>/r $root/site/icons.html" \
+    "$page" > "$page.new"
   mv "$page.new" "$page"
   if ! grep -q 'stale-page-reloaded' "$page"; then
     echo "$page: no <meta charset> line to put the stale-page script after" >&2
@@ -126,6 +127,9 @@ template="$root/site/index.html"
   sed -n '/<!-- DEMOS -->/,$p' "$template" | sed '1d'
 } > "$dist/index.html"
 cp "$root/site/style.css" "$root/site/thumbs.js" "$dist/"
+# The Degel favicon, at the site's root so that every page's root-relative links find it
+# (copied from the degel.com repo, which holds the originals and their provenance).
+cp "$root/site/favicon.ico" "$root/site/favicon.svg" "$root/site/apple-touch-icon.png" "$dist/"
 cargo run --release --quiet -p mdpage -- \
   "$root/HOW-IT-WORKS.md" "$root/site/page.html" "$dist/how-it-works.html"
 
@@ -145,6 +149,13 @@ for page in "$dist/index.html" "$dist/how-it-works.html"; do
 done
 if grep -q -e 'href="style.css"' -e 'src="thumbs.js"' "$dist/index.html" "$dist/how-it-works.html"; then
   echo "a page still loads style.css or thumbs.js without a fingerprint" >&2
+  exit 1
+fi
+# Every page carries the favicon's three links.
+missing="$(grep -L 'rel="apple-touch-icon"' "$dist"/*.html "$dist"/*/index.html || true)"
+if [[ -n "$missing" ]]; then
+  echo "pages without the favicon links:" >&2
+  echo "$missing" >&2
   exit 1
 fi
 

@@ -152,6 +152,10 @@ make siblings               # before/after a Rust update: build+test David's oth
   by fingerprinted URLs (`?v=<cksum>`), and every demo page gets `site/stale-page.html`
   inserted after `<meta charset>`: it reloads once if the page's own `.js`/`.wasm` are gone
   (a page cached from before a deploy). The build fails if either step is missed.
+  Every page also links the Degel favicon (`site/icons.html`, inserted after `<title>` in
+  demo pages, written into `site/index.html` and `site/page.html`); `site/favicon.ico`,
+  `favicon.svg` and `apple-touch-icon.png` are copies of the degel.com repo's, served at the
+  site's root. The build fails if a page lacks the links.
   Every demo's `index.html` names `site/loading.mjs` as trunk's `data-initializer`, which
   turns "Loading…" into a percentage; trunk records the `.wasm`'s size before wasm-opt, so
   `build.sh` writes in the size of the file actually served.
