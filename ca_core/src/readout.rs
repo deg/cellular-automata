@@ -32,6 +32,17 @@ pub fn grouped(n: u64) -> String {
     out
 }
 
+/// A number to two decimal places with a true minus sign (U+2212) when negative, and never
+/// "-0.00": a value that rounds to zero shows as "0.00".
+pub fn signed(v: f64) -> String {
+    let text = format!("{:.2}", v.abs());
+    if v < 0.0 && text != "0.00" {
+        format!("\u{2212}{text}")
+    } else {
+        text
+    }
+}
+
 /// The readout at the bottom of a demo's panel: a grid of lowercase labels and their values.
 ///
 /// ```ignore
@@ -73,6 +84,14 @@ impl Readout<'_> {
 #[cfg(test)]
 mod tests {
     use super::grouped;
+
+    #[test]
+    fn signed_uses_a_minus_sign_and_no_negative_zero() {
+        assert_eq!(super::signed(0.17), "0.17");
+        assert_eq!(super::signed(-0.25), "\u{2212}0.25");
+        assert_eq!(super::signed(-0.001), "0.00");
+        assert_eq!(super::signed(0.0), "0.00");
+    }
 
     #[test]
     fn groups_of_three_from_the_right() {

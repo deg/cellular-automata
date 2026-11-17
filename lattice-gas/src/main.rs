@@ -358,7 +358,7 @@ impl GasApp {
                 let f = &self.field;
                 let ux = f.at(px, py, |bx, by| f.get(bx, by).ux);
                 let uy = f.at(px, py, |bx, by| f.get(bx, by).uy);
-                format!("({}, {})", signed(ux), signed(uy))
+                format!("({}, {})", ca_core::signed(ux), ca_core::signed(uy))
             });
             r.row(
                 "flow at the pointer",
@@ -586,17 +586,6 @@ fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
-/// A velocity component to two places, with a true minus sign (as the Mandelbrot demo
-/// writes it) and no "-0.00" for a value that rounds to zero.
-fn signed(v: f64) -> String {
-    let text = format!("{:.2}", v.abs());
-    if v < 0.0 && text != "0.00" {
-        format!("\u{2212}{text}")
-    } else {
-        text
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -622,14 +611,5 @@ mod tests {
             let ms = t.elapsed().as_secs_f64() * 1000.0 / runs as f64;
             println!("{}: {ms:.1} ms", show.label());
         }
-    }
-
-    /// Velocities read with a true minus sign, and never as "-0.00".
-    #[test]
-    fn signed_uses_a_minus_sign_and_no_negative_zero() {
-        assert_eq!(super::signed(0.17), "0.17");
-        assert_eq!(super::signed(-0.25), "\u{2212}0.25");
-        assert_eq!(super::signed(-0.001), "0.00");
-        assert_eq!(super::signed(0.0), "0.00");
     }
 }

@@ -202,7 +202,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `Rng`: a small seeded generator for random fills.
   - `About`: the side panel rendering the demo's `README.md`.
   - `readout` (the label/value grid at the bottom of every panel, with its `pointer` row
-    "under the pointer"), `speed_cap_note`, `grouped` (numbers as 1,234,567) and `NAVY`
+    "under the pointer"), `speed_cap_note`, `grouped` (numbers as 1,234,567), `signed`
+    (two places, a true minus sign, never "-0.00") and `NAVY`
     (the background): shared so the demos' panels look and read alike.
   - `plot`: a small chart in the panel (dots or lines, linear or log axes), for a demo
     that measures something as it runs; every demo's chart uses it.
