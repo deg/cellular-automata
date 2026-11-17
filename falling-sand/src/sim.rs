@@ -1152,6 +1152,44 @@ mod tests {
         assert_eq!((world.count(Water), world.count(Sand)), (water, sand));
     }
 
+    /// In the fire opening, a puddle of water on the grass between two trees is a
+    /// firebreak: every plant beyond it survives (and some grow, drinking the puddle), and
+    /// the wood before it burns.
+    #[test]
+    fn a_puddle_on_the_grass_stops_the_fire() {
+        let (w, h) = (320, 200);
+        let mut world = World::new(w, h, 1);
+        wood_fire(&mut world);
+        let ground = h - h / 8;
+        let spacing = w / 12;
+        let x = spacing / 2 + spacing * 2 + spacing / 2; // between the third and fourth trees
+        for _ in 0..3 {
+            world.paint(x, ground - 6, 3, Water);
+        }
+        let beyond = |world: &World| {
+            cells_of(world, Plant)
+                .iter()
+                .filter(|&&(px, _)| px > x)
+                .count()
+        };
+        let before = beyond(&world);
+        run(&mut world, 3_000);
+        assert_eq!(world.count(Fire), 0);
+        assert!(beyond(&world) >= before);
+        // The wood before the puddle burns, all but the plants under the puddle, wet. The
+        // puddle has spread over the grass, so find its left end.
+        let puddle = cells_of(&world, Water)
+            .iter()
+            .map(|&(px, _)| px)
+            .min()
+            .unwrap();
+        assert!(
+            cells_of(&world, Plant)
+                .iter()
+                .all(|&(px, _)| px + 1 >= puddle)
+        );
+    }
+
     /// Breaking the dam lets the lake into the valley, and its level falls; the grass
     /// there drinks some of it.
     #[test]

@@ -98,8 +98,8 @@ The genre takes its name from the *Falling Sand Game*, a web game of 2005.
   open a gap. The lake pours into the valley, and its level and the flood's even out. The
   grass on the sand drinks the water and grows.
 - **The fire.** Choose *fire* and the flames spread through every tree joined by the
-  grass. Paint *water* across the wood ahead of the fire to make a firebreak, or paint
-  *fire* anywhere to start another.
+  grass. Paint *water* on the grass between two trees, ahead of the fire, to make a
+  firebreak, or paint *fire* anywhere to start another.
 - **The U-tube.** Water poured into one arm rises in the other until the two are level:
   that is the pressure rule at work. Paint more *water* into either arm and watch it share
   out. Paint *sand* into one arm: it sinks to the bottom and pushes the water up both.
