@@ -364,51 +364,71 @@
       // (axial coordinates) until the ice nears the circle held at the background.
       const VAPOUR = [0x6c, 0x8c, 0xc4], OLD_ICE = [0x8f, 0xc1, 0xe3];
       // R counts hex rows, as Reiter's program does: the circle is R sqrt(3)/2 cells wide.
-      const R = 35, beta = 0.6, gamma = 0.01;
+      const R = 28, beta = 0.6, gamma = 0.01;
       const c = R + 2, n = 2 * c + 1;
+      // water is each cell's water; field is the part that diffuses, the water of cells
+      // that are not receptive (ice, or next to ice) and 0 at those that are. Each has a
+      // second buffer for the next step.
       let water = new Float64Array(n * n).fill(beta), next = new Float64Array(n * n).fill(beta);
-      const field = new Float64Array(n * n).fill(beta), ice = new Uint8Array(n * n);
-      const rec = new Uint8Array(n * n), list = [];
+      let field = new Float64Array(n * n).fill(beta), after = new Float64Array(n * n).fill(beta);
+      const ice = new Uint8Array(n * n), rec = new Uint8Array(n * n), list = [];
       for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
         const q = x - c, r = y - c;
         if (4 * (q * q + q * r + r * r) < 3 * R * R) list.push(y * n + x);
       }
       const inside = Int32Array.from(list), m = inside.length;
+      // Ice never melts (a receptive cell only gains water), so a cell's freezing makes it
+      // and its six neighbours receptive for good, with nothing in the field.
+      const around = [0, 1, -1, n, -n, n - 1, -n + 1];
+      const freeze = (i) => {
+        ice[i] = 1;
+        for (const d of around) { rec[i + d] = 1; field[i + d] = 0; }
+      };
       water[c * n + c] = 1;
-      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) {
-        for (let k = 0; k < m; k++) { const i = inside[k]; ice[i] = water[i] >= 1 ? 1 : 0; }
+      freeze(c * n + c);
+      const frozen = [];
+      function step(reach) {
         for (let k = 0; k < m; k++) {
-          const i = inside[k];
-          rec[i] = ice[i] | ice[i + 1] | ice[i - 1] | ice[i + n] | ice[i - n] | ice[i + n - 1] | ice[i - n + 1];
-          field[i] = rec[i] ? 0 : water[i];
-        }
-        for (let k = 0; k < m; k++) {
-          const i = inside[k], v = field[i];
+          const i = inside[k], v = field[i], receptive = rec[i];
           const s = field[i + 1] + field[i - 1] + field[i + n] + field[i - n] + field[i + n - 1] + field[i - n + 1];
-          next[i] = v + (s - 6 * v) / 12 + (rec[i] ? water[i] + gamma : 0);
-          if (next[i] >= 1 && !ice[i]) {
+          const w = v + (s - 6 * v) / 12 + (receptive ? water[i] + gamma : 0);
+          next[i] = w;
+          after[i] = receptive ? 0 : w;
+          if (w >= 1 && !ice[i]) {
+            frozen.push(i);
             const q = (i % n) - c, r = ((i / n) | 0) - c;
             reach = Math.max(reach, q * q + q * r + r * r);
           }
         }
         [water, next] = [next, water];
+        [field, after] = [after, field];
+        for (const i of frozen) freeze(i);
+        frozen.length = 0;
+        return reach;
       }
+      for (let reach = 0; 4 * reach < 3 * (R - 2) * (R - 2);) reach = step(reach);
       let most = 1;
       for (const i of inside) most = Math.max(most, water[i]);
-      // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates).
-      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Float64Array(w * h);
-      for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
-        const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), q = (px + 0.5 - w / 2) * scale - r / 2;
-        let rq = Math.round(q), rr = Math.round(r);
-        const rs = Math.round(-q - r), dq = Math.abs(rq - q), dr = Math.abs(rr - r), ds = Math.abs(rs + q + r);
-        if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
-        const x = rq + c, y = rr + c;
-        cells[py * w + px] = x >= 0 && y >= 0 && x < n && y < n ? water[y * n + x] : beta;
+      // Each pixel shows the hex cell its centre falls in (rounded in cube coordinates), or
+      // -1 outside the grid. A cell's colour is worked out once, for its first pixel.
+      const w = 160, h = 100, scale = R * Math.sqrt(3) / 2 / 46, cells = new Int32Array(w * h);
+      for (let py = 0; py < h; py++) {
+        const r = (py + 0.5 - h / 2) * scale * 2 / Math.sqrt(3), round = Math.round(r), dr = Math.abs(round - r);
+        for (let px = 0; px < w; px++) {
+          const q = (px + 0.5 - w / 2) * scale - r / 2;
+          let rq = Math.round(q), rr = round;
+          const rs = Math.round(-q - r), dq = Math.abs(rq - q), ds = Math.abs(rs + q + r);
+          if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
+          const x = rq + c, y = rr + c;
+          cells[py * w + px] = x >= 0 && y >= 0 && x < n && y < n ? y * n + x : -1;
+        }
       }
       const mix = (a, b, t) => a.map((v, k) => Math.round(v + (b[k] - v) * t));
-      paint(canvas, w, h, cells, (v) => (v < 1
+      const colour = (v) => (v < 1
         ? mix(NAVY, VAPOUR, Math.max(v, 0))
-        : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1)))));
+        : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1))));
+      const background = colour(beta), shades = [];
+      paint(canvas, w, h, cells, (i) => (i < 0 ? background : (shades[i] ||= colour(water[i]))));
     },
 
     critters(canvas) {
