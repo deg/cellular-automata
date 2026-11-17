@@ -197,7 +197,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - The readout at the bottom is `ca_core::readout`: lowercase labels, singular for a
     counter ("generation", "step") and plural for a count of things ("particles",
     "grains"), numbers through `grouped`, and its last row is `pointer` ("under the
-    pointer", as "(x, y): state"), not a tooltip. Clear, where there is one, sits under
+    pointer", as "(x, y): state"), not a tooltip. `restart()` clears the stored pointer cell,
+    since the restarted world can be smaller. Clear, where there is one, sits under
     the playback controls, its note joined to Restart's. Charts: measured points sky blue,
     reference lines gold. The panel's opening line describes the rule; whether it is a
     cellular automaton is the README's business.
