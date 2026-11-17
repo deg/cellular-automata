@@ -404,6 +404,36 @@
         : mix(SPARK, OLD_ICE, Math.sqrt(Math.min((v - 1) / (most - 1), 1)))));
     },
 
+    critters(canvas) {
+      // Critters, from a random square in an empty world, once gliders have escaped it.
+      // Each 2 x 2 block flips every cell unless it holds two 1s, and a block of three is
+      // also turned half a turn; the blocks shift by one cell every other step, and the
+      // edges wrap. After an even number of steps the 1s are the particles.
+      const random = rng(1987);
+      const cells = new Uint8Array(W * H);
+      for (let y = 18; y < 32; y++) for (let x = 33; x < 47; x++) {
+        cells[y * W + x] = random() < 0.5 ? 1 : 0;
+      }
+      for (let g = 0; g < 80; g++) {
+        const o = g % 2;
+        for (let y = o; y < H + o; y += 2) for (let x = o; x < W + o; x += 2) {
+          const top = (y % H) * W, bottom = ((y + 1) % H) * W;
+          const a = top + (x % W), b = top + ((x + 1) % W);
+          const c = bottom + (x % W), d = bottom + ((x + 1) % W);
+          const n = cells[a] + cells[b] + cells[c] + cells[d];
+          if (n === 2) continue;
+          const fa = 1 - cells[a], fb = 1 - cells[b], fc = 1 - cells[c], fd = 1 - cells[d];
+          if (n === 3) {
+            // A half turn swaps opposite corners.
+            cells[a] = fd; cells[b] = fc; cells[c] = fb; cells[d] = fa;
+          } else {
+            cells[a] = fa; cells[b] = fb; cells[c] = fc; cells[d] = fd;
+          }
+        }
+      }
+      paint(canvas, W, H, cells, (v) => (v ? GOLD : NAVY));
+    },
+
     cyclic(canvas) {
       // The basic cyclic automaton (range 1, 4 neighbours, threshold 1) with 8 colours,
       // from random colours until spirals have formed: a cell takes the next colour when a

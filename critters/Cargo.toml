@@ -1,0 +1,8 @@
+[package]
+name = "critters"
+version = "0.1.0"
+edition = "2024"
+description = "Blocks of four cells change by a fixed table, and the world can run backwards to its exact start; gliders, billiard balls and a gas."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
