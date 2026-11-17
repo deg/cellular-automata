@@ -83,7 +83,7 @@ pub const CLASSES: [Class; 12] = [
     Class {
         letter: "β",
         rates: Rates { f: 0.015, k: 0.040 },
-        note: "Phase turbulence: the medium oscillates, but can't keep in step, so its phase varies from place to place.",
+        note: "Phase turbulence: the dish oscillates, but out of step, so the phase varies from place to place.",
     },
     Class {
         letter: "γ",
