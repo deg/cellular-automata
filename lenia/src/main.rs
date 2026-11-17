@@ -8,7 +8,7 @@ use ca_core::{
     About, Advance, Grid, GridView, NAVY, Pace, PaintStroke, Playback, Rng, eframe,
     generations_per_frame, grouped,
 };
-use sim::{CREATURES, GLIDER_GUN, LIFE, Rule, World, decode};
+use sim::{CELLS_PER_PATCH, CREATURES, GLIDER_GUN, LIFE, Rule, World, decode};
 
 fn main() {
     ca_core::run("Lenia", LeniaApp::new);
@@ -25,14 +25,6 @@ const SHADES: usize = 256;
 
 /// World sizes: powers of two, for the Fourier transform.
 const SIZES: &[usize] = &[128, 256, 512];
-
-/// A soup has one patch for this many cells: 32 on the 256 x 256 world. Chan's
-/// `random_world` scatters 15 to 40 patches whatever the world's size. Tried on the 256
-/// world with Orbium's rule, 24 soups each, 1,500 steps (outside this repository): at one
-/// patch for 1,024 cells all 24 filled the world; at 2,048, 4 left creatures, 14 filled it
-/// and 6 died out; at 4,096, 3, 1 and 20. Every density left creatures about one time in
-/// five; this one shows all three endings.
-const CELLS_PER_PATCH: usize = 2_048;
 
 /// The growth centre μ's slider range, and the growth width σ's (logarithmic). They hold
 /// every creature's values and Life's (μ = 0.35, σ = 0.07).

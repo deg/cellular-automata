@@ -345,6 +345,14 @@ pub const GLIDER_GUN: &str = concat!(
     "$11bo3bo$12b2o!",
 );
 
+/// A soup ([`World::soup`]) has one patch for this many cells: 32 on a 256 x 256 world.
+/// Chan's `random_world` scatters 15 to 40 patches whatever the world's size. Tried on the
+/// 256 world with Orbium's rule, 24 soups each, 1,500 steps: at one patch for 1,024 cells
+/// all 24 filled the world; at 2,048, 4 left creatures, 14 filled it and 6 died out; at
+/// 4,096, 3, 1 and 20. Every density left creatures about one time in five; this one shows
+/// all three endings (the slow test `about_one_soup_in_five_leaves_creatures`).
+pub const CELLS_PER_PATCH: usize = 2_048;
+
 /// A rectangle of states.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pattern {
@@ -642,6 +650,13 @@ mod tests {
         }
     }
 
+    /// The kernels' sizes, as the README quotes them: 516 cells at radius 13, 1,244 at 20.
+    #[test]
+    fn kernel_sizes() {
+        assert_eq!(CREATURES[ORBIUM].rule.kernel().len(), 516);
+        assert_eq!(CREATURES[2].rule.kernel().len(), 1_244);
+    }
+
     /// The paper's requirements of a core (§2.1.4): 0 at both ends, 1 in the middle, and
     /// unimodal; the staircase is Life's (equation 14).
     #[test]
@@ -918,14 +933,130 @@ mod tests {
         }
     }
 
-    /// Orbium's mass holds to within 2% over 1,000 steps (it is about 71 cells).
+    /// Orbium with Chan's values, as the README describes it: its mass stays at about 74
+    /// cells (within 2% of its mean), and it glides about 6 cells every 10 steps.
     #[test]
     #[ignore]
     fn orbium_keeps_its_mass() {
         let o = &CREATURES[ORBIUM];
-        let (masses, _) = run(o.rule, o.cells, 128, 200, 1_000);
+        let (masses, speed) = run(o.rule, o.cells, 128, 200, 1_000);
         let mean = masses.iter().sum::<f64>() / masses.len() as f64;
+        assert!((mean - 74.0).abs() < 1.5, "mass {mean}");
         assert!(masses.iter().all(|m| (m / mean - 1.0).abs() < 0.02));
+        assert!((speed - 0.62).abs() < 0.03, "speed {speed}");
+    }
+
+    /// The mass after 1,500 steps of Orbium's pattern with its rule changed by `change`.
+    fn orbium_after(change: impl Fn(&mut Rule)) -> f64 {
+        let o = &CREATURES[ORBIUM];
+        let mut rule = o.rule;
+        change(&mut rule);
+        let mut w = World::new(128, rule);
+        w.place(&decode(o.cells));
+        for _ in 0..1_500 {
+            w.step();
+        }
+        w.mass()
+    }
+
+    /// The README's band for Orbium: at μ = 0.15 it evaporates at σ = 0.012, lives at
+    /// 0.013 and 0.02, and explodes at 0.024; at σ = 0.015 it explodes at μ = 0.12, lives
+    /// at 0.13 and 0.16, and evaporates at 0.17.
+    #[test]
+    #[ignore]
+    fn orbium_lives_in_a_narrow_band() {
+        let ending = |m: f64| match m {
+            m if m < 1.0 => "evaporates",
+            m if m < 120.0 => "lives",
+            _ => "explodes",
+        };
+        let sigma = [0.012, 0.013, 0.02, 0.024].map(|s| ending(orbium_after(|r| r.sigma = s)));
+        assert_eq!(sigma, ["evaporates", "lives", "lives", "explodes"]);
+        let mu = [0.12, 0.13, 0.16, 0.17].map(|m| ending(orbium_after(|r| r.mu = m)));
+        assert_eq!(mu, ["explodes", "lives", "lives", "evaporates"]);
+    }
+
+    /// Vagorbium zigzags (the paper's figure 12(d), "zigzagging Vagorbium undulatus"): its
+    /// heading, sampled every 20 steps, turns one way, then the other, nearly every time.
+    #[test]
+    #[ignore]
+    fn vagorbium_zigzags() {
+        let v = &CREATURES[2];
+        let mut w = World::new(256, v.rule);
+        w.place(&decode(v.cells));
+        for _ in 0..200 {
+            w.step();
+        }
+        let wrap = |d: f64, period: f64| (d + period / 2.0).rem_euclid(period) - period / 2.0;
+        let mut last = centroid(&w);
+        let mut headings = Vec::new();
+        for _ in 0..60 {
+            for _ in 0..20 {
+                w.step();
+            }
+            let c = centroid(&w);
+            headings.push(wrap(c.1 - last.1, 256.0).atan2(wrap(c.0 - last.0, 256.0)));
+            last = c;
+        }
+        let turns: Vec<f64> = headings
+            .windows(2)
+            .map(|h| wrap(h[1] - h[0], std::f64::consts::TAU))
+            .collect();
+        let alternations = turns.windows(2).filter(|t| t[0] * t[1] < 0.0).count();
+        assert!(
+            alternations * 10 >= (turns.len() - 1) * 8,
+            "{alternations} of {}",
+            turns.len() - 1
+        );
+    }
+
+    /// The panel's note on Life: Gosper's gun fires a glider (5 cells) every 30 generations
+    /// (the Life demo's README), so the mass grows by 25 every 150 generations; on the
+    /// 256 x 256 world the gliders wrap round and wreck the gun by generation 1,200.
+    #[test]
+    #[ignore]
+    fn the_glider_gun_fires_until_its_gliders_come_round() {
+        let mut w = World::new(256, LIFE);
+        w.place(&decode(GLIDER_GUN));
+        let mut masses = Vec::new();
+        for generation in 1..=1_200 {
+            w.step();
+            if generation % 150 == 0 {
+                masses.push(w.mass());
+            }
+        }
+        for m in masses[..6].windows(2) {
+            assert_eq!(m[1] - m[0], 25.0);
+        }
+        let peak = masses.iter().cloned().fold(0.0, f64::max);
+        assert!(*masses.last().unwrap() < peak, "{masses:?}");
+    }
+
+    /// The soup, as the README describes it: of 24 soups on the 256 world, about one in
+    /// five leaves creatures (a mass between 30 and 2,000 cells after 1,500 steps); the
+    /// rest fill the world or die out.
+    #[test]
+    #[ignore]
+    fn about_one_soup_in_five_leaves_creatures() {
+        let n = 256;
+        let mut rng = Rng::new(99);
+        let mut endings = [0; 3];
+        for _ in 0..24 {
+            let mut w = World::new(n, CREATURES[ORBIUM].rule);
+            w.soup(n * n / CELLS_PER_PATCH, &mut rng);
+            for _ in 0..1_500 {
+                w.step();
+            }
+            endings[match w.mass() {
+                m if m < 30.0 => 0,
+                m if m < 2_000.0 => 1,
+                _ => 2,
+            }] += 1;
+        }
+        let [dead, creatures, full] = endings;
+        println!("{dead} died, {creatures} left creatures, {full} filled the world");
+        assert!((3..=7).contains(&creatures));
+        assert!(dead > 0 && full > 0);
     }
 
     /// The cost of a step natively (`--ignored --nocapture`): the Fourier step at each world

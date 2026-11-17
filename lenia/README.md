@@ -32,7 +32,8 @@ fades. That is Life's rule too, with smoothness everywhere: the states, the ring
 growth are smooth, and T steps make one unit of time, so with large R and T the world
 approaches a continuous one, in space, time and state.
 
-The colours run from navy (0) through blue and teal to gold (1).
+The colours run from navy (0) through blue and teal to gold (1), as in reaction-diffusion,
+another demo here, whose chemicals are amounts that vary smoothly too.
 
 The name is from the Latin *lenis*, smooth.
 
@@ -84,7 +85,8 @@ takes about half a millisecond (natively, on a laptop).
   [arXiv:2005.03742](https://arxiv.org/abs/2005.03742).
 
 The creatures in the demo, with their patterns and settings, are from Chan's own catalogue
-in his [Lenia repository](https://github.com/Chakazul/Lenia), under the MIT licence.
+in his [Lenia repository](https://github.com/Chakazul/Lenia), © 2018 Bert Chan, under the
+MIT licence.
 
 ## Things to try
 
