@@ -219,8 +219,13 @@ impl HodgepodgeApp {
         ui.add(egui::Slider::new(&mut rule.n, 2..=MAX_N).text("n, the ill state"));
         rule.g = rule.g.min(rule.n);
         ui.add(egui::Slider::new(&mut rule.g, 1..=rule.n).text("g, infection's rise"));
-        ui.add(egui::Slider::new(&mut rule.k1, 1..=8).text("k1, per infected"));
-        ui.add(egui::Slider::new(&mut rule.k2, 1..=8).text("k2, per ill"));
+        let (k1, k2) = if rule.ill_first {
+            ("k1, per ill", "k2, per infected")
+        } else {
+            ("k1, per infected", "k2, per ill")
+        };
+        ui.add(egui::Slider::new(&mut rule.k1, 1..=8).text(k1));
+        ui.add(egui::Slider::new(&mut rule.k2, 1..=8).text(k2));
         ui.horizontal_wrapped(|ui| {
             ui.label("Neighbours:");
             ui.radio_value(&mut rule.neighbourhood, Neighbourhood::VonNeumann, "4")
@@ -228,9 +233,13 @@ impl HodgepodgeApp {
             ui.radio_value(&mut rule.neighbourhood, Neighbourhood::Moore, "8")
                 .on_hover_text("Moore: the 8 cells sharing an edge or a corner.");
         });
-        ui.small(
-            "A healthy cell catches a level for every k1 infected and every k2 ill neighbours.",
-        );
+        ui.horizontal_wrapped(|ui| {
+            ui.label("k1 divides:");
+            ui.radio_value(&mut rule.ill_first, false, "infected")
+                .on_hover_text("Dewdney's order: a healthy cell catches a level for every k1 infected and every k2 ill neighbours.");
+            ui.radio_value(&mut rule.ill_first, true, "ill")
+                .on_hover_text("The order of some later programs: every k1 ill and every k2 infected neighbours. With g near 20 the share holds near Dewdney's 75%.");
+        });
 
         if rule != self.hp.rule {
             let restart = rule.n != self.hp.rule.n;

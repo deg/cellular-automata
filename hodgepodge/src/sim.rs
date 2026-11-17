@@ -102,6 +102,10 @@ pub struct Rule {
     /// How much an infected cell's level rises each generation, on top of its neighbourhood's.
     pub g: u8,
     pub neighbourhood: Neighbourhood,
+    /// k1 and k2 the other way round: a healthy cell catches a level for every k1 *ill* and
+    /// every k2 *infected* neighbours, the order of Reiter's, Heitkötter's and SAGA's
+    /// programs (see the module comment). False is Dewdney's order.
+    pub ill_first: bool,
 }
 
 impl Rule {
@@ -112,6 +116,16 @@ impl Rule {
             k2,
             g,
             neighbourhood,
+            ill_first: false,
+        }
+    }
+
+    /// The same rule with k1 and k2 dividing the other way round (see [`Rule::ill_first`]).
+    #[cfg(test)]
+    pub const fn with_ill_first(self) -> Self {
+        Self {
+            ill_first: true,
+            ..self
         }
     }
 
@@ -131,6 +145,9 @@ impl Rule {
     pub fn apply(self, state: u8, sum: u32, infected: u32, ill: u32) -> u8 {
         let n = u32::from(self.n);
         let next = match self.health(state) {
+            Health::Healthy if self.ill_first => {
+                ill / u32::from(self.k1) + infected / u32::from(self.k2)
+            }
             Health::Healthy => infected / u32::from(self.k1) + ill / u32::from(self.k2),
             Health::Infected(level) => {
                 (u32::from(level) + sum) / (infected + 1) + u32::from(self.g)
@@ -686,6 +703,38 @@ mod tests {
     /// middle world:
     /// after 1,000 generations the share stays within 0.1 of its mean, which is between 0.4
     /// and 0.9. Slow: `make slow`.
+    /// With `ill_first`, k1 divides the ill neighbours and k2 the infected: 3 infected and 2
+    /// ill give [2/2] + [3/3] = 2, where Dewdney's order gives [3/2] + [2/3] = 1.
+    #[test]
+    fn ill_first_swaps_what_k1_and_k2_divide() {
+        let rule = sample(5, Moore);
+        assert_eq!(rule.apply(0, 0, 3, 2), 1);
+        assert_eq!(rule.with_ill_first().apply(0, 0, 3, 2), 2);
+        // An infected cell's rule doesn't depend on the order.
+        assert_eq!(
+            rule.apply(50, 220, 2, 0),
+            rule.with_ill_first().apply(50, 220, 2, 0)
+        );
+    }
+
+    /// With k1 and k2 the other way round, 8 neighbours and g = 20, the share settles near
+    /// Dewdney's Type 4 "approximately 75 percent" (p. 105), measured here at 0.71 to
+    /// 0.72: after 1,000 generations on the middle world the mean share is between 0.66
+    /// and 0.8 and stays within 0.1 of it. Slow: `make slow`.
+    #[test]
+    #[ignore]
+    fn ill_first_spirals_hold_near_three_quarters() {
+        let rule = sample(20, Moore).with_ill_first();
+        for seed in 0..3 {
+            let mut hp = soup(320, 200, rule, true, seed);
+            shares(&mut hp, 1_000);
+            let s = shares(&mut hp, 300);
+            let mean = s.iter().sum::<f64>() / s.len() as f64;
+            assert!((0.66..0.8).contains(&mean), "seed {seed}: mean {mean}");
+            assert!(s.iter().all(|v| (v - mean).abs() < 0.1), "seed {seed}");
+        }
+    }
+
     #[test]
     #[ignore]
     fn the_spirals_preset_holds_a_steady_share() {

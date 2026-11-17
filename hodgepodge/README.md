@@ -94,7 +94,8 @@ With *k1* = *k2* = 1 a single neighbour is enough, and the front moves.
 The *Spirals* preset holds about 60% of the cells infected, not Dewdney's 75%. Some later
 programs swap *k1* and *k2*, dividing the ill neighbours by *k1*; with that order, 8
 neighbours and *g* of 19 or 20, the share settled at 71–72% on every start tried here.
-This demo keeps Dewdney's order.
+The presets keep Dewdney's order; *k1 divides* switches to the other one (choose *Spirals*,
+then *ill*, and set *g* to 20).
 
 ## Things to try
 
