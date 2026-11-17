@@ -307,6 +307,34 @@ What was different:
 - **Clean up your own processes.** A web server I had left running blocked a builder's
   port; it found another one, and reported it.
 
+## Wave two (2026-11-17)
+
+The last four (the hodgepodge machine, percolation, falling sand, Lenia) went the same way,
+four builders at three compile jobs each. What was new:
+
+- **A usage limit stopped two builders mid-work.** Their work was saved in their
+  worktrees and their transcripts; once the limit reset, each was resumed with "continue
+  from where you stopped" and finished. Worktrees and frequent commits made that a
+  non-event.
+- **One reviewer's bug was a bug in fourteen demos.** The percolation reviewer found that
+  choosing a smaller world from the keyboard, with the mouse resting on the grid, made
+  the pointer row read a cell of the old world and panic. Every demo stored the hovered
+  cell the same way, so the coordinator fixed all of them at once and wrote the rule into
+  CLAUDE.md; the two builders still working got the same fix.
+- **Reviewers went beyond checking.** The Lenia reviewer confirmed from Chan's own code
+  that the setting his interface calls "exponential" computes the polynomial forms, and
+  worked out what the MIT licence requires for the shipped app (the full notice with every
+  copy, not a one-line credit). The hodgepodge reviewer tried twelve readings of
+  Dewdney's rule and explained why his sample dies: with four neighbours and rounding
+  down, a straight front can't move.
+- **Shared code kept moving into `ca_core`** as soon as a second demo needed it: the
+  colour ramp for continuous fields (reaction-diffusion and Lenia) and the chart colours
+  (copied by five demos, drifted in a sixth).
+- **The consistency check found four things**, against thirteen after wave one and about
+  twenty-five after the first round: writing each finding into CLAUDE.md is working.
+- **Placing the cards is David's call** once he has tried them, so the four were placed
+  provisionally, with the case for and against each option written out.
+
 ## What went wrong
 
 - **A merge committed conflict markers.** On the lattice-gas merge, `Cargo.lock` conflicted
