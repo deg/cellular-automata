@@ -25,6 +25,7 @@ forest-fire
 snowflakes
 aggregation
 lattice-gas
+falling-sand
 == Relatives
 percolation
 reaction-diffusion

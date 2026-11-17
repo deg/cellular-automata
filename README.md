@@ -37,6 +37,7 @@ try. They are grouped as on the site's home page.
 | [Snowflakes](snowflakes/) | Water freezes where the vapour reaches it first, and a seed grows into a snow crystal: plates, stars and branching dendrites. |
 | [Diffusion-limited aggregation](aggregation/) | Particles wander at random until they touch the cluster and stick; it grows into a branching fractal, like copper on an electrode. |
 | [Lattice gas](lattice-gas/) | Particles hop and collide on a hexagonal lattice; averaged over many, they flow like a fluid around an obstacle. |
+| [Falling sand](falling-sand/) | Paint sand, water, walls, plants and fire: sand piles up, water finds its level, plants drink and fire burns. |
 
 ### Relatives
 
