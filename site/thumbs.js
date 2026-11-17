@@ -784,6 +784,42 @@
         : v < n / 2 ? mixed(TEAL, GOLD, (2 * v) / n) : mixed(GOLD, CORAL, (2 * v) / n - 1));
       paint(canvas, W, H, cells, (v) => colours[v]);
     },
+    "falling-sand"(canvas) {
+      // The hourglass opening part way through. Rows are done from the bottom up, the
+      // direction along a row alternating; a grain falls if it can, else slides to a free
+      // diagonal (a coin toss when both are free) if the cell beside it is free too.
+      const random = rng(2005);
+      const cells = new Uint8Array(W * H); // 0 empty, 1 wall, 2 to 5 sand in four shades
+      const cx = W >> 1, top = 4, bottom = H - 5, neck = (top + bottom) >> 1;
+      const half = (y) => 1 + Math.floor((Math.abs(y - neck) * 18) / (neck - top));
+      for (let y = top; y <= bottom; y++) {
+        cells[y * W + cx - half(y) - 1] = 1;
+        cells[y * W + cx + half(y)] = 1;
+      }
+      for (let x = cx - half(top) - 1; x <= cx + half(top); x++) {
+        cells[(top - 1) * W + x] = 1;
+        cells[(bottom + 1) * W + x] = 1;
+      }
+      for (let y = top + 5; y < neck; y++) {
+        for (let x = cx - half(y); x < cx + half(y); x++) cells[y * W + x] = 2 + ((random() * 4) | 0);
+      }
+      for (let s = 0; s < 60; s++) {
+        const ltr = s % 2 === 0;
+        for (let y = H - 2; y >= 0; y--) for (let k = 0; k < W; k++) {
+          const x = ltr ? k : W - 1 - k, i = y * W + x, v = cells[i];
+          if (v < 2) continue;
+          if (cells[i + W] === 0) { cells[i + W] = v; cells[i] = 0; continue; }
+          const l = x > 0 && cells[i - 1] === 0 && cells[i + W - 1] === 0;
+          const r = x < W - 1 && cells[i + 1] === 0 && cells[i + W + 1] === 0;
+          const j = l && r ? (random() < 0.5 ? i + W - 1 : i + W + 1) : l ? i + W - 1 : r ? i + W + 1 : -1;
+          if (j >= 0) { cells[j] = v; cells[i] = 0; }
+        }
+      }
+      const mix = (a, b, f) => a.map((c, j) => Math.round(c + (b[j] - c) * f));
+      const wall = mix(NAVY, SPARK, 0.42);
+      const sand = [0, 1, 2, 3].map((k) => mix(GOLD, NAVY, (0.22 * k) / 3));
+      paint(canvas, W, H, cells, (v) => (v === 0 ? NAVY : v === 1 ? wall : sand[v - 2]));
+    },
   };
 
   // Any other demo: Rule 110 from a random row.

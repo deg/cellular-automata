@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["ca_core", "sandpile", "life", "elementary", "langtons-ant", "brians-brain", "wireworld", "mandelbrot", "cyclic", "snowflakes", "langtons-loops", "lattice-gas", "aggregation", "critters", "forest-fire", "hodgepodge", "lenia", "percolation", "reaction-diffusion", "traffic", "tools/mdpage"]
+members = ["ca_core", "sandpile", "life", "elementary", "langtons-ant", "brians-brain", "wireworld", "mandelbrot", "cyclic", "snowflakes", "langtons-loops", "lattice-gas", "aggregation", "critters", "falling-sand", "forest-fire", "hodgepodge", "lenia", "percolation", "reaction-diffusion", "traffic", "tools/mdpage"]
 
 [profile.release]
 opt-level = 3

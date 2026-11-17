@@ -1,0 +1,8 @@
+[package]
+name = "falling-sand"
+version = "0.1.0"
+edition = "2024"
+description = "Paint sand, water, walls, plants and fire: sand piles up, water finds its level, plants drink and fire burns."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
