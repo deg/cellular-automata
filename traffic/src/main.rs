@@ -21,8 +21,8 @@ const TEAL: [f32; 3] = [42.0, 157.0, 143.0];
 const HERE: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
 /// The chart's colours, as in the other demos' charts: measured points sky blue, the
 /// reference (theory) lines gold.
-const MEASURED: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
-const REFERENCE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
+const MEASURED: Color32 = ca_core::CHART_MEASURED;
+const REFERENCE: Color32 = ca_core::CHART_REFERENCE;
 
 /// The colour of a car at speed `v` of `v_max`: coral standing still, gold at half speed,
 /// teal at full speed, so jams stand out from free-flowing traffic.

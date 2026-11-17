@@ -269,7 +269,7 @@ make siblings               # before/after a Rust update: build+test David's oth
     pointer", as "(x, y): state"), not a tooltip. `restart()` clears the stored pointer cell,
     since the restarted world can be smaller. Clear, where there is one, sits under
     the playback controls, its note joined to Restart's. Charts: measured points sky blue,
-    reference lines gold. The panel's opening line describes the rule; whether it is a
+    reference lines gold (`ca_core::CHART_MEASURED`, `CHART_REFERENCE`). The panel's opening line describes the rule; whether it is a
     cellular automaton is the README's business.
   - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
     chosen one's note below (a drop-down only for long lists: Life's patterns,

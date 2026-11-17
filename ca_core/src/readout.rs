@@ -7,6 +7,11 @@ use crate::egui::{self, Color32};
 /// page's cards. The rest of the palette is in each demo and in `site/style.css`.
 pub const NAVY: Color32 = Color32::from_rgb(0x14, 0x18, 0x30);
 
+/// A chart's measured points or curve (see [`crate::plot`]), the same in every demo.
+pub const CHART_MEASURED: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
+/// A chart's reference: a theory line, a fit, a published value.
+pub const CHART_REFERENCE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
+
 /// The colour `t` of the way from `a` to `b` (0 gives `a`, 1 gives `b`), each channel rounded.
 /// The demos shade a value between two palette colours with it.
 pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {

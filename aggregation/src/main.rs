@@ -25,8 +25,8 @@ const SHADES: [Color32; 5] = [
 ];
 
 /// The chart's points and its fitted line.
-const POINTS: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
-const FIT: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
+const POINTS: Color32 = ca_core::CHART_MEASURED;
+const FIT: Color32 = ca_core::CHART_REFERENCE;
 
 /// Square worlds, by side.
 const SIZES: &[usize] = &[250, 500, 1000];

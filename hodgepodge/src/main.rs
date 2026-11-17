@@ -259,11 +259,11 @@ impl HodgepodgeApp {
                 y_range: Some((0.0, 1.0)),
                 series: vec![Series {
                     points,
-                    colour: GOLD,
+                    colour: ca_core::CHART_MEASURED,
                     style: Style::Line,
                 }],
             },
-            80.0,
+            100.0,
         );
     }
 

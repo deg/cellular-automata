@@ -75,7 +75,7 @@ In brief; [HOW-IT-WORKS.md](HOW-IT-WORKS.md) has the full picture.
   `src/main.rs` is the user interface (egui).
 - `site/`: builds every demo plus the index page into `dist/`.
 
-## License
+## Licence
 
 Copyright © 2026 David Goldfarb, deg@degel.com.
 

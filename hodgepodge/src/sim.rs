@@ -251,10 +251,11 @@ impl Hodgepodge {
         self.infected
     }
 
-    /// Every cell healthy.
+    /// Every cell healthy, and the count of generations back to 0.
     pub fn clear(&mut self) {
         self.grid.cells_mut().fill(0);
         self.infected = 0;
+        self.generation = 0;
     }
 
     /// Every cell in a state from 0 to n, each equally likely. Dewdney says only that

@@ -16,8 +16,8 @@ fn main() {
 const TREE: Color32 = Color32::from_rgb(0x2a, 0x9d, 0x8f); // teal
 const FLAME: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a); // gold
 const SCAR: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51); // coral
-const DOTS: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff); // sky blue, as elsewhere
-const LINE: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
+const DOTS: Color32 = ca_core::CHART_MEASURED;
+const LINE: Color32 = ca_core::CHART_REFERENCE;
 
 /// Trees grown per lightning, θ = p/f: values in Grassberger's Table 1 (2002), so the mean
 /// density can be compared with his.

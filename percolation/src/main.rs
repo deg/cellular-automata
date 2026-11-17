@@ -16,8 +16,8 @@ fn main() {
 const TEAL: Color32 = Color32::from_rgb(0x2a, 0x9d, 0x8f);
 const BLUE: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
 const CORAL: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
-const SKY: Color32 = Color32::from_rgb(0x5a, 0xb4, 0xff);
-const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
+const SKY: Color32 = ca_core::CHART_MEASURED;
+const GOLD: Color32 = ca_core::CHART_REFERENCE;
 const SPARK: Color32 = Color32::from_rgb(0xf4, 0xf1, 0xde);
 
 /// The threshold of the infinite square lattice, p_c = 0.59274605079210(2): Jacobsen,
