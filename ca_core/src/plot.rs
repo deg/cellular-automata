@@ -12,6 +12,8 @@ pub enum Style {
     Dots,
     /// The points joined in order.
     Line,
+    /// A large dot at each point: for one point to stand out, such as where the demo is now.
+    Marker,
 }
 
 /// One set of points in a [`Plot`].
@@ -119,6 +121,11 @@ pub fn plot(ui: &mut egui::Ui, plot: &Plot<'_>, height: f32) {
                     painter.circle_filled(p, 1.5, series.colour);
                 }
             }
+            Style::Marker => {
+                for p in shown {
+                    painter.circle(p, 4.0, series.colour, Stroke::new(1.0, text));
+                }
+            }
             Style::Line => {
                 painter.add(Shape::line(shown, Stroke::new(1.5, series.colour)));
             }
@@ -195,8 +202,10 @@ impl Axis {
                 .map(|m| m * power)
                 .find(|s| *s >= raw)
                 .unwrap_or(10.0 * power);
-            let first = (self.lo / step).ceil() as i64;
-            let last = (self.hi / step).floor() as i64;
+            // A small allowance, so a range ending at 0.6 with steps of 0.2 keeps its last tick
+            // (0.6 / 0.2 is 2.9999999999999996).
+            let first = (self.lo / step - 1e-9).ceil() as i64;
+            let last = (self.hi / step + 1e-9).floor() as i64;
             (first..=last).map(|i| i as f64 * step).collect()
         }
     }
@@ -244,6 +253,13 @@ mod tests {
         assert_eq!(ticks, ["0", "0.2", "0.4", "0.6", "0.8"]);
         assert_eq!(a.fraction(0.0), 0.0);
         assert_eq!(a.fraction(0.93), 1.0);
+    }
+
+    #[test]
+    fn a_range_ending_on_a_tick_keeps_that_tick() {
+        let a = Axis::fit(std::iter::once([0.0, 0.6].into_iter()), false, None);
+        let ticks: Vec<String> = a.ticks().iter().map(|&t| label(t)).collect();
+        assert_eq!(ticks, ["0", "0.2", "0.4", "0.6"]);
     }
 
     #[test]
