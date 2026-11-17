@@ -290,17 +290,45 @@ pub struct Sweep {
     pub v_max: u8,
     pub p: f64,
     next: usize,
+    /// Test roads measured so far at the current density, and their flows' sum.
+    repeat: usize,
+    sum: f64,
     probe: Option<Probe>,
     points: Vec<(f64, f64)>,
 }
 
-/// The test roads: 49 densities from 0.02 to 0.98. Shorter roads flow faster near the
-/// peak: at maximum speed 5, dawdling 0.5 and density 0.08, a 500-cell road averaged 0.347
-/// even over 100,000 steps, where 2,000 cells give 0.320 over these 1,500, as do 50,000
-/// (0.318; the thesis, Sec. 3.5, gives 0.32).
+/// The test roads: 49 densities from 0.02 to 0.98, each road run 500 steps to settle and
+/// measured over 1,000.
+///
+/// The maximum of the flow depends on the road's length (thesis, Sec. 3.3.2 and Fig. 3.6).
+/// At maximum speed 5, dawdling 0.5 and density 0.08, ten 500-cell roads averaged 0.347
+/// (0.335 to 0.357), and one stayed at 0.347 over 100,000 steps; ten 2,000-cell roads
+/// averaged 0.319 (0.302 to 0.329), as do 50,000 cells (0.318), and the thesis's long-run
+/// maximum is 0.318 ± 0.0005 at density 0.085 ± 0.004.
+///
+/// One road's flow scatters by about ±0.013 near the peak, more than the flat top varies
+/// from 0.08 to 0.12, so there each density averages several roads, or the chart's highest
+/// point lands wherever the noise puts it.
 const SWEEP_LENGTH: usize = 2_000;
 const SWEEP_DENSITIES: usize = 49;
 const SWEEP_STEPS: (u64, u64) = (500, 1_000);
+/// Densities 0.04 to 0.20 (indices 1 to 9) average this many roads; this costs about 30%
+/// more than one road each.
+const PEAK_REPEATS: usize = 8;
+
+/// The test roads measured at density index `k`.
+fn repeats(k: usize) -> usize {
+    if (1..=9).contains(&k) {
+        PEAK_REPEATS
+    } else {
+        1
+    }
+}
+
+/// The seed of the `r`th test road at density index `k`.
+fn sweep_seed(k: usize, r: usize) -> u64 {
+    (k + 1 + 1_000 * r) as u64
+}
 
 impl Sweep {
     pub fn new(v_max: u8, p: f64) -> Self {
@@ -308,6 +336,8 @@ impl Sweep {
             v_max,
             p,
             next: 0,
+            repeat: 0,
+            sum: 0.0,
             probe: None,
             points: Vec::with_capacity(SWEEP_DENSITIES),
         }
@@ -325,19 +355,24 @@ impl Sweep {
     /// Measure for up to about `budget` car moves.
     pub fn work(&mut self, mut budget: usize) {
         while !self.done() && budget > 0 {
-            let k = self.next;
+            let (k, r) = (self.next, self.repeat);
             let (v_max, p) = (self.v_max, self.p);
             let probe = self.probe.get_or_insert_with(|| {
                 let count = (k + 1) * SWEEP_LENGTH / (SWEEP_DENSITIES + 1);
-                let road = Road::random(SWEEP_LENGTH, count, v_max, p, k as u64 + 1);
+                let road = Road::random(SWEEP_LENGTH, count, v_max, p, sweep_seed(k, r));
                 Probe::new(road, SWEEP_STEPS.0, SWEEP_STEPS.1)
             });
             budget = budget.saturating_sub(probe.work(budget));
             if probe.done() {
                 let density = probe.road.density();
-                self.points.push((density, probe.flow()));
+                self.sum += probe.flow();
                 self.probe = None;
-                self.next += 1;
+                self.repeat += 1;
+                if self.repeat == repeats(k) {
+                    self.points.push((density, self.sum / self.repeat as f64));
+                    (self.repeat, self.sum) = (0, 0.0);
+                    self.next += 1;
+                }
             }
         }
     }
@@ -827,9 +862,16 @@ mod tests {
         let points = sweep.points();
         assert_eq!(points.len(), SWEEP_DENSITIES);
         assert!((points[0].0 - 0.02).abs() < 1e-12 && (points[48].0 - 0.98).abs() < 1e-12);
-        let count = 5 * SWEEP_LENGTH / (SWEEP_DENSITIES + 1);
-        let alone = measure_flow(SWEEP_LENGTH, count, 5, 0.5, SWEEP_STEPS, 5);
-        assert_eq!(points[4].1, alone);
+        let flow = |k: usize, r: usize| {
+            let count = (k + 1) * SWEEP_LENGTH / (SWEEP_DENSITIES + 1);
+            measure_flow(SWEEP_LENGTH, count, 5, 0.5, SWEEP_STEPS, sweep_seed(k, r))
+        };
+        assert_eq!(points[0].1, flow(0, 0));
+        let mean = (0..PEAK_REPEATS).map(|r| flow(4, r)).sum::<f64>() / PEAK_REPEATS as f64;
+        assert!(
+            (points[4].1 - mean).abs() < 1e-12,
+            "density 0.1 averages its roads"
+        );
     }
 
     /// With maximum speed 1 the flow is known exactly for any p, in the limit of a long
@@ -854,12 +896,12 @@ mod tests {
         }
     }
 
-    /// With maximum speed 5 and p = 0.5 the flow is greatest at density 0.085 ± 0.005
-    /// (review, Sec. 8.4 and Fig. 28). The curve is flat near its top, so this only checks
-    /// that the highest of a coarse scan is within a step of the scan of there. The
-    /// greatest flow is 0.32 cars a step (thesis, Sec. 3.5: "our maximum of the flow is only
-    /// 0.32 vehicles per time step"; the thesis's simulations are mainly at these settings,
-    /// Sec. 3.2, though that sentence doesn't restate them).
+    /// With maximum speed 5 and p = 0.5, over long runs, the flow is greatest, 0.318 ±
+    /// 0.0005 cars a step, at density 0.085 ± 0.004 (thesis, Sec. 3.3.2; the review, Sec.
+    /// 8.4 and Fig. 28, gives 0.085 ± 0.005). The top is flat and its place depends a little
+    /// on the road's length (thesis, Fig. 3.6), so this checks only that the highest of a
+    /// coarse scan of long roads is within a step of the scan of 0.085, and as high as the
+    /// thesis's maximum.
     #[test]
     #[ignore]
     fn max_speed_5_flows_most_near_density_0_085() {
@@ -880,6 +922,8 @@ mod tests {
             "highest flow at density {}: {scan:?}",
             best.0
         );
-        assert!((best.1 - 0.32).abs() < 0.005, "greatest flow {}", best.1);
+        #[allow(clippy::approx_constant)] // the thesis's 0.318, not 1/π
+        let thesis = 0.318;
+        assert!((best.1 - thesis).abs() < 0.003, "greatest flow {}", best.1);
     }
 }

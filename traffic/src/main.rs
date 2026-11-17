@@ -18,7 +18,7 @@ const CORAL: [f32; 3] = [231.0, 111.0, 81.0];
 const GOLD: [f32; 3] = [233.0, 196.0, 106.0];
 const TEAL: [f32; 3] = [42.0, 157.0, 143.0];
 /// This road's point on the chart.
-const CROSS: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
+const HERE: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
 const GREY: Color32 = Color32::from_rgb(0x8a, 0x8f, 0xa8);
 
 /// The colour of a car at speed `v` of `v_max`: coral standing still, gold at half speed,
@@ -38,6 +38,7 @@ fn speed_colour(v: u8, v_max: u8) -> Color32 {
 const LENGTHS: &[usize] = &[200, 400, 800];
 
 const MAX_SPEED: u8 = 8;
+const MAX_DAWDLING: f64 = 0.99;
 
 /// The strip under the diagram showing the road now: its height and the space above it.
 const STRIP_HEIGHT: f32 = 22.0;
@@ -73,7 +74,7 @@ const PRESETS: &[Preset] = &[
         v_max: 5,
         p: 0.5,
         density: 0.1,
-        note: "Just past the density of greatest flow, about 0.085 here: jams start at random and drift backwards.",
+        note: "Near the top of the flow curve, which is flat from about 0.08 to 0.10 here: jams start at random and drift backwards.",
     },
     Preset {
         name: "stop and go",
@@ -218,7 +219,9 @@ impl TrafficApp {
         let (v_max, p) = (self.road.v_max, self.road.p);
         ui.add(egui::Slider::new(&mut self.road.v_max, 1..=MAX_SPEED).text("maximum speed"));
         ui.add(
-            egui::Slider::new(&mut self.road.p, 0.0..=1.0)
+            // At 1 every car pulling away dawdles back to 0, so the road freezes for good
+            // (review, Sec. 8.2.2): stop just short of it.
+            egui::Slider::new(&mut self.road.p, 0.0..=MAX_DAWDLING)
                 .step_by(0.01)
                 .fixed_decimals(2)
                 .text("dawdling"),
@@ -298,14 +301,6 @@ impl TrafficApp {
             ),
             (1.0, 0.0),
         ];
-        // This road as a small cross, easier to see than a dot.
-        let cross = this_road.map(|(c, f)| {
-            let (dx, dy) = (0.02, 0.06 * top);
-            (
-                [((c - dx).max(0.0), f), ((c + dx).min(1.0), f)],
-                [(c, (f - dy).max(0.0)), (c, (f + dy).min(top))],
-            )
-        });
         let line = |points, colour| Series {
             points,
             colour,
@@ -316,9 +311,13 @@ impl TrafficApp {
             line(&falling, GREY),
             line(self.sweep.points(), speed_colour(v_max, v_max)),
         ];
-        if let Some((across, up)) = &cross {
-            series.push(line(across, CROSS));
-            series.push(line(up, CROSS));
+        let here = this_road.map(|point| [point]);
+        if let Some(point) = &here {
+            series.push(Series {
+                points: point,
+                colour: HERE,
+                style: Style::Marker,
+            });
         }
         let plot = Plot {
             x_label: "density",
@@ -335,7 +334,7 @@ impl TrafficApp {
         } else {
             " (measuring...)"
         };
-        ui.small(format!("Teal: measured on test roads at these settings{measuring}. Grey: with no dawdling. Cross: this road. Flow is cars passing a point per step."));
+        ui.small(format!("Teal: measured on test roads at these settings{measuring}. Grey: with no dawdling. Coral dot: this road. Flow is cars passing a point per step."));
     }
 
     fn readout(&self, ui: &mut egui::Ui) {
@@ -505,7 +504,7 @@ mod tests {
     fn presets_fit_the_controls() {
         for p in PRESETS {
             assert!((1..=MAX_SPEED).contains(&p.v_max), "{}", p.name);
-            assert!((0.0..=1.0).contains(&p.p) && (0.01..=0.99).contains(&p.density));
+            assert!((0.0..=MAX_DAWDLING).contains(&p.p) && (0.01..=0.99).contains(&p.density));
         }
     }
 }
