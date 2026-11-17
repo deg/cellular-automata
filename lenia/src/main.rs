@@ -5,7 +5,7 @@ mod sim;
 
 use ca_core::egui::{self, Color32, RichText};
 use ca_core::{
-    About, Advance, Grid, GridView, NAVY, Pace, PaintStroke, Playback, Rng, eframe,
+    About, Advance, Grid, GridView, Pace, PaintStroke, Playback, Rng, eframe,
     generations_per_frame, grouped,
 };
 use sim::{CELLS_PER_PATCH, CREATURES, GLIDER_GUN, LIFE, Rule, World, decode};
@@ -14,13 +14,8 @@ fn main() {
     ca_core::run("Lenia", LeniaApp::new);
 }
 
-const BLUE: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
-const TEAL: Color32 = Color32::from_rgb(0x2a, 0x9d, 0x8f);
-const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
-
-/// A state's colour, from 0 (navy, empty) up to 1 (gold), as in reaction-diffusion.
-const RAMP: [Color32; 4] = [NAVY, BLUE, TEAL, GOLD];
-/// Shades in the colour table.
+/// Shades in the colour table, `ca_core::field_palette`: a state of 0 is navy (empty), 1
+/// is gold, as in reaction-diffusion.
 const SHADES: usize = 256;
 
 /// World sizes: powers of two, for the Fourier transform.
@@ -162,7 +157,7 @@ impl LeniaApp {
             about: About::new(include_str!("../README.md")),
             playback: Playback::new(30, 600, "steps / second"),
             pace: Pace::default(),
-            colours: palette(),
+            colours: ca_core::field_palette(SHADES),
             size,
             rng: Rng::new(2019),
             brush: 6.0,
@@ -298,6 +293,8 @@ impl LeniaApp {
         if self.world.side() != self.size {
             self.world = World::new(self.size, rule);
         }
+        // The hovered cell may be off a smaller new world: forget it until the pointer moves.
+        self.hovered = None;
         match self.opening {
             Opening::Creature(i) => self.world.place(&decode(CREATURES[i].cells)),
             Opening::Soup => {
@@ -310,7 +307,7 @@ impl LeniaApp {
     }
 }
 
-/// The world as shades, indices into [`palette`].
+/// The world as shades, indices into the colour table.
 fn shades(w: &World) -> Grid<u8> {
     let n = w.side();
     let mut g = Grid::new(n, n, 0u8);
@@ -321,17 +318,6 @@ fn shades(w: &World) -> Grid<u8> {
     g
 }
 
-/// [`SHADES`] colours along [`RAMP`].
-fn palette() -> Vec<Color32> {
-    (0..SHADES)
-        .map(|i| {
-            let t = i as f32 / (SHADES - 1) as f32 * (RAMP.len() - 1) as f32;
-            let j = (t as usize).min(RAMP.len() - 2);
-            ca_core::mix(RAMP[j], RAMP[j + 1], t - j as f32)
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -339,12 +325,12 @@ mod tests {
     /// An empty cell is navy like every demo's background; a full one is the ramp's top.
     #[test]
     fn empty_is_navy() {
-        let p = palette();
+        let p = ca_core::field_palette(SHADES);
         let mut w = World::new(8, LIFE);
         w.set(1, 1, 1.0);
         let s = shades(&w);
-        assert_eq!(p[usize::from(s.get(0, 0))], NAVY);
-        assert_eq!(p[usize::from(s.get(1, 1))], GOLD);
+        assert_eq!(p[usize::from(s.get(0, 0))], ca_core::NAVY);
+        assert_eq!(p[usize::from(s.get(1, 1))], p[SHADES - 1]);
     }
 
     /// Every chip's rule fits the sliders, so choosing one doesn't get clamped.

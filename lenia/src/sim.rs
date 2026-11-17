@@ -19,21 +19,27 @@
 //! The paper ran with exponential core functions (§2.2.4). The creatures here come from
 //! Chan's `Python/animals.json`, whose entries all say `kn: 1, gn: 1`. In his
 //! `Python/LeniaND.py`, which reads that file, those numbers index the tables
-//! `kernel_core` and `growth_func` as `[kn - 1]` (lines 272–281 and 317), and entry 0 of
+//! `kernel_core` and `growth_func` (lines 272–281) as `kernel_core[kn - 1]` (line 317, in
+//! `kernel_shell`) and `growth_func[gn - 1]` (line 370, in `calc_once`), and entry 0 of
 //! both is the *polynomial* form, although the program's labels (lines 2308–2309) call
 //! setting 1 "Exponential". Run here, the two disagree in a way that settles it: with the
 //! polynomial forms every creature below holds its shape for 1,000 steps; with the
 //! exponential ones, Synorbium and Vagorbium evaporate within 200. So the creatures use the
-//! polynomial forms, as the program that saved them computes them. The paper's figure 7
-//! measurements, made with the exponential forms, are checked with those (the slow test
-//! `orbium_mass_and_speed_match_figure_7`).
+//! polynomial forms, as the program that saved them computes them. (The file's Life entries
+//! agree: `kn: 4, gn: 3` is the staircase and the step only when counted from 1.) The
+//! paper's figure 7 measurements, made with the exponential forms, are checked with those
+//! (the slow test `orbium_mass_and_speed_match_figure_7`); at the chart's precision only
+//! Orbium's speed tells the two forms apart, as the paper's figure 6(b) suggests ("no
+//! visible effect"), so that test is a check of the implementation, not evidence for one
+//! form over the other.
 //!
 //! # Life as a special case
 //!
 //! §2.1.6: the Game of Life is discrete Lenia with a "staircase" kernel core
 //! `1[1/4, 3/4](r) + ½ 1[0, 1/4)(r)` and a step growth mapping, `μ = 0.35, σ = 0.07`.
-//! The paper says `R = T = 1`, but with a round neighbourhood of radius 1 the diagonal
-//! neighbours (√2 away) are left out. Chan's data has `R = 2` for its Life patterns
+//! The paper says `R = T = P = 1`, which cannot give Life: at radius 1 the orthogonal
+//! neighbours sit at `r = 1`, where equation 14's core is 0 (and the diagonals, at √2, are
+//! outside), so only the cell itself would count. Chan's data has `R = 2` for its Life patterns
 //! (`animals.json`, the "Conway's Game of Life" section), and that works: the eight
 //! neighbours are at 1/2 and √2/2, weight 1, the cell itself at 0, weight ½, and distance 2
 //! is outside, so `U = (neighbours + ½ A) / 8.5`, and `|U − 0.35| ≤ 0.07` is exactly B3/S23.
@@ -766,13 +772,19 @@ mod tests {
     /// creature's kernel (one, two rings; radius 10 to 20) and Life's.
     #[test]
     fn fourier_potential_matches_the_direct_sum() {
-        for (i, rule) in CREATURES.iter().map(|c| c.rule).chain([LIFE]).enumerate() {
-            let mut w = random_world(64, rule, i as u64);
+        let rules = CREATURES.iter().map(|c| (c.rule, 64)).chain([(LIFE, 64)]);
+        // And the largest world, where the transform's rounding is largest.
+        let rules = rules.chain([(CREATURES[ORBIUM].rule, 512)]);
+        for (i, (rule, n)) in rules.enumerate() {
+            let mut w = random_world(n, rule, i as u64);
             let direct = w.potential_direct();
             let fourier = w.potential();
-            for (a, b) in direct.iter().zip(&fourier) {
-                assert!((a - b).abs() < 2e-6, "rule {i}: {a} vs {b}");
-            }
+            let worst = direct
+                .iter()
+                .zip(&fourier)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0, f32::max);
+            assert!(worst < 2e-6, "rule {i} at {n}: off by {worst}");
         }
     }
 
@@ -890,7 +902,10 @@ mod tests {
 
     /// Chan's figure 7(a): Orbium with the exponential core functions, μ = 0.15,
     /// σ = 0.016, T = 10, measured over 300 steps at R from 9 to 55 (the caption), shows
-    /// mass about 0.44 and linear speed about 0.48, both flat in R (read off the chart). In
+    /// mass about 0.44 and linear speed about 0.48, both flat in R. Both are read off the
+    /// chart, good to roughly ±0.005. The speed's tolerance is tighter than the mass's: with
+    /// the polynomial forms the mass is still within 0.02 (0.4456) but the speed is not
+    /// (0.4998). In
     /// his units (§2.4.2) lengths are in kernel radii and times in units of T steps, so mass
     /// is the sum of states / R² and speed is cells a step × T / R.
     #[test]
@@ -909,7 +924,7 @@ mod tests {
         let speed = speed * f64::from(rule.time) / rule.radius as f64;
         println!("mass {mass:.4}, speed {speed:.4}");
         assert!((mass - 0.44).abs() < 0.02, "mass {mass}");
-        assert!((speed - 0.48).abs() < 0.02, "speed {speed}");
+        assert!((speed - 0.48).abs() < 0.01, "speed {speed}");
     }
 
     /// Every creature, with its own rule from Chan's file, neither evaporates nor explodes
@@ -1032,31 +1047,100 @@ mod tests {
         assert!(*masses.last().unwrap() < peak, "{masses:?}");
     }
 
+    /// The separate creatures in a world: each group of touching cells (sideways, wrapping
+    /// round) above 0.01, as its total mass. Specks under 5 cells of mass are left out.
+    fn creatures(w: &World) -> Vec<f64> {
+        let n = w.side();
+        let mut seen = vec![false; n * n];
+        let mut masses = Vec::new();
+        for start in 0..n * n {
+            if seen[start] || w.cells[start] <= 0.01 {
+                continue;
+            }
+            seen[start] = true;
+            let (mut stack, mut mass) = (vec![start], 0.0);
+            while let Some(i) = stack.pop() {
+                mass += f64::from(w.cells[i]);
+                let (x, y) = (i % n, i / n);
+                for (nx, ny) in [
+                    ((x + 1) % n, y),
+                    ((x + n - 1) % n, y),
+                    (x, (y + 1) % n),
+                    (x, (y + n - 1) % n),
+                ] {
+                    let j = ny * n + nx;
+                    if !seen[j] && w.cells[j] > 0.01 {
+                        seen[j] = true;
+                        stack.push(j);
+                    }
+                }
+            }
+            if mass >= 5.0 {
+                masses.push(mass);
+            }
+        }
+        masses
+    }
+
     /// The soup, as the README describes it: of 24 soups on the 256 world, about one in
-    /// five leaves creatures (a mass between 30 and 2,000 cells after 1,500 steps); the
-    /// rest fill the world or die out.
+    /// five leaves an Orbium or two after 1,500 steps, and the rest fill the world or die
+    /// out. A survivor counts as Orbium if every creature left weighs within 10% of
+    /// Orbium's 74 cells and they are moving: 20 steps on, most of their mass has moved
+    /// (the change summed over all cells is more than half the mass).
     #[test]
     #[ignore]
     fn about_one_soup_in_five_leaves_creatures() {
         let n = 256;
         let mut rng = Rng::new(99);
-        let mut endings = [0; 3];
+        let (mut dead, mut orbium, mut full) = (0, 0, 0);
         for _ in 0..24 {
             let mut w = World::new(n, CREATURES[ORBIUM].rule);
             w.soup(n * n / CELLS_PER_PATCH, &mut rng);
             for _ in 0..1_500 {
                 w.step();
             }
-            endings[match w.mass() {
-                m if m < 30.0 => 0,
-                m if m < 2_000.0 => 1,
-                _ => 2,
-            }] += 1;
+            let mass = w.mass();
+            if mass < 5.0 {
+                dead += 1;
+                continue;
+            }
+            if mass > 2_000.0 {
+                full += 1;
+                continue;
+            }
+            let found = creatures(&w);
+            let before = w.cells.clone();
+            for _ in 0..20 {
+                w.step();
+            }
+            let moved: f64 = before
+                .iter()
+                .zip(&w.cells)
+                .map(|(a, b)| f64::from((a - b).abs()))
+                .sum();
+            println!("survivors {found:?}, moved {moved:.0} of {mass:.0}");
+            assert!(found.iter().all(|m| (m / 74.0 - 1.0).abs() < 0.1));
+            assert!(moved > mass / 2.0);
+            orbium += 1;
         }
-        let [dead, creatures, full] = endings;
-        println!("{dead} died, {creatures} left creatures, {full} filled the world");
-        assert!((3..=7).contains(&creatures));
+        println!("{dead} died, {orbium} left Orbium, {full} filled the world");
+        assert!((3..=7).contains(&orbium));
         assert!(dead > 0 && full > 0);
+    }
+
+    /// A lone Orbium counts as one creature of about 74 cells, as the soup test assumes.
+    #[test]
+    #[ignore]
+    fn a_lone_orbium_is_one_creature() {
+        let o = &CREATURES[ORBIUM];
+        let mut w = World::new(128, o.rule);
+        w.place(&decode(o.cells));
+        for _ in 0..200 {
+            w.step();
+        }
+        let found = creatures(&w);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!((found[0] / 74.0 - 1.0).abs() < 0.05, "{found:?}");
     }
 
     /// The cost of a step natively (`--ignored --nocapture`): the Fourier step at each world
