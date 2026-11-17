@@ -58,10 +58,10 @@ which are the particles throughout:
   the HPP gas in the 1970s as a model of a gas on a square lattice (the lattice gas, another
   demo here, tells that story). Toffoli and Margolus rediscovered it and wrote it as a block
   rule. When they first ran it, Margolus recalled, they were amazed to see a round pressure
-  wave. They had built machines that ran automata fast enough to watch, and according to
-  Toffoli and Margolus, seeing his gas run on one of them at a 1984 workshop made Pomeau
-  realise that lattice gases could be practical models of fluids. Lattice-gas
-  hydrodynamics grew from there.
+  wave. They had built machines that ran automata fast enough to watch. Toffoli and
+  Margolus report Pomeau's account: seeing his gas run on one of them, at a 1984 workshop,
+  showed him that what he had conceived as a model on paper could actually be computed,
+  and set him looking for lattice gases that would model fluids better.
 - **1987: Critters.** Toffoli and Margolus described Critters in their book *Cellular
   Automata Machines: A New Environment for Modeling* (MIT Press, 1987). It is reversible
   like the billiard balls, but needs no careful arrangement: start from a random square
@@ -107,8 +107,9 @@ which are the particles throughout:
 
 ## Further reading
 
-- The Wikipedia articles [Critters (cellular automaton)](https://en.wikipedia.org/wiki/Critters_(cellular_automaton))
-  and [Block cellular automaton](https://en.wikipedia.org/wiki/Block_cellular_automaton).
+- The Wikipedia article [Critters (cellular automaton)](https://en.wikipedia.org/wiki/Critters_(cellular_automaton)).
+- The Wikipedia article [Block cellular automaton](https://en.wikipedia.org/wiki/Block_cellular_automaton),
+  on rules of this kind.
 - N. Margolus, *Crystalline computation*, in *Feynman and Computation* (1999),
   [arXiv:comp-gas/9811002](https://arxiv.org/abs/comp-gas/9811002): Critters, the
   billiard balls and the HPP gas in block form, with pictures, by Margolus himself.

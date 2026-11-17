@@ -184,7 +184,7 @@ impl CrittersApp {
             }
         });
         ui.add(egui::Slider::new(&mut self.brush, 0..=10).text("brush radius"));
-        ui.small("Drag on the grid to paint; shift-drag to erase. Clear empties the world. Drawing changes the world's history: run back after drawing, and the start is gone.");
+        ui.small("Drag on the grid to paint; shift-drag to erase. Clear empties the world. Drawing after generation 0 changes the history: run back, and the start no longer returns.");
         ui.separator();
 
         ui.horizontal_wrapped(|ui| {
