@@ -746,6 +746,39 @@
       paint(canvas, W, H, label, (l) =>
         l < 0 ? NAVY : l === largest ? GOLD : palette[(Math.imul(l, 2654435761) >>> 29) % palette.length]);
     },
+    hodgepodge(canvas) {
+      // The demo's "spirals" preset (n = 100, k1 = 2, k2 = 3, g = 30, 8 neighbours) from
+      // random states until a spiral has formed. The edges wrap: a border of one cell,
+      // refilled from the opposite edge each generation.
+      const n = 100, k1 = 2, k2 = 3, g = 30, random = rng(6);
+      const pw = W + 2, ph = H + 2;
+      let a = new Uint8Array(pw * ph), b = new Uint8Array(pw * ph);
+      for (let y = 1; y <= H; y++) for (let x = 1; x <= W; x++) a[y * pw + x] = Math.floor(random() * (n + 1));
+      // A neighbour's state, plus 1 in the infected count (bits 12 up) or the ill count
+      // (bits 20 up), so a cell's eight neighbours give all three in one sum.
+      const code = Int32Array.from({ length: n + 1 }, (_, v) => v + (v === n ? 1 << 20 : v > 0 ? 1 << 12 : 0));
+      for (let t = 0; t < 160; t++) {
+        for (let y = 1; y <= H; y++) { a[y * pw] = a[y * pw + W]; a[y * pw + W + 1] = a[y * pw + 1]; }
+        a.copyWithin(0, H * pw, (H + 1) * pw);
+        a.copyWithin((H + 1) * pw, pw, 2 * pw);
+        for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
+          const p = code[a[i - pw - 1]] + code[a[i - pw]] + code[a[i - pw + 1]] + code[a[i - 1]]
+            + code[a[i + 1]] + code[a[i + pw - 1]] + code[a[i + pw]] + code[a[i + pw + 1]];
+          const sum = p & 0xfff, inf = (p >> 12) & 0xff, ill = p >> 20, s = a[i];
+          const next = s === 0 ? ((inf / k1) | 0) + ((ill / k2) | 0)
+            : s === n ? 0 : (((s + sum) / (inf + 1)) | 0) + g;
+          b[i] = next < n ? next : n;
+        }
+        const c = a; a = b; b = c;
+      }
+      const cells = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) cells.set(a.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
+      // Healthy navy, infection teal to gold to coral as it rises, ill cream, as in the demo.
+      const mixed = (p, q, t) => p.map((c, j) => Math.round(c + (q[j] - c) * t));
+      const colours = Array.from({ length: n + 1 }, (_, v) => v === 0 ? NAVY : v === n ? SPARK
+        : v < n / 2 ? mixed(TEAL, GOLD, (2 * v) / n) : mixed(GOLD, CORAL, (2 * v) / n - 1));
+      paint(canvas, W, H, cells, (v) => colours[v]);
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
