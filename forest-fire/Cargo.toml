@@ -1,0 +1,8 @@
+[package]
+name = "forest-fire"
+version = "0.1.0"
+edition = "2024"
+description = "Trees grow, lightning strikes now and then, and fires of every size sweep through the forest."
+
+[dependencies]
+ca_core = { path = "../ca_core" }

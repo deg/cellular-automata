@@ -460,6 +460,60 @@
       });
       paint(canvas, W, H, cells, (v) => colours[v]);
     },
+    "forest-fire"(canvas) {
+      // The Drossel-Schwabl forest fire in the limit the demo runs: 40 trees grown at
+      // random sites between lightnings, each lightning burning its whole cluster (4
+      // neighbours, edges wrapping). Recent fires' scars fade from coral to navy; then the
+      // biggest cluster is shown half burnt, its front in gold.
+      const random = rng(7), N = W * H, theta = 40, fires = 700;
+      const tree = new Uint8Array(N), burnt = new Int32Array(N).fill(-1e6);
+      const nb = new Int32Array(4);
+      const near = (i) => {
+        const x = i % W, y = (i - x) / W;
+        nb[0] = y * W + (x + 1) % W;
+        nb[1] = y * W + (x + W - 1) % W;
+        nb[2] = ((y + 1) % H) * W + x;
+        nb[3] = ((y + H - 1) % H) * W + x;
+        return nb;
+      };
+      // The cluster of trees at `start`, breadth first, and each one's distance from it.
+      const dist = new Int32Array(N).fill(-1);
+      const cluster = (start) => {
+        const queue = [start];
+        dist[start] = 0;
+        for (let q = 0; q < queue.length; q++) {
+          for (const n of near(queue[q])) {
+            if (tree[n] && dist[n] < 0) { dist[n] = dist[queue[q]] + 1; queue.push(n); }
+          }
+        }
+        return queue;
+      };
+      for (let t = 0; t < fires; t++) {
+        for (let k = 0; k < theta; k++) tree[Math.floor(random() * N)] = 1;
+        const hit = Math.floor(random() * N);
+        if (!tree[hit]) continue;
+        for (const i of cluster(hit)) { tree[i] = 0; burnt[i] = t; dist[i] = -1; }
+      }
+      // Label every cluster; keep the biggest, with its distances from where it is lit.
+      let best = [];
+      for (let i = 0; i < N; i++) {
+        if (tree[i] && dist[i] < 0) {
+          const c = cluster(i);
+          if (c.length > best.length) best = c;
+        }
+      }
+      dist.fill(-1);
+      if (best.length) cluster(best[0]);
+      const front = best.length ? Math.floor(dist[best[best.length - 1]] / 2) : -1;
+      const mix = (a, b, f) => a.map((c, j) => Math.round(c + (b[j] - c) * f));
+      paint(canvas, W, H, tree, (v, i) => {
+        if (dist[i] >= 0 && dist[i] < front) return CORAL;
+        if (dist[i] >= 0 && dist[i] === front) return GOLD;
+        if (v) return TEAL;
+        const age = (fires - burnt[i]) / 25;
+        return age < 1 ? mix(CORAL, NAVY, age) : NAVY;
+      });
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
