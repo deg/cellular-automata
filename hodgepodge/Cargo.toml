@@ -1,0 +1,8 @@
+[package]
+name = "hodgepodge"
+version = "0.1.0"
+edition = "2024"
+description = "Cells fall sick, infect their neighbours and recover; from random noise come waves and turning spirals, like those of an oscillating chemical reaction."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
