@@ -71,7 +71,7 @@ a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-r
   letter-spacing: -0.02em;
 }
 .subtitle { margin: 10px 0 0; font-size: clamp(1.15rem, 2.4vw, 1.45rem); font-weight: 600; color: var(--accent); }
-.lede { margin: 14px 0 22px; max-width: 34em; color: var(--muted); font-size: 1.12rem; }
+.lede { margin: 14px 0 22px; max-width: 70ch; color: var(--muted); font-size: 1.12rem; }
 .button {
   display: inline-block;
   padding: 9px 16px;
@@ -86,6 +86,9 @@ a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-r
 
 
 /* Demo cards */
+/* The demos come in groups (site/order.txt), each a heading over its own grid of cards. */
+.group + .group { margin-top: 40px; }
+.group h2 { margin: 0 0 14px; font-size: 1.3rem; font-weight: 600; color: var(--accent); }
 .cards {
   list-style: none;
   margin: 0;

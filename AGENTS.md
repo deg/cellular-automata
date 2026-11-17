@@ -214,8 +214,8 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `PaintStroke`: turns `GridResponse::pressed` into solid lines of cells to paint.
 - One directory per demo (`sandpile`, `life`, `elementary`, `langtons-ant`,
   `brians-brain`, `wireworld`, `cyclic`, `snowflakes`, `langtons-loops`, `lattice-gas`,
-  and `mandelbrot`, which is a fractal, not an automaton),
-  each a binary crate with an `index.html` for trunk:
+  `critters`, `forest-fire`, `traffic`, `aggregation`, and `mandelbrot`, which is a fractal,
+  not an automaton), each a binary crate with an `index.html` for trunk:
   - `main.rs` holds the UI.
   - `sim.rs` holds the rule, kept free of UI code so it can be tested natively.
 - The UI is egui/eframe 0.37, with the `glow` backend. In 0.37, `App::ui` takes a
@@ -234,7 +234,7 @@ make siblings               # before/after a Rust update: build+test David's oth
   citations), things to try in the demo, and further reading. `main.rs` passes it to
   `ca_core::About` with `include_str!`, so the same text is shown inside the app.
 - Check facts and citations in a README before writing them; don't fill gaps from memory.
-- README conventions, so the eleven read alike: the rule; where the name comes from (one
+- README conventions, so the demos read alike: the rule; where the name comes from (one
   sentence, or a heading only if it needs explaining); History; Things to try, with bold
   leads; Further reading last, starting with "The Wikipedia article [...](...)." when there
   is one. Citations: authors, *title in italics*, journal spelled out in plain text, volume,
@@ -268,8 +268,8 @@ make siblings               # before/after a Rust update: build+test David's oth
     Wireworld's circuits). A section's strong heading
     on its own line; option chips in lowercase; the world/size block last before the
     readout; "World:" for a 2D world's size.
-- The demos' order on the index page is `site/order.txt`, and the root README's table must
-  match it (`site/build.sh` checks).
+- The demos' order and groups on the index page are `site/order.txt` ("== Group" lines),
+  and the root README's "### Group" tables must match them (`site/build.sh` checks).
 - `.cargo/config.toml` turns on WebAssembly SIMD for the browser builds; the sandpile's
   16-bit Jacobi stage (`sandpile/src/jacobi.rs`) relies on it to be fast there.
 - The sandpile has four sweeps: plain, symmetric octant, and two 16-bit Jacobi stages

@@ -22,31 +22,52 @@ if [[ ${#found[@]} -eq 0 ]]; then
   exit 1
 fi
 
-# The cards' order is site/order.txt's (see it for why); a demo it doesn't list goes last.
-ordered=()
-while read -r dir; do
-  [[ -z "$dir" || "$dir" == \#* ]] && continue
-  if [[ " ${found[*]} " == *" $dir "* ]]; then
-    ordered+=("$dir")
-  else
-    echo "site/order.txt lists '$dir', which is not a demo" >&2
+# The cards' order and groups are site/order.txt's (see it for why): a "== Name" line starts
+# a group. groups[i] is the group of demos[i]. A demo the file doesn't list goes last, in a
+# group of its own.
+demos=()
+groups=()
+group=""
+while read -r line; do
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  if [[ "$line" == "== "* ]]; then
+    group="${line#== }"
+    continue
+  fi
+  if [[ " ${found[*]} " != *" $line "* ]]; then
+    echo "site/order.txt lists '$line', which is not a demo" >&2
     exit 1
   fi
+  if [[ -z "$group" ]]; then
+    echo "site/order.txt: '$line' comes before any '== group' line" >&2
+    exit 1
+  fi
+  demos+=("$line")
+  groups+=("$group")
 done < site/order.txt
-demos=("${ordered[@]}")
 for dir in "${found[@]}"; do
-  if [[ " ${ordered[*]} " != *" $dir "* ]]; then
+  if [[ " ${demos[*]} " != *" $dir "* ]]; then
     echo "warning: $dir is not in site/order.txt; its card goes last" >&2
     demos+=("$dir")
+    groups+=("More")
   fi
 done
 
-# The root README's table lists the demos too: keep it in the same order.
+# The root README lists the demos too, in tables under "### Group" headings: keep both the
+# demos and the headings in site/order.txt's order.
 readme_order="$(sed -n 's/^| \[[^]]*\](\([^/)]*\)\/) |.*/\1/p' README.md | tr '\n' ' ')"
 if [[ "$readme_order" != "${demos[*]} " ]]; then
-  echo "README.md's demo table is not in site/order.txt's order:" >&2
+  echo "README.md's demo tables are not in site/order.txt's order:" >&2
   echo "  README:     $readme_order" >&2
   echo "  order.txt:  ${demos[*]}" >&2
+  exit 1
+fi
+readme_groups="$(sed -n 's/^### //p' README.md | paste -sd '|' -)"
+order_groups="$(printf '%s\n' "${groups[@]}" | uniq | paste -sd '|' -)"
+if [[ "$readme_groups" != "$order_groups" ]]; then
+  echo "README.md's ### group headings differ from site/order.txt's:" >&2
+  echo "  README:     $readme_groups" >&2
+  echo "  order.txt:  $order_groups" >&2
   exit 1
 fi
 
@@ -59,7 +80,14 @@ dist="$(mktemp -d "$root/dist.building.XXXXXX")"
 trap 'command rm -rf "$dist"' EXIT
 
 entries=""
-for dir in "${demos[@]}"; do
+current=""
+for i in "${!demos[@]}"; do
+  dir="${demos[$i]}"
+  if [[ "${groups[$i]}" != "$current" ]]; then
+    [[ -n "$current" ]] && entries+="    </ul></section>"$'\n'
+    current="${groups[$i]}"
+    entries+="    <section class=\"group\"><h2>$current</h2><ul class=\"cards\">"$'\n'
+  fi
   echo "== building $dir"
   (cd "$dir" && trunk build --release --public-url ./ --dist "$dist/$dir")
   # The script that reloads a page cached from before a deploy (see the file), straight
@@ -89,6 +117,7 @@ for dir in "${demos[@]}"; do
   blurb="$(sed -n 's/^description *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -1)"
   entries+="      <li><a class=\"card\" href=\"$dir/\"><canvas class=\"thumb\" data-demo=\"$dir\" aria-hidden=\"true\"></canvas><span class=\"card-title\">${title:-$dir}</span><span class=\"card-text\">$blurb</span></a></li>"$'\n'
 done
+entries+="    </ul></section>"$'\n'
 
 template="$root/site/index.html"
 {

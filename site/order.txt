@@ -1,19 +1,27 @@
-# The order of the demos on the index page and in the root README's table, one directory
-# per line. site/build.sh puts the cards in this order and fails if the README's table
-# differs. A demo missing from this list still appears, after the listed ones, with a
-# warning.
+# The order and grouping of the demos on the index page and in the root README, one
+# directory per line; a "== Name" line starts a group. site/build.sh puts the cards in this
+# order under these headings, and fails if the README's "### Group" tables differ. A demo
+# missing from this list still appears, last, with a warning.
 #
-# The best-known automata first, then the ones that act like something: neurons, circuits,
-# chemistry, a self-copying creature; then the ones that model physics; and last the
-# Mandelbrot set, a fractal rather than an automaton.
+# The best-known automata first; then ones that act like something (neurons, circuits,
+# reversible machines, chemistry, a self-copying creature, traffic); then models of physics,
+# each beside its pair; last the relatives that aren't cellular automata.
+== The classics
 life
 elementary
 langtons-ant
+== Brains, machines and creatures
 brians-brain
 wireworld
+critters
 cyclic
 langtons-loops
+traffic
+== Physics on a grid
 sandpile
+forest-fire
 snowflakes
+aggregation
 lattice-gas
+== Relatives
 mandelbrot

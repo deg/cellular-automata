@@ -1,6 +1,6 @@
 # How it works
 
-The eleven demos are separate programs built on one shared library, all written in Rust.
+The demos are separate programs built on one shared library, all written in Rust.
 Each runs in two places from the same source code: as a native desktop window
 (`make run DEMO=life`), and in a web page, compiled to WebAssembly
 (`make web DEMO=life`, or the live site at <https://automata.degel.com/>). This page
@@ -9,7 +9,7 @@ explains how that fits together, and why it is built this way.
 ## The big picture
 
 ```
-  one demo (e.g. life/)                          ca_core/  (shared by all eleven)
+  one demo (e.g. life/)                          ca_core/  (shared by every demo)
   ---------------------                          ---------------------------------
   src/sim.rs   the automaton itself:            GridView   draws a grid, maps clicks
                cells, rules, one step.           Playback   Run / Pause / Step / Restart
@@ -300,8 +300,8 @@ The centred pile took 6.7 s that day, so this machine ran about twice as slow as
 5. Write `README.md`: the rule, where the name comes from, its history (with checked
    sources), things to try, and further reading. `CLAUDE.md` has the conventions for it and
    for the panel.
-6. Add it to `site/order.txt`, which places its card, and to the root README's table, in
-   the same place. Optionally, add a function to `site/thumbs.js` that draws its card's
+6. Add it to `site/order.txt`, which places its card in one of the home page's groups, and
+   to the matching group's table in the root README, in the same place. Optionally, add a function to `site/thumbs.js` that draws its card's
    picture; otherwise it gets a generic one.
 7. `make check`, then `make serve`. It appears on the index page by itself, and on the
    live site after the next push.
