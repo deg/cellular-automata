@@ -1,0 +1,8 @@
+[package]
+name = "traffic"
+version = "0.1.0"
+edition = "2024"
+description = "Cars on a ring road speed up, brake and dawdle at random, and stop-and-go jams appear from nowhere and drift backwards."
+
+[dependencies]
+ca_core = { path = "../ca_core" }

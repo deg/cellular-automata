@@ -514,6 +514,31 @@
         return age < 1 ? mix(CORAL, NAVY, age) : NAVY;
       });
     },
+
+    traffic(canvas) {
+      // The Nagel–Schreckenberg model at the demo's "stop and go" settings (maximum speed
+      // 5, dawdling 0.25, density 0.2) on a ring of 160 cells, after 100 steps to settle:
+      // one row per step, cars coloured by speed from coral (stopped) to teal (speed 5).
+      const w = 160, h = 100, vmax = 5, random = rng(184);
+      const cells = new Uint8Array(w * h).fill(255);
+      const xs = [], vs = [];
+      for (let x = 0; x < w; x++) if (random() < 0.2) { xs.push(x); vs.push(0); }
+      for (let t = -100; t < h; t++) {
+        const n = xs.length, first = xs[0];
+        for (let i = 0; i < n; i++) {
+          const next = i + 1 < n ? xs[i + 1] : first;
+          const gap = (next + w - xs[i] - 1) % w;
+          let v = Math.min(vs[i] + 1, vmax, gap);
+          if (v > 0 && random() < 0.25) v--;
+          vs[i] = v;
+          xs[i] = (xs[i] + v) % w;
+        }
+        if (t >= 0) xs.forEach((x, i) => { cells[t * w + x] = vs[i]; });
+      }
+      const mix = (a, b, f) => a.map((c, k) => Math.round(c + (b[k] - c) * f));
+      paint(canvas, w, h, cells, (v) => (v === 255 ? NAVY
+        : v * 2 < vmax ? mix(CORAL, GOLD, (2 * v) / vmax) : mix(GOLD, TEAL, (2 * v) / vmax - 1)));
+    },
   };
 
   // Any other demo: Rule 110 from a random row.
