@@ -573,6 +573,47 @@
       paint(canvas, w, h, cells, (v) => (v === 255 ? NAVY
         : v * 2 < vmax ? mix(CORAL, GOLD, (2 * v) / vmax) : mix(GOLD, TEAL, (2 * v) / vmax - 1)));
     },
+
+    "reaction-diffusion"(canvas) {
+      // Gray–Scott at Pearson's ε (F = 0.02, k = 0.059): spots that divide and die. Coarser
+      // than the demo, to draw fast: cells twice as wide and steps four times as long, which
+      // keeps the diffusion per step the same. Eight seeds of Pearson's mixture, 300 steps.
+      const f = 0.02, k = 0.059, dt = 4, du = 0.2097152, dv = 0.1048576;
+      const u = new Float64Array(W * H).fill(1), v = new Float64Array(W * H);
+      const u2 = new Float64Array(W * H), v2 = new Float64Array(W * H);
+      const random = rng(1993);
+      for (let s = 0; s < 8; s++) {
+        const cx = Math.floor(random() * W), cy = Math.floor(random() * H);
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const i = ((cy + dy + H) % H) * W + (cx + dx + W) % W;
+          u[i] = 0.5;
+          v[i] = 0.25;
+        }
+      }
+      // One step from (u, v) into (u2, v2); the edges wrap.
+      function step(u, v, u2, v2) {
+        for (let y = 0; y < H; y++) {
+          const up = ((y + H - 1) % H) * W, down = ((y + 1) % H) * W, row = y * W;
+          for (let x = 0; x < W; x++) {
+            const i = row + x;
+            const l = x === 0 ? i + W - 1 : i - 1, r = x === W - 1 ? i - W + 1 : i + 1;
+            const a = u[i], b = v[i], abb = a * b * b;
+            u2[i] = a + du * (u[l] + u[r] + u[up + x] + u[down + x] - 4 * a) + dt * (f * (1 - a) - abb);
+            v2[i] = b + dv * (v[l] + v[r] + v[up + x] + v[down + x] - 4 * b) + dt * (abb - (f + k) * b);
+          }
+        }
+      }
+      for (let t = 0; t < 150; t++) {
+        step(u, v, u2, v2);
+        step(u2, v2, u, v);
+      }
+      // U from 1 (navy) down to 0.2 (gold), as in the demo.
+      const ramp = [NAVY, BLUE, TEAL, GOLD];
+      paint(canvas, W, H, u, (a) => {
+        const t = Math.min(Math.max((1 - a) / 0.8, 0), 1) * 3, j = Math.min(Math.floor(t), 2);
+        return ramp[j].map((c, m) => Math.round(c + (ramp[j + 1][m] - c) * (t - j)));
+      });
+    },
   };
 
   // Any other demo: Rule 110 from a random row.

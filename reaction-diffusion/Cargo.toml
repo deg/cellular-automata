@@ -1,0 +1,8 @@
+[package]
+name = "reaction-diffusion"
+version = "0.1.0"
+edition = "2024"
+description = "Two chemicals react and spread; by how fast one is fed and the other removed, they form spots that divide, stripes, waves or chaos."
+
+[dependencies]
+ca_core = { path = "../ca_core" }
