@@ -40,6 +40,7 @@ try. They are grouped as on the site's home page.
 
 | Demo | What it shows |
 |---|---|
+| [Reaction-diffusion](reaction-diffusion/) | Not a cellular automaton but chemistry: two chemicals react and spread; by how fast one is fed and the other removed, they form spots that divide, stripes, waves or chaos. |
 | [The Mandelbrot set](mandelbrot/) | Not a cellular automaton but a fractal: repeat z → z² + c and see which points stay near 0, step by step, zooming in. |
 
 Each demo's own `README.md` holds its explanation and history; the app shows the same

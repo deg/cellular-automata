@@ -24,4 +24,5 @@ snowflakes
 aggregation
 lattice-gas
 == Relatives
+reaction-diffusion
 mandelbrot
