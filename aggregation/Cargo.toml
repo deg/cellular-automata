@@ -2,7 +2,7 @@
 name = "aggregation"
 version = "0.1.0"
 edition = "2024"
-description = "Particles wander at random until they touch the cluster and stick; it grows into a branching fractal like frost or coral."
+description = "Particles wander at random until they touch the cluster and stick; it grows into a branching fractal, like copper on an electrode."
 
 [dependencies]
 ca_core = { path = "../ca_core" }
