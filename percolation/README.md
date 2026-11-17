@@ -8,11 +8,11 @@ The question is how big the clusters get. With *p* small they are specks. As *p*
 they grow and join, and at a **threshold** the change is sudden: in the limit of an
 endless grid, a cluster forms that reaches from one side to the other. On a finite grid
 the sign of it is a cluster that **spans** the grid, joining the top row to the bottom
-row. For this grid the threshold is known only numerically: *p* = 0.59274605079210, give
-or take 2 in the last place.
+row. For the square lattice the threshold is known only numerically:
+*p* = 0.59274605079210, give or take 2 in the last place.
 
-This is not a cellular automaton: nothing here changes by a rule. Each cell draws its own
-random number, once, and is open while *p* is above it. So the demo can raise *p* slowly
+This is not a cellular automaton: no cell changes by a rule of its neighbours. Each cell
+draws its own random number, once, and is open while *p* is above it. So the demo can raise *p* slowly
 with the numbers fixed, and the grid only fills in: you watch the clusters grow and
 merge, until the gold one, the largest, reaches across.
 
@@ -47,11 +47,11 @@ grids grow.
   soaking into a porous solid, and blight spreading from tree to tree in an orchard
   planted on a square lattice, which stays contained only if the chance of passing it on
   is below a critical value.
-- **1963–1975: the first estimates.** Computer simulations of site percolation on the
+- **1963–1975: early estimates.** Computer simulations of site percolation on the
   square lattice put the threshold at 0.569 ± 0.013 in 1963, on a 78 x 78 grid, and at
   0.593 ± 0.001 by 1975, on 256 x 256 grids.
-- **1976: labelling clusters.** Joseph Hoshen and Raoul Kopelman published an algorithm
-  for labelling the clusters of a grid.
+- **1976: labelling clusters.** Hoshen and Kopelman published an algorithm for labelling
+  the clusters of a grid.
 - **1980: the bonds.** Harry Kesten proved that when the *connections* between
   neighbouring points of the square lattice are open at random, instead of the points
   themselves (bond percolation), the threshold is exactly 1/2. For the sites, as here, no
@@ -60,11 +60,12 @@ grids grow.
   the threshold, in agreement with universality, the idea that such quantities don't
   depend on the lattice's details. Cardy derived the chance of crossing at the threshold
   for any rectangle.
-- **2000: one cell at a time.** Mark Newman and Robert Ziff found how to follow the
-  clusters over every *p* from 0 to 1 in a single run: add the sites one at a time in
-  random order, joining each to its neighbours' clusters with a *union-find* structure.
-  This demo works that way. With it they put the threshold at
-  0.59274621 ± 0.00000013.
+- **2000: one cell at a time.** Newman and Ziff found how to follow the clusters over
+  every *p* from 0 to 1 in a single run, in time proportional to the number of sites.
+  Others had already added the sites one at a time in random order; Newman and Ziff
+  joined each new site to its neighbours' clusters with a *union-find* structure, which
+  makes each step take almost constant time. This demo works that way. With it they put
+  the threshold at 0.59274621 ± 0.00000013.
 - **2002: forest fires.** Peter Grassberger simulated the forest-fire model, another demo
   in this project, on grids of up to 65,536 x 65,536, and conjectured that the density of
   its forest in the critical state is this threshold, that of site percolation in
@@ -73,11 +74,10 @@ grids grow.
   the value quoted above, by extrapolating exact calculations on small grids. Mertens's
   exact spanning probabilities, in 2022, gave estimates close to his.
 
-Percolation's threshold is a critical point of the ordinary kind, reached only by tuning a
-parameter, here *p*. Of such points Grassberger wrote, "One has to fine tune some
-parameter". The sandpile, another demo in this project, is what he called the
-"paradigmatic model" of the other kind, *self-organised criticality*, in which a system
-drives itself into a critical state.
+Percolation's threshold is a critical point reached by tuning a parameter, here *p*, to
+one exact value. Grassberger contrasted points like that with *self-organised
+criticality*, in which a system drives itself into a critical state, and named the
+sandpile, another demo in this project, as its "paradigmatic model".
 
 ## Things to try
 
@@ -86,8 +86,8 @@ drives itself into a critical state.
   cluster takes in the others, and somewhere near 0.59 it reaches from top to bottom.
   The chart's line, its share of the grid, stays near zero until close to the gold line,
   then climbs steeply.
-- **Where does this grid span?** The *spans* row gives the *p* at which it did. *Restart*
-  several times and compare: the values scatter around the threshold. On a 100 x 100
+- **Where does this grid span?** The *spans* row gives the *p* at which it did. *Restart*,
+  then *Run*, several times and compare: the values scatter around the threshold. On a 100 x 100
   world they scatter widely; on 800 x 800 much less.
 - **Step through the threshold.** *Pause* at about 0.58 and *Step*. Most steps change
   little, but now and then one cell joins two big clusters, and the largest jumps.

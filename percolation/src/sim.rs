@@ -4,7 +4,8 @@
 //! (*Efficient Monte Carlo algorithm and high-precision results for percolation*, Physical
 //! Review Letters 85, 4104–4107, 2000; in detail in Physical Review E 64, 016706, 2001).
 //! Each opened cell joins the clusters of its open neighbours with a weighted union-find,
-//! as in their Section II B, so the clusters are known at every p without relabelling.
+//! as in their Section II B (with path halving in place of their path compression), so the
+//! clusters are known at every p without relabelling.
 //!
 //! Clusters join across edges only (four neighbours), and the grid's edges do not wrap. A
 //! cluster *spans* when it holds a cell of the top row and a cell of the bottom row, the
