@@ -24,6 +24,7 @@ try. They are grouped as on the site's home page.
 | [Critters](critters/) | Blocks of four cells change by a fixed table, and the world can run backwards to its exact start; gliders, billiard balls and a gas. |
 | [Cyclic cellular automaton](cyclic/) | Each colour can only advance to the next one round a colour wheel; random noise organises itself into turning spirals. |
 | [Langton's loops](langtons-loops/) | A loop of signals builds a copy of itself, and the copies go on copying into a growing colony. |
+| [Lenia](lenia/) | Cells hold any value from 0 to 1 and grow by a smooth ring around them; gliding, turning creatures appear that look alive. |
 | [Traffic](traffic/) | Cars on a ring road speed up, brake and dawdle at random, and stop-and-go jams appear from nowhere and drift backwards. |
 
 ### Physics on a grid
@@ -40,6 +41,7 @@ try. They are grouped as on the site's home page.
 
 | Demo | What it shows |
 |---|---|
+| [Percolation](percolation/) | Not a cellular automaton but chance: each cell is open with chance p, and at a critical p a cluster of open cells first reaches across the grid. |
 | [Reaction-diffusion](reaction-diffusion/) | Not a cellular automaton but chemistry: two chemicals react and spread; by how fast one is fed and the other removed, they form spots that divide, stripes, waves or chaos. |
 | [The Mandelbrot set](mandelbrot/) | Not a cellular automaton but a fractal: repeat z → z² + c and see which points stay near 0, step by step, zooming in. |
 

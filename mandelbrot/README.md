@@ -42,7 +42,8 @@ a limit you choose, and draws everything that hasn't escaped by then as the set.
 
 Most of the other demos on this site are cellular automata, or close to one, like Langton's
 ant: a grid of cells, each changing according to its neighbours. The Mandelbrot set is not
-one, and nor is reaction-diffusion, another demo in this project, which is chemistry. Each point follows its own rule, and no point ever looks at another.
+one, and nor are reaction-diffusion and percolation, other demos in this project: one is
+chemistry, the other chance. Each point follows its own rule, and no point ever looks at another.
 
 It is here because it is the same kind of surprise. One rule a child could follow, repeated,
 makes a shape of endless complexity that nobody would guess from the rule. The demo also

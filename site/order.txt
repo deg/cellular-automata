@@ -16,6 +16,7 @@ wireworld
 critters
 cyclic
 langtons-loops
+lenia
 traffic
 == Physics on a grid
 sandpile
@@ -24,5 +25,6 @@ snowflakes
 aggregation
 lattice-gas
 == Relatives
+percolation
 reaction-diffusion
 mandelbrot

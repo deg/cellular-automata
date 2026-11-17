@@ -147,8 +147,9 @@ make siblings               # before/after a Rust update: build+test David's oth
   - `PaintStroke`: turns `GridResponse::pressed` into solid lines of cells to paint.
 - One directory per demo (`sandpile`, `life`, `elementary`, `langtons-ant`,
   `brians-brain`, `wireworld`, `cyclic`, `snowflakes`, `langtons-loops`, `lattice-gas`,
-  `critters`, `forest-fire`, `traffic`, `aggregation`; and two that aren't automata,
-  `reaction-diffusion`, a chemical model, and `mandelbrot`, a fractal), each a binary crate with an `index.html` for trunk:
+  `critters`, `forest-fire`, `traffic`, `aggregation`, `lenia`; and three that aren't
+  automata, `percolation`, a model of chance, `reaction-diffusion`, a chemical model, and
+  `mandelbrot`, a fractal), each a binary crate with an `index.html` for trunk:
   - `main.rs` holds the UI.
   - `sim.rs` holds the rule, kept free of UI code so it can be tested natively.
 - The UI is egui/eframe 0.37, with the `glow` backend. In 0.37, `App::ui` takes a
