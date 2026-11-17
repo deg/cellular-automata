@@ -715,9 +715,8 @@ mod tests {
     /// 64 x 64 dish (the outcome needs no room to show), for 30,000 steps.
     ///
     /// One point is left out: the R at k = 0.045, F = 0.016, between β above and α below.
-    /// There, on Pearson's 256 x 256 dish for his 200,000 steps, the disturbance spreads and
-    /// stays, which this model can't settle; it is the only point of figure 3 where the
-    /// outcome here differs from Pearson's.
+    /// There the outcome depends on the noise: on Pearson's 256 x 256 dish for his 200,000
+    /// steps, three of five random openings died away, as he found, and two lived on.
     #[test]
     #[ignore]
     fn figure_3_uniform_outcomes() {

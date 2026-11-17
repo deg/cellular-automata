@@ -1,6 +1,7 @@
 # Reaction-diffusion
 
-Two chemicals, U and V, are spread through a thin dish. Everywhere in it, all the time:
+This one is **not a cellular automaton**, but chemistry. Two chemicals, U and V, are spread
+through a thin dish. Everywhere in it, all the time:
 
 - **They react.** Where a U meets two Vs, it turns into a third V: U + 2V → 3V. V makes
   more of itself, and uses up U to do it.
@@ -13,8 +14,8 @@ That is all, and yet a small square of V in a dish of plain U can grow into spot
 divide like cells, stripes that stop short of each other, waves, or chaos. Which one
 depends on the feed rate F and the decay rate k.
 
-This one is **not a cellular automaton**. The chemicals are amounts, not states, and the
-rule is a pair of equations for how those amounts change, continuously, in space and time:
+It is not a cellular automaton because the chemicals are amounts, not states, and the rule
+is a pair of equations for how those amounts change, continuously, in space and time:
 
 > ∂U/∂t = Du ∇²U − UV² + F(1 − U)
 
@@ -56,7 +57,7 @@ few thousand steps.
 
 None of this is a Turing pattern, the kind that grows by itself from a uniform state when
 one chemical diffuses enough faster than the other. With U only twice as fast as V there
-are none, Pearson noted: about 2.8 times is the least that gives stable ones. His patterns
+are no stable ones, Pearson noted: about 2.8 times is the least that gives stable ones. His patterns
 need a push, like the square of V.
 
 ## History
@@ -117,15 +118,17 @@ need a push, like the square of V.
 - **κ and θ: fronts that stop.** Waves spread outwards, and where they meet, they stop.
 - **δ: hexagons.** Choose *δ*: the dish fills with spots in a regular hexagonal pattern.
 - **The plain places.** Click a coral dot on the map, then *Restart*: the square of V dies
-  away, and the dish goes back to plain U, navy. Click a blue dot and *Restart*, and the
+  away, and the dish goes back to plain U, navy. (Except, sometimes, at k = 0.045,
+  F = 0.016: there it depends on the random noise.) Click a blue dot and *Restart*, and the
   whole dish turns into the other uniform state, about U = 0.3, V = 0.25. Between them lie
   the patterns.
 - **Move a pattern.** The sliders and the map carry on from the dish as it is, so you can
   grow a pattern in one place and move it to another. Pearson's map is for his square, and
   a pattern can outlive it: λ's spots, moved to the coral dot at k = 0.0675, F = 0.04,
   live on.
-- **Draw.** Choose *Clear*, then draw V on the empty dish: a line in *μ* grows into
-  stripes, a dot in *λ* into a colony of spots.
+- **Draw.** Choose *Clear*, then draw V on the empty dish: a line in *μ* grows into a
+  long stripe. In *λ*, a small dot settles into a single spot that stays put, and a
+  bigger one dies away, while Pearson's square grows into a colony.
 - **A bigger dish.** Choose *512 x 512*: the same spots and stripes, four times as many.
 
 ## Further reading
