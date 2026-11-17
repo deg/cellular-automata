@@ -433,7 +433,40 @@
       }
       paint(canvas, W, H, cells, (v) => (v ? GOLD : NAVY));
     },
-
+    aggregation(canvas) {
+      // Diffusion-limited aggregation from a seed in the middle, coloured by time of
+      // arrival as in the demo. Plain walks, started on a circle just outside the cluster
+      // and started again if they wander out past twice its radius.
+      const PINK = [0xd1, 0x6b, 0xa5];
+      const shades = [GOLD, CORAL, PINK, HEAD, SPARK];
+      const random = rng(2), cells = new Int32Array(W * H).fill(-1);
+      const cx = W >> 1, cy = H >> 1;
+      cells[cy * W + cx] = 0;
+      const full = (x, y) => x >= 0 && y >= 0 && x < W && y < H && cells[y * W + x] >= 0;
+      let reach = 0, n = 0;
+      while (reach < H / 2 - 3) {
+        const launch = reach + 3;
+        let x = 0, y = 0, out = true;
+        for (;;) {
+          if (out) {
+            const a = 2 * Math.PI * random();
+            x = cx + Math.round(launch * Math.cos(a));
+            y = cy + Math.round(launch * Math.sin(a));
+          }
+          const s = (random() * 4) | 0;
+          if (s < 2) x += s ? 1 : -1; else y += s === 2 ? 1 : -1;
+          out = (x - cx) ** 2 + (y - cy) ** 2 > 4 * launch * launch;
+          if (!out && (full(x + 1, y) || full(x - 1, y) || full(x, y + 1) || full(x, y - 1))) break;
+        }
+        cells[y * W + x] = ++n;
+        reach = Math.max(reach, Math.hypot(x - cx, y - cy));
+      }
+      const shade = (t) => {
+        const f = t * (shades.length - 1), i = Math.min(Math.floor(f), shades.length - 2);
+        return shades[i].map((c, k) => Math.round(c + (shades[i + 1][k] - c) * (f - i)));
+      };
+      paint(canvas, W, H, cells, (v) => (v < 0 ? NAVY : shade(v / n)));
+    },
     cyclic(canvas) {
       // The basic cyclic automaton (range 1, 4 neighbours, threshold 1) with 8 colours,
       // from random colours until spirals have formed: a cell takes the next colour when a
