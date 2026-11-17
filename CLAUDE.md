@@ -223,6 +223,10 @@ make siblings               # before/after a Rust update: build+test David's oth
   to them must keep the equivalence tests in `sandpile/src/sim.rs` passing, including
   the randomized one. They compare each fast path with the plain sweep (`plain()`)
   exactly.
+- Building several demos in parallel (agents in worktrees): read `PARALLEL-AGENTS.md` first;
+  its checklist is what worked. Two lessons above all: a builder's "choices" are the
+  coordinator's to check against the other demos before reporting, and a cross-demo
+  consistency review is a planned step, not a reaction to complaints.
 - Test a demo's simulation by behaviour with known answers where possible: famous
   patterns doing what they are known to do (the diehard dying at 130), hand traces of the
   first steps, or mathematical identities (Rule 90 against Pascal's triangle mod 2).
