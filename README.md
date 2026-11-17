@@ -80,3 +80,7 @@ In brief; [HOW-IT-WORKS.md](HOW-IT-WORKS.md) has the full picture.
 Copyright © 2026 David Goldfarb, deg@degel.com.
 
 MIT licensed. See [LICENSE](LICENSE).
+
+The Lenia demo's creature patterns (in `lenia/src/sim.rs` and `site/thumbs.js`) come from
+Bert Chan's Lenia repository, © 2018 Bert Chan, under the MIT licence; its full notice is at
+the end of [lenia/README.md](lenia/README.md).
