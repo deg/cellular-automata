@@ -299,6 +299,8 @@ impl HodgepodgeApp {
         self.hp.fill_random(&mut Rng::new(self.seed));
         self.colours = palette(rule);
         self.history.clear();
+        // The cell under the pointer belonged to the old world, which may have been bigger.
+        self.hovered = None;
         self.dirty = true;
     }
 }

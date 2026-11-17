@@ -24,14 +24,22 @@
 //! fetch).
 //!
 //! Dewdney calls A "the number of infected neighbors" in both rules, which leaves an infected
-//! cell with no infected neighbours dividing by zero. Two programs that follow him divide by
-//! the infected cells *including the cell itself*, A + 1, as here: Gary William Flake's `hp`
-//! from The Computational Beauty of Nature ("floor( S / ( Ninf + 1 ) ) + g", its manual page,
-//! 1997) and John Burkardt's `hodge.c` (`B++; nval = S / B + g`, 2007). Other versions
-//! differ: Wilensky's NetLogo B-Z Reaction model, as Štys et al. quote it (arXiv:1507.08783),
-//! divides by A + B + 1, ill neighbours included; Cliff Reiter's J version averages the
-//! infected cells only, on states scaled to 0..1. Burkardt also swaps the roles of k1 and k2
-//! (ill / k1 + infected / k2); Dewdney's order is kept here.
+//! cell with no infected neighbours dividing by zero. Two programs divide by the infected
+//! cells *including the cell itself*, A + 1, as here: Gary William Flake's `hp` from The
+//! Computational Beauty of Nature ("floor( S / ( Ninf + 1 ) ) + g", its manual page, 1997)
+//! and `hodge.c`, Jörg Heitkötter's 1993 program "drastically cut down by John Burkardt"
+//! (`B++; nval = S / B + g`, 2007), whose comments and code disagree on which count is which.
+//! Others divide differently: Wilensky's NetLogo B-Z Reaction model, as Štys et al. quote it
+//! (arXiv:1507.08783), by A + B + 1, ill neighbours included; Olaf Conrad's SAGA tool
+//! (2009, citing Dewdney and Gerhardt and Schuster's book Das digitale Universum) by every
+//! cell in the block that is not healthy, ill ones and itself included; Cliff Reiter's J
+//! version averages the infected cells only, on states scaled to 0..1.
+//!
+//! The healthy rule's order differs too. Dewdney, Flake and NetLogo divide the infected
+//! neighbours by k1 and the ill by k2, as here. Reiter (his `forh1` floors the ill count over
+//! his `a`: "a and b are thresholds over which the number of ill and infected neighbors must
+//! pass"), Heitkötter and Burkardt (`A = scount(ILL)`, then `A / k1 + B / k2`) and SAGA
+//! (`nSick / m_tSick + ...`) put the ill first. Dewdney's order is kept here.
 
 use ca_core::{Grid, Rng};
 
@@ -168,32 +176,37 @@ use Neighbourhood::Moore;
 /// 20 x 20 grid; with that neighbourhood, k1 = 2 and k2 = 3, this rule died out from random
 /// starts at each g tried from 1 to 30 (1, 2, 3, 5, 8, 10, 15, 20, 25 and 30; 20 seeds each,
 /// 20 x 20 without wrapping; at g = 40, 13 of the 20 survived 3,000 generations), so the
-/// presets use the Moore neighbourhood, with which the sequence he describes appears.
+/// presets use the Moore neighbourhood, with which the sequence he describes appears. The
+/// reason: with 4 neighbours, rounding down and k1, k2 of 2 or more, a straight front
+/// cannot advance, since the healthy cell ahead of it has exactly 1 infected or 1 ill
+/// neighbour, and [1/2] = [1/3] = 0; only cells in a concave corner, with 2 such neighbours,
+/// catch it (see `with_4_neighbours_a_straight_front_stands_still`). With k1 = k2 = 1 a
+/// single neighbour infects, and the front moves.
 pub const PRESETS: &[Preset] = &[
     // Dewdney's Type 2: plateaus of infection about 30 cycles long, punctuated by many
     // healthy cells. Here: plateaus about 26 generations long.
     Preset {
-        name: "plateaus",
+        name: "Plateaus",
         rule: Rule::new(100, 2, 3, 5, Moore),
         note: "Nearly every cell infected, until most of the world falls ill and recovers at once; then it fills up again.",
     },
     // Dewdney's Type 3: a very regular alternation between saturation and virtual
     // disappearance of infected cells every 20 cycles or so. Here: every 14 or so.
     Preset {
-        name: "pulses",
+        name: "Pulses",
         rule: Rule::new(100, 2, 3, 10, Moore),
         note: "The whole world beats: infection fills it, falls ill and mostly clears, again and again, a beat every 14 generations or so.",
     },
     // Rings, the regular waves of Dewdney's Type 2 and Type 3 pictures, before his Type 4.
     Preset {
-        name: "rings",
+        name: "Rings",
         rule: Rule::new(100, 2, 3, 25, Moore),
         note: "Rings of infection spread from scattered centres, as from the sites where a chemical wave starts.",
     },
     // Dewdney's Type 4: within a few cycles the infected share fluctuates with some
     // regularity about a saturation value (his: about 75 percent), and the waves spiral.
     Preset {
-        name: "spirals",
+        name: "Spirals",
         rule: Rule::new(100, 2, 3, 30, Moore),
         note: "Waves that wind into spirals, turning forever, while the share of infected cells holds steady.",
     },
@@ -244,8 +257,10 @@ impl Hodgepodge {
         self.infected = 0;
     }
 
-    /// Every cell in a state from 0 to n, each equally likely: the random start of
-    /// Gerhardt and Schuster's runs.
+    /// Every cell in a state from 0 to n, each equally likely. Dewdney says only that
+    /// Gerhardt and Schuster gave the cells "a random initial configuration of states" (and
+    /// his Type 4 graph starts near no infected cells); this uniform start is the demo's
+    /// choice.
     pub fn fill_random(&mut self, rng: &mut Rng) {
         let states = u64::from(self.rule.n) + 1;
         for c in self.grid.cells_mut() {
@@ -453,6 +468,29 @@ mod tests {
         assert_eq!(hp.infected(), 9);
     }
 
+    /// Why Dewdney's 4-neighbour sample dies here: a straight front of infection, a full
+    /// column of infected cells with healthy cells to its right, gives each healthy cell
+    /// beside it 1 infected neighbour with 4 neighbours, and [1/2] = 0, so it never
+    /// advances; then the column falls ill, giving each 1 ill neighbour, and [1/3] = 0. With
+    /// 8 neighbours each has 3 infected neighbours, [3/2] = 1, and with k1 = 1 one is
+    /// enough: in both the front moves.
+    #[test]
+    fn with_4_neighbours_a_straight_front_stands_still() {
+        let spread = |rule: Rule| {
+            let mut hp = Hodgepodge::new(12, 8, rule, true);
+            for y in 0..8 {
+                hp.set(3, y, 50);
+            }
+            hp.step();
+            hp.step();
+            hp.step();
+            (4..12).any(|x| (0..8).any(|y| hp.grid().get(x, y) > 0))
+        };
+        assert!(!spread(Rule::new(100, 2, 3, 30, VonNeumann)));
+        assert!(spread(Rule::new(100, 2, 3, 30, Moore)));
+        assert!(spread(Rule::new(100, 1, 1, 30, VonNeumann)));
+    }
+
     /// Every state stays in 0..=n, and an infected cell never jumps straight to healthy:
     /// S is at least the number of infected cells it is divided by, since each is at least
     /// 1, so the average is at least 1. Checked on random neighbourhoods.
@@ -578,7 +616,7 @@ mod tests {
     }
 
     /// Dewdney's Type 3 (p. 105): "a very regular alternation between saturation and
-    /// virtual disappearance of infected cells every 20 cycles or so". The "pulses" preset,
+    /// virtual disappearance of infected cells every 20 cycles or so". The "Pulses" preset,
     /// on his 20 x 20 grid without wrapping and on the demo's default world: after 1,000
     /// generations the share swings from above 90% to below 15% (20 x 20) or 25%
     /// (320 x 200, where the troughs were about 18%) and back, with the beat between 10 and
@@ -586,7 +624,7 @@ mod tests {
     #[test]
     #[ignore]
     fn the_pulses_preset_alternates_regularly() {
-        let rule = PRESETS.iter().find(|p| p.name == "pulses").unwrap().rule;
+        let rule = PRESETS.iter().find(|p| p.name == "Pulses").unwrap().rule;
         for (w, h, wrap, seed, trough) in [
             (20, 20, false, 0, 0.15),
             (20, 20, false, 1, 0.15),
@@ -617,13 +655,13 @@ mod tests {
 
     /// Dewdney's Type 2 (p. 105): "a generally regular series of infection 'plateaus'
     /// roughly 30 cycles long, punctuated by the appearance of large numbers of healthy
-    /// cells". The "plateaus" preset on the demo's default world: after 1,000 generations,
+    /// cells". The "Plateaus" preset on the demo's default world: after 1,000 generations,
     /// more than 60% of the infected shares are above 0.8, and the share drops below 0.6
     /// once every 20 to 35 generations (here, every 25). Slow: `make slow`.
     #[test]
     #[ignore]
     fn the_plateaus_preset_has_long_plateaus() {
-        let rule = PRESETS.iter().find(|p| p.name == "plateaus").unwrap().rule;
+        let rule = PRESETS.iter().find(|p| p.name == "Plateaus").unwrap().rule;
         for seed in 0..3 {
             let mut hp = soup(320, 200, rule, true, seed);
             shares(&mut hp, 1_000);
@@ -641,13 +679,16 @@ mod tests {
 
     /// Dewdney's Type 4 (p. 105): "within a few cycles of start-up the number of infected
     /// cells would fluctuate with some regularity about a saturation value" (his,
-    /// "approximately 75 percent"; here about 60). The "spirals" preset on the middle world:
+    /// "approximately 75 percent"; here about 60, but with k1 and k2 the other way round,
+    /// ill neighbours over k1, the share settled at 0.71 to 0.72 at g = 19 and 20 on every
+    /// start tried, 0.73 to 0.75 on some at g = 15 to 17). The "Spirals" preset on the
+    /// middle world:
     /// after 1,000 generations the share stays within 0.1 of its mean, which is between 0.4
     /// and 0.9. Slow: `make slow`.
     #[test]
     #[ignore]
     fn the_spirals_preset_holds_a_steady_share() {
-        let rule = PRESETS.iter().find(|p| p.name == "spirals").unwrap().rule;
+        let rule = PRESETS.iter().find(|p| p.name == "Spirals").unwrap().rule;
         for seed in 0..3 {
             let mut hp = soup(320, 200, rule, true, seed);
             shares(&mut hp, 1_000);

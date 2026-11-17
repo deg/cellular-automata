@@ -40,7 +40,7 @@ do, and its level is pulled towards theirs.
 
 ## History
 
-- **By 1988: a model of a catalyst.** Martin Gerhardt and Heike Schuster of the University
+- **A model of a catalyst.** Martin Gerhardt and Heike Schuster of the University
   of Bielefeld, in what was then West Germany, designed the hodgepodge machine to mimic a
   *heterogeneous catalytic reaction*, inspired by the work of the chemists Nils Jaeger and
   Peter Plath of the University of Bremen. In that reaction, carbon monoxide and oxygen
@@ -49,7 +49,11 @@ do, and its level is pulled towards theirs.
   sudden change in the crystal frees the carbon monoxide on its surface; the catalyst
   cools, and the reaction starts again. Each cell of the grid stands for a particle of
   catalyst, and "infection" for its surface gradually filling up. Neighbouring particles
-  affect each other by passing on heat, or carbon monoxide.
+  affect each other by passing on heat, or carbon monoxide. With their mentor at
+  Bielefeld, Andreas W. M. Dress, and with Jaeger and Plath, they published proposals for
+  modelling such oscillating catalytic reactions in 1985, and with Dress a paper on
+  cellular automata in which oscillators synchronise in 1988. By August 1988 they had also
+  enlisted the help of S. C. Müller and John J. Tyson in studying the machine.
 - **Waves like a chemical clock.** The machine turned out to mimic the
   *Belousov–Zhabotinsky reaction* just as well. In that reaction malonic acid is oxidised
   by potassium bromate, with cerium or iron as the catalyst, and in a dish it shows rings
@@ -71,10 +75,9 @@ do, and its level is pulled towards theirs.
     none, every 20 generations or so;
   - **Type 4:** within a few generations, the share of infected cells fluctuating about a
     steady value, about 75 percent; on large grids, the waves form spirals.
-- **1989: the paper.** Gerhardt and Schuster published the automaton in Physica D in 1989.
-  They enlisted S. C. Müller and John J. Tyson to help study it, and with Tyson they
-  published cellular automaton models of *excitable media*, which carry waves like these,
-  in 1990.
+- **1989: Physica D.** Gerhardt and Schuster described the automaton in Physica D in 1989,
+  and with Tyson they published cellular automaton models of *excitable media*, which
+  carry waves like these, in 1990.
 - **Later.** The machine is still used to model the reaction: from 2015 Dalibor Štys and
   colleagues compared modified versions of it with the patterns the reaction forms in a
   Petri dish.
@@ -83,22 +86,31 @@ The presets keep the sample's *n* = 100, *k1* = 2 and *k2* = 3, and raise *g*. D
 gives no values of *g*, so the ones here were found by running this demo; each shows what
 he describes for one type. They use 8 neighbours: with 4, *k1* = 2 and *k2* = 3, every
 random start tried here on Dewdney's 20 x 20 grid died out, at each *g* tried up to 30.
+With 4 neighbours and rounding down, a straight front of infection cannot move: the
+healthy cell just ahead of it has only 1 infected or 1 ill neighbour, and
+[1/2] = [1/3] = 0, so only cells in a concave corner of the front catch the infection.
+With *k1* = *k2* = 1 a single neighbour is enough, and the front moves.
+
+The *Spirals* preset holds about 60% of the cells infected, not Dewdney's 75%. Some later
+programs swap *k1* and *k2*, dividing the ill neighbours by *k1*; with that order, 8
+neighbours and *g* of 19 or 20, the share settled at 71–72% on every start tried here.
+This demo keeps Dewdney's order.
 
 ## Things to try
 
-- **Spirals.** Run the *spirals* preset. The noise breaks up into rings and spiral waves,
+- **Spirals.** Run the *Spirals* preset. The noise breaks up into rings and spiral waves,
   and the *infected cells* chart swings wildly at first, then settles to a nearly level
   line: Dewdney's Type 4. Watch a spiral's centre turn.
-- **Pulses.** Choose *pulses*: the whole world beats, filling with infection, falling ill
+- **Pulses.** Choose *Pulses*: the whole world beats, filling with infection, falling ill
   and mostly clearing every 14 generations or so, like his Type 3. Compare the chart with
-  the steady line of *spirals*.
-- **Plateaus.** Choose *plateaus*, and watch the chart: long stretches with nearly every
+  the steady line of *Spirals*.
+- **Plateaus.** Choose *Plateaus*, and watch the chart: long stretches with nearly every
   cell infected, cut short when most of the world falls ill at once.
-- **Rings.** Choose *rings* for rings of infection spreading from many small centres.
+- **Rings.** Choose *Rings* for rings of infection spreading from many small centres.
 - **Too slow to last.** Choose the smallest world and set *g* to 1: within a few hundred
   generations every cell is healthy for good, on every random start tried here. On the
   larger worlds the infection may survive.
-- **Start a wave.** Choose *spirals*, press *Clear*, and drag a short stroke on the empty
+- **Start a wave.** Choose *Spirals*, press *Clear*, and drag a short stroke on the empty
   world. Waves spread out from it, one cell a generation, and its centre keeps sending out
   more. Shift-drag through the waves to cut them, and see what grows from the broken ends.
 - **Broader spirals.** Set *n* to 200, *k1* and *k2* to 3 and *g* to about 40.
