@@ -4,8 +4,8 @@ mod sim;
 
 use ca_core::egui::{self, Align2, Color32, FontId, RichText, vec2};
 use ca_core::{
-    About, Advance, Grid, GridView, NAVY, Pace, PaintStroke, Playback, Plot, Rng, Series, Style,
-    eframe, generations_per_frame, grouped, signed,
+    About, Advance, Grid, GridView, Pace, PaintStroke, Playback, Plot, Rng, Series, Style, eframe,
+    generations_per_frame, grouped, signed,
 };
 use sim::{CLASSES, Dish, FIGURE_3, Found, Rates, SEED_UV};
 
@@ -18,8 +18,6 @@ const TEAL: Color32 = Color32::from_rgb(0x2a, 0x9d, 0x8f);
 const GOLD: Color32 = Color32::from_rgb(0xe9, 0xc4, 0x6a);
 const CORAL: Color32 = Color32::from_rgb(0xe7, 0x6f, 0x51);
 
-/// U's colour, from 1 (navy: nothing has happened here) down to [`U_LOW`] (gold).
-const RAMP: [Color32; 4] = [NAVY, BLUE, TEAL, GOLD];
 /// About the lowest U reaches: Pearson's figures run from U = 1 down to "U ≈ .2" (p. 4).
 const U_LOW: f32 = 0.2;
 /// Shades in the colour table.
@@ -263,15 +261,10 @@ fn shades(d: &Dish) -> Grid<u8> {
     g
 }
 
-/// [`SHADES`] colours along [`RAMP`].
+/// [`SHADES`] colours for U, from 1 (navy: nothing has happened here) down to [`U_LOW`]
+/// (gold): ca_core's field palette, which Lenia shares.
 fn palette() -> Vec<Color32> {
-    (0..SHADES)
-        .map(|i| {
-            let t = i as f32 / (SHADES - 1) as f32 * (RAMP.len() - 1) as f32;
-            let j = (t as usize).min(RAMP.len() - 2);
-            ca_core::mix(RAMP[j], RAMP[j + 1], t - j as f32)
-        })
-        .collect()
+    ca_core::field_palette(SHADES)
 }
 
 /// Pearson's figure 3 as a small chart, `k` across and `F` up: a letter at each point where
@@ -433,7 +426,7 @@ mod tests {
         let mut d = Dish::new(4, 4, CLASSES[0].rates);
         d.set(1, 1, (U_LOW, 0.3));
         let s = shades(&d);
-        assert_eq!(p[usize::from(s.get(0, 0))], NAVY);
+        assert_eq!(p[usize::from(s.get(0, 0))], ca_core::NAVY);
         assert_eq!(p[usize::from(s.get(1, 1))], GOLD);
     }
 

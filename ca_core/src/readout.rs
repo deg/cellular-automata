@@ -14,6 +14,25 @@ pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
     Color32::from_rgb(m(a.r(), b.r()), m(a.g(), b.g()), m(a.b(), b.b()))
 }
 
+/// The colour scale for a continuous field (reaction-diffusion, Lenia): navy, blue, teal,
+/// gold, as `n` shades from the low end to the high. A demo picks which end is "nothing
+/// here" by how it maps its values onto the table.
+pub fn field_palette(n: usize) -> Vec<Color32> {
+    const RAMP: [Color32; 4] = [
+        NAVY,
+        Color32::from_rgb(0x3a, 0x6e, 0xa5),
+        Color32::from_rgb(0x2a, 0x9d, 0x8f),
+        Color32::from_rgb(0xe9, 0xc4, 0x6a),
+    ];
+    (0..n)
+        .map(|i| {
+            let t = i as f32 / (n.max(2) - 1) as f32 * (RAMP.len() - 1) as f32;
+            let j = (t as usize).min(RAMP.len() - 2);
+            mix(RAMP[j], RAMP[j + 1], t - j as f32)
+        })
+        .collect()
+}
+
 /// The note under the speed slider in a demo whose work per frame is capped (see
 /// [`crate::generations_per_frame`]). It names no number: each demo sizes its budget by its
 /// own cost per cell. `world` is what the demo calls its world: "world",
@@ -110,6 +129,15 @@ mod tests {
         assert_eq!(mix(a, b, 0.0), a);
         assert_eq!(mix(a, b, 1.0), b);
         assert_eq!(mix(a, b, 0.5), Color32::from_rgb(100, 100, 100));
+    }
+
+    #[test]
+    fn the_field_palette_runs_from_navy_to_gold() {
+        use super::{Color32, NAVY, field_palette};
+        let p = field_palette(256);
+        assert_eq!(p.len(), 256);
+        assert_eq!(p[0], NAVY);
+        assert_eq!(p[255], Color32::from_rgb(0xe9, 0xc4, 0x6a));
     }
 
     #[test]
