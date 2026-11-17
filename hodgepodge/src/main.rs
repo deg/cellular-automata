@@ -160,8 +160,6 @@ impl HodgepodgeApp {
         });
         if let Some(p) = PRESETS.iter().find(|p| p.rule == self.hp.rule) {
             ui.small(p.note);
-        } else {
-            ui.small("Gerhardt and Schuster's sample values, n = 100, k1 = 2 and k2 = 3, as g rises; g was chosen here.");
         }
         ui.separator();
 

@@ -166,8 +166,9 @@ use Neighbourhood::Moore;
 /// so these were chosen here by running the rule: the infected share does what he describes
 /// for each type (see the slow tests). His sample used the von Neumann neighbourhood on a
 /// 20 x 20 grid; with that neighbourhood, k1 = 2 and k2 = 3, this rule died out from random
-/// starts at every g from 1 to 30 (20 seeds each, 20 x 20 without wrapping), so the presets
-/// use the Moore neighbourhood, with which the sequence he describes appears.
+/// starts at each g tried from 1 to 30 (1, 2, 3, 5, 8, 10, 15, 20, 25 and 30; 20 seeds each,
+/// 20 x 20 without wrapping; at g = 40, 13 of the 20 survived 3,000 generations), so the
+/// presets use the Moore neighbourhood, with which the sequence he describes appears.
 pub const PRESETS: &[Preset] = &[
     // Dewdney's Type 2: plateaus of infection about 30 cycles long, punctuated by many
     // healthy cells. Here: plateaus about 26 generations long.
@@ -181,7 +182,7 @@ pub const PRESETS: &[Preset] = &[
     Preset {
         name: "pulses",
         rule: Rule::new(100, 2, 3, 10, Moore),
-        note: "The whole world beats: infection fills it, falls ill and clears, again and again, a beat every 14 generations or so.",
+        note: "The whole world beats: infection fills it, falls ill and mostly clears, again and again, a beat every 14 generations or so.",
     },
     // Rings, the regular waves of Dewdney's Type 2 and Type 3 pictures, before his Type 4.
     Preset {
@@ -578,26 +579,63 @@ mod tests {
 
     /// Dewdney's Type 3 (p. 105): "a very regular alternation between saturation and
     /// virtual disappearance of infected cells every 20 cycles or so". The "pulses" preset,
-    /// on his 20 x 20 grid without wrapping: after 1,000 generations the share swings from
-    /// above 90% to below 15% and back, with the beat between 10 and 30 generations.
-    /// Slow: `make slow`.
+    /// on his 20 x 20 grid without wrapping and on the demo's default world: after 1,000
+    /// generations the share swings from above 90% to below 15% (20 x 20) or 25%
+    /// (320 x 200, where the troughs were about 18%) and back, with the beat between 10 and
+    /// 30 generations. Slow: `make slow`.
     #[test]
     #[ignore]
     fn the_pulses_preset_alternates_regularly() {
         let rule = PRESETS.iter().find(|p| p.name == "pulses").unwrap().rule;
-        for seed in 0..5 {
-            let mut hp = soup(20, 20, rule, false, seed);
+        for (w, h, wrap, seed, trough) in [
+            (20, 20, false, 0, 0.15),
+            (20, 20, false, 1, 0.15),
+            (20, 20, false, 2, 0.15),
+            (320, 200, true, 0, 0.25),
+            (320, 200, true, 1, 0.25),
+        ] {
+            let mut hp = soup(w, h, rule, wrap, seed);
             shares(&mut hp, 1_000);
             let s = shares(&mut hp, 300);
             let (lo, hi) = (
                 s.iter().copied().fold(1.0, f64::min),
                 s.iter().copied().fold(0.0, f64::max),
             );
-            assert!(lo < 0.15 && hi > 0.9, "seed {seed}: {lo} to {hi}");
+            assert!(
+                lo < trough && hi > 0.9,
+                "{w} x {h}, seed {seed}: {lo} to {hi}"
+            );
             // Beats: rises through the halfway mark.
             let beats = s.windows(2).filter(|p| p[0] < 0.5 && p[1] >= 0.5).count();
             let beat = 300.0 / beats as f64;
-            assert!((10.0..30.0).contains(&beat), "seed {seed}: beat {beat}");
+            assert!(
+                (10.0..30.0).contains(&beat),
+                "{w} x {h}, seed {seed}: beat {beat}"
+            );
+        }
+    }
+
+    /// Dewdney's Type 2 (p. 105): "a generally regular series of infection 'plateaus'
+    /// roughly 30 cycles long, punctuated by the appearance of large numbers of healthy
+    /// cells". The "plateaus" preset on the demo's default world: after 1,000 generations,
+    /// more than 60% of the infected shares are above 0.8, and the share drops below 0.6
+    /// once every 20 to 35 generations (here, every 25). Slow: `make slow`.
+    #[test]
+    #[ignore]
+    fn the_plateaus_preset_has_long_plateaus() {
+        let rule = PRESETS.iter().find(|p| p.name == "plateaus").unwrap().rule;
+        for seed in 0..3 {
+            let mut hp = soup(320, 200, rule, true, seed);
+            shares(&mut hp, 1_000);
+            let s = shares(&mut hp, 300);
+            let high = s.iter().filter(|&&v| v > 0.8).count() as f64 / s.len() as f64;
+            assert!(high > 0.6, "seed {seed}: {high} above 0.8");
+            let drops = s.windows(2).filter(|p| p[0] >= 0.6 && p[1] < 0.6).count();
+            let every = 300.0 / drops as f64;
+            assert!(
+                (20.0..35.0).contains(&every),
+                "seed {seed}: a drop every {every}"
+            );
         }
     }
 

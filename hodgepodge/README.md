@@ -40,7 +40,7 @@ do, and its level is pulled towards theirs.
 
 ## History
 
-- **1988: a model of a catalyst.** Martin Gerhardt and Heike Schuster of the University
+- **By 1988: a model of a catalyst.** Martin Gerhardt and Heike Schuster of the University
   of Bielefeld, in what was then West Germany, designed the hodgepodge machine to mimic a
   *heterogeneous catalytic reaction*, inspired by the work of the chemists Nils Jaeger and
   Peter Plath of the University of Bremen. In that reaction, carbon monoxide and oxygen
@@ -82,7 +82,7 @@ do, and its level is pulled towards theirs.
 The presets keep the sample's *n* = 100, *k1* = 2 and *k2* = 3, and raise *g*. Dewdney
 gives no values of *g*, so the ones here were found by running this demo; each shows what
 he describes for one type. They use 8 neighbours: with 4, *k1* = 2 and *k2* = 3, every
-random start tried here on Dewdney's 20 x 20 grid died out, whatever *g* up to 30.
+random start tried here on Dewdney's 20 x 20 grid died out, at each *g* tried up to 30.
 
 ## Things to try
 
@@ -90,8 +90,8 @@ random start tried here on Dewdney's 20 x 20 grid died out, whatever *g* up to 3
   and the *infected cells* chart swings wildly at first, then settles to a nearly level
   line: Dewdney's Type 4. Watch a spiral's centre turn.
 - **Pulses.** Choose *pulses*: the whole world beats, filling with infection, falling ill
-  and clearing every 14 generations or so, like his Type 3. Compare the chart with the
-  steady line of *spirals*.
+  and mostly clearing every 14 generations or so, like his Type 3. Compare the chart with
+  the steady line of *spirals*.
 - **Plateaus.** Choose *plateaus*, and watch the chart: long stretches with nearly every
   cell infected, cut short when most of the world falls ill at once.
 - **Rings.** Choose *rings* for rings of infection spreading from many small centres.
@@ -100,7 +100,7 @@ random start tried here on Dewdney's 20 x 20 grid died out, whatever *g* up to 3
   larger worlds the infection may survive.
 - **Start a wave.** Choose *spirals*, press *Clear*, and drag a short stroke on the empty
   world. Waves spread out from it, one cell a generation, and its centre keeps sending out
-  more. Shift-drag through a wave to cut it, and see whether its broken ends curl.
+  more. Shift-drag through the waves to cut them, and see what grows from the broken ends.
 - **Broader spirals.** Set *n* to 200, *k1* and *k2* to 3 and *g* to about 40.
 - **4 neighbours.** Choose 4 neighbours with any preset, and the infection usually dies
   out within a few hundred generations. Lower *k1* and *k2* to 1, so that a single
@@ -116,6 +116,7 @@ random start tried here on Dewdney's 20 x 20 grid died out, whatever *g* up to 3
   on the reaction the machine resembles. Wikipedia has no article on the machine itself.
 - A. K. Dewdney, *The hodgepodge machine makes waves*, in his *Computer Recreations*
   column, Scientific American 259, 104–107 (August 1988),
+  [doi:10.1038/scientificamerican0888-104](https://doi.org/10.1038/scientificamerican0888-104),
   [PDF](https://people.sc.fsu.edu/~jburkardt/classes/ysp_2003/dewdney_hodgepodge.pdf).
 - M. Gerhardt and H. Schuster, *A cellular automaton describing the formation of spatially
   ordered structures in chemical systems*, Physica D 36, 209–221 (1989),

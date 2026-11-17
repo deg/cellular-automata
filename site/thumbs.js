@@ -748,7 +748,7 @@
     },
     hodgepodge(canvas) {
       // The demo's "spirals" preset (n = 100, k1 = 2, k2 = 3, g = 30, 8 neighbours) from
-      // random states until a spiral has formed. The edges wrap: a border of one cell,
+      // random states for 120 generations, by when a spiral has formed. The edges wrap: a border of one cell,
       // refilled from the opposite edge each generation.
       const n = 100, k1 = 2, k2 = 3, g = 30, random = rng(6);
       const pw = W + 2, ph = H + 2;
@@ -757,19 +757,24 @@
       // A neighbour's state, plus 1 in the infected count (bits 12 up) or the ill count
       // (bits 20 up), so a cell's eight neighbours give all three in one sum.
       const code = Int32Array.from({ length: n + 1 }, (_, v) => v + (v === n ? 1 << 20 : v > 0 ? 1 << 12 : 0));
-      for (let t = 0; t < 160; t++) {
+      function step(a, b) {
         for (let y = 1; y <= H; y++) { a[y * pw] = a[y * pw + W]; a[y * pw + W + 1] = a[y * pw + 1]; }
         a.copyWithin(0, H * pw, (H + 1) * pw);
         a.copyWithin((H + 1) * pw, pw, 2 * pw);
         for (let y = 1; y <= H; y++) for (let i = y * pw + 1, end = i + W; i < end; i++) {
           const p = code[a[i - pw - 1]] + code[a[i - pw]] + code[a[i - pw + 1]] + code[a[i - 1]]
             + code[a[i + 1]] + code[a[i + pw - 1]] + code[a[i + pw]] + code[a[i + pw + 1]];
-          const sum = p & 0xfff, inf = (p >> 12) & 0xff, ill = p >> 20, s = a[i];
-          const next = s === 0 ? ((inf / k1) | 0) + ((ill / k2) | 0)
-            : s === n ? 0 : (((s + sum) / (inf + 1)) | 0) + g;
+          const s = a[i], inf = (p >> 12) & 0xff;
+          let next;
+          if (s === 0) next = ((inf / k1) | 0) + (((p >> 20) / k2) | 0);
+          else if (s === n) next = 0;
+          else next = (((s + (p & 0xfff)) / (inf + 1)) | 0) + g;
           b[i] = next < n ? next : n;
         }
-        const c = a; a = b; b = c;
+      }
+      for (let t = 0; t < 60; t++) {
+        step(a, b);
+        step(b, a);
       }
       const cells = new Uint8Array(W * H);
       for (let y = 0; y < H; y++) cells.set(a.subarray((y + 1) * pw + 1, (y + 1) * pw + 1 + W), y * W);
