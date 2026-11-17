@@ -47,6 +47,37 @@ impl PaintStroke {
     }
 }
 
+/// What the note under a demo's presets says when the settings match none of them.
+pub const OWN_SETTINGS: &str = "Your own settings: none of the presets.";
+
+/// The note under a demo's presets: the chosen preset's (`chosen`), or `other` when the
+/// settings match none of them (usually [`OWN_SETTINGS`]). It always takes the height of the
+/// tallest of `notes` and `other` at the panel's width, so choosing a preset or changing a
+/// setting never moves the controls below it.
+pub fn preset_note<'a>(
+    ui: &mut egui::Ui,
+    chosen: Option<&str>,
+    notes: impl IntoIterator<Item = &'a str>,
+    other: &'a str,
+) {
+    let font = egui::TextStyle::Small.resolve(ui.style());
+    let width = ui.available_width();
+    let tallest = notes
+        .into_iter()
+        .chain([other])
+        .map(|text| {
+            ui.painter()
+                .layout(text.to_owned(), font.clone(), egui::Color32::WHITE, width)
+                .size()
+                .y
+        })
+        .fold(0.0, f32::max);
+    ui.allocate_ui(egui::vec2(width, tallest), |ui| {
+        ui.set_min_height(tallest);
+        ui.small(chosen.unwrap_or(other));
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

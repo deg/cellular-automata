@@ -2,7 +2,7 @@
 
 mod sim;
 
-use ca_core::egui::{self, Align2, Color32, FontId, RichText, vec2};
+use ca_core::egui::{self, Align2, Color32, FontId, RichText};
 use ca_core::{
     About, Advance, Grid, GridView, Pace, PaintStroke, Playback, Plot, Rng, Series, Style, eframe,
     generations_per_frame, grouped, signed,
@@ -150,16 +150,19 @@ impl RdApp {
             }
         });
         let rates = self.dish.rates;
-        let note = match CLASSES.iter().find(|c| same(rates, c.rates)) {
-            Some(class) => format!("{} {}", class.letter, class.note),
-            None => "Between Pearson's points: choose a letter, or click the map.".into(),
-        };
-        // Two lines' room whatever the note, so the map below doesn't jump under a drag.
-        let room = 2.0 * ui.text_style_height(&egui::TextStyle::Small);
-        ui.allocate_ui(vec2(ui.available_width(), room), |ui| {
-            ui.set_min_height(room);
-            ui.small(note);
-        });
+        // The note keeps its room whatever it says, so the map below doesn't jump under a
+        // drag.
+        let notes: Vec<String> = CLASSES
+            .iter()
+            .map(|c| format!("{} {}", c.letter, c.note))
+            .collect();
+        let chosen = CLASSES.iter().position(|c| same(rates, c.rates));
+        ca_core::preset_note(
+            ui,
+            chosen.map(|i| notes[i].as_str()),
+            notes.iter().map(String::as_str),
+            "Between Pearson's points: choose a letter, or click the map.",
+        );
         let mut f = rates.f;
         let mut k = rates.k;
         ui.add(
@@ -451,7 +454,7 @@ mod tests {
         };
         let lambda = CLASSES[10].rates;
         let centre = screen_of((f64::from(lambda.k), f64::from(lambda.f)));
-        let near = centre + vec2(3.0, -2.0);
+        let near = centre + egui::vec2(3.0, -2.0);
         assert_eq!(snap(near, value_at(near), screen_of), (lambda.k, lambda.f));
         let far = egui::pos2(10.0, 90.0);
         assert_eq!(snap(far, value_at(far), screen_of), (0.034, 0.008));

@@ -32,7 +32,7 @@ mod view;
 
 pub use about::About;
 pub use app::run;
-pub use controls::{PaintStroke, controls_panel};
+pub use controls::{OWN_SETTINGS, PaintStroke, controls_panel, preset_note};
 pub use eframe;
 pub use eframe::egui;
 pub use grid::{Grid, line};

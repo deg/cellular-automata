@@ -202,9 +202,12 @@ impl LifeApp {
                 }
             }
         });
-        if let Some(&(_, _, note)) = chosen {
-            ui.small(note);
-        }
+        ca_core::preset_note(
+            ui,
+            chosen.map(|&(_, _, note)| note),
+            RULES.iter().map(|&(_, _, note)| note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.horizontal_wrapped(|ui| {
             let edit = ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(120.0));
             if edit.changed() {

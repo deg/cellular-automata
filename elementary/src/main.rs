@@ -128,9 +128,15 @@ impl ElementaryApp {
                 }
             }
         });
-        if let Some((_, note)) = PRESETS.iter().find(|(r, _)| *r == self.automaton.rule) {
-            ui.small(*note);
-        }
+        ca_core::preset_note(
+            ui,
+            PRESETS
+                .iter()
+                .find(|(r, _)| *r == self.automaton.rule)
+                .map(|(_, note)| *note),
+            PRESETS.iter().map(|(_, note)| *note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.small("A preset restarts; changing the rule by hand carries on from the current row.");
         ui.separator();
 

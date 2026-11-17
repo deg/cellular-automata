@@ -132,9 +132,15 @@ impl AntApp {
                 }
             }
         });
-        if let Some((_, note)) = PRESETS.iter().find(|(rule, _)| current == *rule) {
-            ui.small(*note);
-        }
+        ca_core::preset_note(
+            ui,
+            PRESETS
+                .iter()
+                .find(|(rule, _)| current == *rule)
+                .map(|(_, note)| *note),
+            PRESETS.iter().map(|(_, note)| *note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.horizontal_wrapped(|ui| {
             ui.add(egui::TextEdit::singleline(&mut self.rule_text).desired_width(140.0));
             if ui.button("Use").clicked() {

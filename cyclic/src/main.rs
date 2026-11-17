@@ -175,9 +175,17 @@ impl CyclicApp {
                 }
             }
         });
-        if let Some(p) = PRESETS.iter().find(|p| p.rule == self.ca.rule) {
-            ui.small(format!("{} {}", p.note, p.credit));
-        }
+        let notes: Vec<String> = PRESETS
+            .iter()
+            .map(|p| format!("{} {}", p.note, p.credit))
+            .collect();
+        let chosen = PRESETS.iter().position(|p| p.rule == self.ca.rule);
+        ca_core::preset_note(
+            ui,
+            chosen.map(|i| notes[i].as_str()),
+            notes.iter().map(String::as_str),
+            ca_core::OWN_SETTINGS,
+        );
         ui.separator();
 
         self.rule_controls(ui);

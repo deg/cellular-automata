@@ -135,9 +135,15 @@ impl SnowflakeApp {
                 }
             }
         });
-        if let Some(preset) = PRESETS.iter().find(|p| p.params == self.params) {
-            ui.small(preset.note);
-        }
+        ca_core::preset_note(
+            ui,
+            PRESETS
+                .iter()
+                .find(|p| p.params == self.params)
+                .map(|p| p.note),
+            PRESETS.iter().map(|p| p.note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.separator();
 
         ui.label(RichText::new("Rule").strong());

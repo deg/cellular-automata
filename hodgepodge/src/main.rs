@@ -158,9 +158,15 @@ impl HodgepodgeApp {
                 }
             }
         });
-        if let Some(p) = PRESETS.iter().find(|p| p.rule == self.hp.rule) {
-            ui.small(p.note);
-        }
+        ca_core::preset_note(
+            ui,
+            PRESETS
+                .iter()
+                .find(|p| p.rule == self.hp.rule)
+                .map(|p| p.note),
+            PRESETS.iter().map(|p| p.note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.separator();
 
         self.rule_controls(ui);

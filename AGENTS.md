@@ -276,7 +276,9 @@ make siblings               # before/after a Rust update: build+test David's oth
     reference lines gold (`ca_core::CHART_MEASURED`, `CHART_REFERENCE`). The panel's opening line describes the rule; whether it is a
     cellular automaton is the README's business.
   - `speed_cap_note` wherever the cap can bite. Presets are highlighted chips with the
-    chosen one's note below (a drop-down only for long lists: Life's patterns,
+    chosen one's note below, drawn by `ca_core::preset_note`: when the settings match no
+    preset it says so ("Your own settings: none of the presets."), and it keeps the height of
+    the longest note, so changing a setting never moves the controls below it (a drop-down only for long lists: Life's patterns,
     Wireworld's circuits). A section's strong heading
     on its own line; option chips in lowercase; the world/size block last before the
     readout; "World:" for a 2D world's size.

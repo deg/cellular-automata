@@ -213,9 +213,12 @@ impl TrafficApp {
                 }
             }
         });
-        if let Some(p) = PRESETS.iter().find(|p| self.matches(p)) {
-            ui.small(p.note);
-        }
+        ca_core::preset_note(
+            ui,
+            PRESETS.iter().find(|p| self.matches(p)).map(|p| p.note),
+            PRESETS.iter().map(|p| p.note),
+            ca_core::OWN_SETTINGS,
+        );
         ui.separator();
 
         ui.label(RichText::new("Drivers").strong());
