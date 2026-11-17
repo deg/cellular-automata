@@ -15,6 +15,7 @@ brians-brain
 wireworld
 critters
 cyclic
+hodgepodge
 langtons-loops
 lenia
 traffic

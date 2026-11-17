@@ -23,6 +23,7 @@ try. They are grouped as on the site's home page.
 | [Wireworld](wireworld/) | Draw wires and watch electrons run through them: diodes, clocks and logic gates. |
 | [Critters](critters/) | Blocks of four cells change by a fixed table, and the world can run backwards to its exact start; gliders, billiard balls and a gas. |
 | [Cyclic cellular automaton](cyclic/) | Each colour can only advance to the next one round a colour wheel; random noise organises itself into turning spirals. |
+| [Hodgepodge machine](hodgepodge/) | Cells fall sick, infect their neighbours and recover; from random noise come waves and turning spirals, like those of an oscillating chemical reaction. |
 | [Langton's loops](langtons-loops/) | A loop of signals builds a copy of itself, and the copies go on copying into a growing colony. |
 | [Lenia](lenia/) | Cells hold any value from 0 to 1 and grow by a smooth ring around them; gliding, turning creatures appear that look alive. |
 | [Traffic](traffic/) | Cars on a ring road speed up, brake and dawdle at random, and stop-and-go jams appear from nowhere and drift backwards. |
